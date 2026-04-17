@@ -162,11 +162,6 @@
     .label { color: #9ab1d2; }
     .value { color: #fff; font-weight: 700; }
 
-    .delta {
-      font-size: 10px;
-      margin-left: 8px;
-    }
-
     .status-badge {
       display: inline-block;
       padding: 1px 6px;
@@ -777,8 +772,13 @@
         setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
         setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
 
+        setText(
+          "gold-silver-ratio",
+          typeof d.derived?.goldSilverRatio === "number"
+            ? `${formatNumber(d.derived.goldSilverRatio, 1)}x`
+            : "--"
+        );
         setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
-        setText("gold-silver-ratio", d.derived?.goldSilverRatio !== null && d.derived?.goldSilverRatio !== undefined ? `${formatNumber(d.derived.goldSilverRatio, 1)}x` : "--");
         setText("btc-dom", btcDom !== null ? formatPct(btcDom, 1) : "--");
         setText("ethusd-val", ethusd !== null ? `$${formatNumber(ethusd, 0)}` : "--");
 
