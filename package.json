@@ -1,7 +1,7 @@
 {
-  "name": "bloomberg-terminal-v4",
+  "name": "bloomberg-terminal-v5",
   "version": "1.0.0",
-  "description": "Terminal macro live dense v4 pour Railway",
+  "description": "Terminal macro live dense v5 pour Railway",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
