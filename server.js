@@ -95,14 +95,13 @@ async function fetchEURUSD() {
 
 /**
  * Yahoo Finance chart endpoint
- * Exemples:
- * GC=F gold futures
- * SI=F silver futures
+ * GC=F gold
+ * SI=F silver
  * CL=F WTI
  * BZ=F Brent
  * HG=F Copper
- * NG=F Nat Gas
- * ETH-USD
+ * NG=F NatGas
+ * ETH-USD Ethereum
  */
 async function fetchYahooQuote(symbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
@@ -164,7 +163,7 @@ function computeYoYFromIndex(observations) {
   const latest = valid[valid.length - 1];
   const latestDate = new Date(latest.date);
   const latestVal = toNum(latest.value);
-  if (!latestVal) return null;
+  if (latestVal === null) return null;
 
   let yearAgo = null;
   for (let i = valid.length - 2; i >= 0; i--) {
@@ -183,13 +182,13 @@ function computeYoYFromIndex(observations) {
   }
 
   const oldVal = toNum(yearAgo?.value);
-  if (!oldVal) return null;
+  if (oldVal === null || oldVal === 0) return null;
 
   return ((latestVal / oldVal) - 1) * 100;
 }
 
 function computeFearGreed(vix, spread) {
-  if (vix === null || spread === null) return null;
+  if (vix == null || spread == null) return null;
 
   let score = 50;
 
@@ -225,31 +224,36 @@ function buildAiSummary(data) {
   const fg = data.sentiment?.value;
   const gold = data.commodities?.gold?.value;
   const silver = data.commodities?.silver?.value;
-  const ratio = gold && silver ? gold / silver : null;
+  const ratio =
+    typeof gold === "number" &&
+    typeof silver === "number" &&
+    silver !== 0
+      ? gold / silver
+      : null;
 
   const lines = [];
 
-  if (vix !== null) {
+  if (typeof vix === "number") {
     if (vix >= 25) lines.push(`Marché sous tension : VIX à ${vix.toFixed(2)}.`);
     else if (vix >= 18) lines.push(`Volatilité modérée : VIX à ${vix.toFixed(2)}.`);
     else lines.push(`Stress contenu : VIX à ${vix.toFixed(2)}.`);
   }
 
-  if (spread !== null) {
+  if (typeof spread === "number") {
     if (spread > 0) lines.push(`La courbe 2s10s reste positive à +${spread.toFixed(0)} pb.`);
     else lines.push(`La courbe 2s10s reste inversée à ${spread.toFixed(0)} pb.`);
   }
 
-  if (cpi !== null && unrate !== null) {
+  if (typeof cpi === "number" && typeof unrate === "number") {
     lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}% : régime macro équilibré mais sous surveillance.`);
   }
 
-  if (dxy !== null) lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
-  if (btc !== null) lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
-  if (gold !== null) lines.push(`Gold à $${gold.toFixed(2)}.`);
-  if (ratio !== null) lines.push(`Gold/Silver ratio à ${ratio.toFixed(1)}x.`);
-  if (hy !== null) lines.push(`High Yield à ${hy.toFixed(2)}%.`);
-  if (fg !== null) lines.push(`Sentiment agrégé ${fg}/100.`);
+  if (typeof dxy === "number") lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
+  if (typeof btc === "number") lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
+  if (typeof gold === "number") lines.push(`Gold à $${gold.toFixed(2)}.`);
+  if (typeof ratio === "number") lines.push(`Gold/Silver ratio à ${ratio.toFixed(1)}x.`);
+  if (typeof hy === "number") lines.push(`High Yield à ${hy.toFixed(2)}%.`);
+  if (typeof fg === "number") lines.push(`Sentiment agrégé ${fg.toFixed(0)}/100.`);
 
   return lines.length ? lines.join(" ") : "Données partielles disponibles.";
 }
@@ -368,7 +372,11 @@ app.get("/api/dashboard", async (req, res) => {
         ],
         derived: {
           goldSilverRatio:
-            gold?.value && silver?.value ? gold.value / silver.value : null,
+            typeof gold?.value === "number" &&
+            typeof silver?.value === "number" &&
+            silver.value !== 0
+              ? gold.value / silver.value
+              : null,
           vixRegime:
             toNum(vixObs?.value) === null
               ? null
