@@ -24,6 +24,15 @@ async function fetchJson(url) {
   return res.json();
 }
 
+async function safe(task, fallback = null) {
+  try {
+    return await task();
+  } catch (err) {
+    console.error("SAFE ERROR:", err.message);
+    return fallback;
+  }
+}
+
 function getLastValidObservation(observations) {
   if (!Array.isArray(observations)) return null;
   for (let i = observations.length - 1; i >= 0; i--) {
@@ -67,7 +76,9 @@ async function alphaFx(from, to) {
 
   const data = await fetchJson(url);
   const rate = data["Realtime Currency Exchange Rate"];
-  if (!rate) return null;
+  if (!rate) {
+    throw new Error(`Alpha FX missing data for ${from}/${to}`);
+  }
 
   return {
     value: toNum(rate["5. Exchange Rate"]),
@@ -78,28 +89,9 @@ async function alphaFx(from, to) {
   };
 }
 
-async function alphaCommodity(symbol) {
-  const url =
-    `https://www.alphavantage.co/query` +
-    `?function=GLOBAL_QUOTE` +
-    `&symbol=${encodeURIComponent(symbol)}` +
-    `&apikey=${encodeURIComponent(ALPHA_VANTAGE_API_KEY)}`;
-
-  const data = await fetchJson(url);
-  const q = data["Global Quote"];
-  if (!q) return null;
-
-  return {
-    value: toNum(q["05. price"]),
-    change: toNum(q["09. change"]),
-    changePercent: q["10. change percent"] || null,
-    latestTradingDay: q["07. latest trading day"] || null
-  };
-}
-
 async function getCreditSpread() {
-  const hy = await fredSeries("BAMLH0A0HYM2");
-  const ig = await fredSeries("BAMLC0A0CM");
+  const hy = await safe(() => fredSeries("BAMLH0A0HYM2"));
+  const ig = await safe(() => fredSeries("BAMLC0A0CM"));
 
   const hyVal = toNum(hy?.value);
   const igVal = toNum(ig?.value);
@@ -176,7 +168,6 @@ function buildAiSummary(data) {
   const btc = data.crypto?.btcusd?.value;
   const unrate = data.labor?.unemploymentRate;
   const cpi = data.inflation?.cpiYoY;
-  const gold = data.commodities?.gold?.value;
   const hy = data.credit?.hy;
   const fg = data.sentiment?.value;
 
@@ -194,65 +185,30 @@ function buildAiSummary(data) {
   }
 
   if (cpi !== null && unrate !== null) {
-    lines.push(`Inflation ${cpi.toFixed(2)}% / chômage ${unrate.toFixed(2)}% : équilibre macro à surveiller.`);
+    lines.push(`Inflation ${cpi.toFixed(2)}% / chômage ${unrate.toFixed(2)}%.`);
   }
 
-  if (dxy !== null) {
-    lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
-  }
+  if (dxy !== null) lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
+  if (btc !== null) lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
+  if (hy !== null) lines.push(`High Yield à ${hy.toFixed(2)}%.`);
+  if (fg !== null) lines.push(`Sentiment ${fg}/100.`);
 
-  if (gold !== null) {
-    lines.push(`Gold à $${gold.toFixed(2)}.`);
-  }
-
-  if (btc !== null) {
-    lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
-  }
-
-  if (hy !== null) {
-    lines.push(`High Yield à ${hy.toFixed(2)}%.`);
-  }
-
-  if (fg !== null) {
-    lines.push(`Sentiment ${fg}/100.`);
-  }
-
-  return lines.join(" ");
+  return lines.length ? lines.join(" ") : "Données partielles disponibles.";
 }
 
 app.get("/api/dashboard", async (req, res) => {
   try {
-    const [
-      dxyObs,
-      vixObs,
-      us2yObs,
-      us10yObs,
-      us30yObs,
-      unemploymentObs,
-      fedUpperObs,
-      cpiAll,
-      eurUsd,
-      btcUsd,
-      gold,
-      silver,
-      oil,
-      credit
-    ] = await Promise.all([
-      fredSeries("DTWEXBGS"),
-      fredSeries("VIXCLS"),
-      fredSeries("DGS2"),
-      fredSeries("DGS10"),
-      fredSeries("DGS30"),
-      fredSeries("UNRATE"),
-      fredSeries("DFEDTARU"),
-      fredSeriesAll("CPIAUCSL"),
-      alphaFx("EUR", "USD"),
-      alphaFx("BTC", "USD"),
-      alphaCommodity("GC=F"),
-      alphaCommodity("SI=F"),
-      alphaCommodity("CL=F"),
-      getCreditSpread()
-    ]);
+    const dxyObs = await safe(() => fredSeries("DTWEXBGS"));
+    const vixObs = await safe(() => fredSeries("VIXCLS"));
+    const us2yObs = await safe(() => fredSeries("DGS2"));
+    const us10yObs = await safe(() => fredSeries("DGS10"));
+    const us30yObs = await safe(() => fredSeries("DGS30"));
+    const unemploymentObs = await safe(() => fredSeries("UNRATE"));
+    const fedUpperObs = await safe(() => fredSeries("DFEDTARU"));
+    const cpiAll = await safe(() => fredSeriesAll("CPIAUCSL"), []);
+    const eurUsd = await safe(() => alphaFx("EUR", "USD"));
+    const btcUsd = await safe(() => alphaFx("BTC", "USD"));
+    const credit = await safe(() => getCreditSpread());
 
     const cpiLatest = getLastValidObservation(cpiAll);
     const cpiYoY = computeYoYFromIndex(cpiAll);
@@ -260,7 +216,8 @@ app.get("/api/dashboard", async (req, res) => {
     const us2y = toNum(us2yObs?.value);
     const us10y = toNum(us10yObs?.value);
     const us30y = toNum(us30yObs?.value);
-    const spread2s10s = us2y !== null && us10y !== null ? (us10y - us2y) * 100 : null;
+    const spread2s10s =
+      us2y !== null && us10y !== null ? (us10y - us2y) * 100 : null;
 
     const sentiment = computeFearGreed(toNum(vixObs?.value), spread2s10s);
 
@@ -305,9 +262,9 @@ app.get("/api/dashboard", async (req, res) => {
           btcusd: btcUsd
         },
         commodities: {
-          gold,
-          silver,
-          oil
+          gold: null,
+          silver: null,
+          oil: null
         },
         credit,
         sentiment,
@@ -341,6 +298,7 @@ app.get("/api/dashboard", async (req, res) => {
 
     res.json(payload);
   } catch (error) {
+    console.error("DASHBOARD ERROR:", error);
     res.status(500).json({
       error: "dashboard_fetch_failed",
       message: error.message
