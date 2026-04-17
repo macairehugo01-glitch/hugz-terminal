@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terminal Macro Live</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: monospace; background: #0a0e17; color: #e0e6f0; }
+
+    .terminal {
+      min-height: 100vh;
+      background: #0a0e17;
+      color: #e0e6f0;
+      font-size: 12px;
+    }
+
+    .topbar {
+      background: #0d1220;
+      border-bottom: 1px solid #1e2d4a;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .logo { color: #f0a500; font-weight: 700; font-size: 14px; letter-spacing: 2px; }
+    .clock { color: #7a8ba8; font-size: 11px; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .refresh-btn {
+      background: none;
+      border: 1px solid #1e2d4a;
+      color: #7a8ba8;
+      font-size: 10px;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+      font-family: monospace;
+    }
+    .refresh-btn:hover { color: #f0a500; border-color: #f0a500; }
+
+    .ticker-bar {
+      background: #060910;
+      border-bottom: 1px solid #1e2d4a;
+      padding: 6px 12px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .ticker-item { display: inline-block; margin-right: 24px; font-size: 11px; }
+    .t-sym { color: #7a9cc8; margin-right: 5px; }
+    .t-val { color: #e0e6f0; }
+    .up { color: #22c55e; }
+    .dn { color: #ef4444; }
+    .neutral { color: #7a8ba8; }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: #1e2d4a;
+      padding: 1px;
+    }
+
+    .panel {
+      background: #0a0e17;
+      padding: 12px;
+      min-height: 180px;
+    }
+
+    .panel-title {
+      color: #f0a500;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title span {
+      color: #3a4d66;
+      font-size: 9px;
+    }
+
+    .big-metric {
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    .big-label {
+      font-size: 9px;
+      color: #3a4d66;
+      margin-bottom: 3px;
+    }
+
+    .big-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: #e0e6f0;
+    }
+
+    .big-sub {
+      font-size: 10px;
+      margin-top: 4px;
+      color: #7a8ba8;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid #0f1826;
+    }
+
+    .metric-row:last-child { border-bottom: none; }
+
+    .m-label { color: #7a8ba8; font-size: 11px; }
+    .m-val { color: #e0e6f0; font-size: 12px; font-weight: 500; }
+
+    .loading {
+      color: #f0a500;
+    }
+
+    .footer-note {
+      padding: 10px 12px 20px;
+      color: #3a4d66;
+      font-size: 10px;
+    }
+
+    @media (max-width: 980px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="terminal">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="logo">◆ TERMINAL</div>
+        <div class="status">
+          <div class="dot"></div>
+          <span style="color:#22c55e;">LIVE</span>
+        </div>
+        <div class="clock" id="clock">--:--:-- NY</div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <span style="color:#3a4d66;font-size:10px;">SOURCES: FRED / ALPHA VANTAGE</span>
+        <button class="refresh-btn" onclick="loadDashboard()">⟳ ACTUALISER</button>
+      </div>
+    </div>
+
+    <div class="ticker-bar">
+      <span class="ticker-item"><span class="t-sym">BTC/USD</span><span class="t-val" id="ticker-btc">--</span></span>
+      <span class="ticker-item"><span class="t-sym">EUR/USD</span><span class="t-val" id="ticker-eurusd">--</span></span>
+      <span class="ticker-item"><span class="t-sym">DXY PROXY</span><span class="t-val" id="ticker-dxy">--</span></span>
+      <span class="ticker-item"><span class="t-sym">VIX</span><span class="t-val" id="ticker-vix">--</span></span>
+      <span class="ticker-item"><span class="t-sym">US10Y</span><span class="t-val" id="ticker-10y">--</span></span>
+      <span class="ticker-item"><span class="t-sym">2s10s</span><span class="t-val" id="ticker-2s10s">--</span></span>
+      <span class="ticker-item"><span class="t-sym">CPI YoY</span><span class="t-val" id="ticker-cpi">--</span></span>
+      <span class="ticker-item"><span class="t-sym">UNRATE</span><span class="t-val" id="ticker-unrate">--</span></span>
+    </div>
+
+    <div class="grid-layout">
+      <div class="panel">
+        <div class="panel-title">Dollar & Volatilité <span>LIVE</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="big-metric">
+            <div class="big-label">DXY PROXY</div>
+            <div class="big-val" id="dxy-val">--</div>
+            <div class="big-sub" id="dxy-date">--</div>
+          </div>
+          <div class="big-metric">
+            <div class="big-label">VIX</div>
+            <div class="big-val" id="vix-val">--</div>
+            <div class="big-sub" id="vix-date">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">FX & Crypto <span>LIVE</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="big-metric">
+            <div class="big-label">EUR/USD</div>
+            <div class="big-val" id="eurusd-val">--</div>
+            <div class="big-sub" id="eurusd-date">--</div>
+          </div>
+          <div class="big-metric">
+            <div class="big-label">BTC/USD</div>
+            <div class="big-val" id="btcusd-val">--</div>
+            <div class="big-sub" id="btcusd-date">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Courbe US <span>FRED</span></div>
+        <div class="metric-row">
+          <span class="m-label">US 2Y</span>
+          <span class="m-val" id="us2y-val">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="m-label">US 10Y</span>
+          <span class="m-val" id="us10y-val">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="m-label">US 30Y</span>
+          <span class="m-val" id="us30y-val">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="m-label">Spread 2s10s</span>
+          <span class="m-val" id="spread-val">--</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Inflation <span>FRED</span></div>
+        <div class="big-metric">
+          <div class="big-label">CPI YoY</div>
+          <div class="big-val" id="cpi-val">--</div>
+          <div class="big-sub" id="cpi-date">--</div>
+        </div>
+        <div class="metric-row">
+          <span class="m-label">Indice CPI</span>
+          <span class="m-val" id="cpi-index-val">--</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Emploi <span>FRED</span></div>
+        <div class="big-metric">
+          <div class="big-label">Chômage US</div>
+          <div class="big-val" id="unrate-val">--</div>
+          <div class="big-sub" id="unrate-date">--</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Fed <span>FRED</span></div>
+        <div class="big-metric">
+          <div class="big-label">Fed Upper Bound</div>
+          <div class="big-val" id="fed-val">--</div>
+          <div class="big-sub" id="fed-date">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note" id="status-line">
+      Chargement...
+    </div>
+  </div>
+
+  <script>
+    const REFRESH_MS = 5 * 60 * 1000;
+
+    function formatNumber(v, digits = 2) {
+      if (v === null || v === undefined || Number.isNaN(v)) return "--";
+      return Number(v).toLocaleString("fr-FR", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const h = String(ny.getHours()).padStart(2, "0");
+      const m = String(ny.getMinutes()).padStart(2, "0");
+      const s = String(ny.getSeconds()).padStart(2, "0");
+      setText("clock", `${h}:${m}:${s} NY`);
+    }
+
+    async function loadDashboard() {
+      try {
+        setText("status-line", "Chargement des données live...");
+        const res = await fetch("/api/dashboard");
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.message || "Erreur API");
+        }
+
+        const d = json.data;
+
+        setText("dxy-val", formatNumber(d.dxyProxy?.value, 2));
+        setText("dxy-date", d.dxyProxy?.date || "--");
+        setText("ticker-dxy", formatNumber(d.dxyProxy?.value, 2));
+
+        setText("vix-val", formatNumber(d.vix?.value, 2));
+        setText("vix-date", d.vix?.date || "--");
+        setText("ticker-vix", formatNumber(d.vix?.value, 2));
+
+        setText("eurusd-val", formatNumber(d.fx?.eurusd?.value, 4));
+        setText("eurusd-date", d.fx?.eurusd?.lastRefreshed || "--");
+        setText("ticker-eurusd", formatNumber(d.fx?.eurusd?.value, 4));
+
+        setText("btcusd-val", d.crypto?.btcusd?.value ? `$${formatNumber(d.crypto?.btcusd?.value, 2)}` : "--");
+        setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed || "--");
+        setText("ticker-btc", d.crypto?.btcusd?.value ? `$${formatNumber(d.crypto?.btcusd?.value, 2)}` : "--");
+
+        setText("us2y-val", d.yields?.us2y !== null ? `${formatNumber(d.yields?.us2y, 2)}%` : "--");
+        setText("us10y-val", d.yields?.us10y !== null ? `${formatNumber(d.yields?.us10y, 2)}%` : "--");
+        setText("us30y-val", d.yields?.us30y !== null ? `${formatNumber(d.yields?.us30y, 2)}%` : "--");
+        setText("ticker-10y", d.yields?.us10y !== null ? `${formatNumber(d.yields?.us10y, 2)}%` : "--");
+
+        const spread = d.yields?.spread2s10s;
+        const spreadText = spread !== null ? `${formatNumber(spread, 0)} pb` : "--";
+        setText("spread-val", spreadText);
+        setText("ticker-2s10s", spreadText);
+
+        setText("cpi-val", d.inflation?.cpiYoY !== null ? `${formatNumber(d.inflation?.cpiYoY, 2)}%` : "--");
+        setText("cpi-date", d.inflation?.date || "--");
+        setText("cpi-index-val", formatNumber(d.inflation?.lastCpiIndex, 2));
+        setText("ticker-cpi", d.inflation?.cpiYoY !== null ? `${formatNumber(d.inflation?.cpiYoY, 2)}%` : "--");
+
+        setText("unrate-val", d.labor?.unemploymentRate !== null ? `${formatNumber(d.labor?.unemploymentRate, 2)}%` : "--");
+        setText("unrate-date", d.labor?.date || "--");
+        setText("ticker-unrate", d.labor?.unemploymentRate !== null ? `${formatNumber(d.labor?.unemploymentRate, 2)}%` : "--");
+
+        setText("fed-val", d.fed?.upperBound !== null ? `${formatNumber(d.fed?.upperBound, 2)}%` : "--");
+        setText("fed-date", d.fed?.date || "--");
+
+        setText(
+          "status-line",
+          `Dernière mise à jour: ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources: ${json.sources.fred} / ${json.sources.alphaVantage}`
+        );
+      } catch (err) {
+        setText("status-line", `Erreur: ${err.message}`);
+      }
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    loadDashboard();
+    setInterval(loadDashboard, REFRESH_MS);
+  </script>
+</body>
+</html>
