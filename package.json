@@ -1,0 +1,12 @@
+{
+  "name": "bloomberg-terminal-macro-live",
+  "version": "1.0.0",
+  "description": "Terminal macro live basique pour Railway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
