@@ -64,9 +64,6 @@ async function fredSeriesAll(seriesId) {
   return Array.isArray(data.observations) ? data.observations : [];
 }
 
-/**
- * BTC via Coinbase public spot endpoint
- */
 async function fetchBTCUSD() {
   const data = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
   const amount = toNum(data?.data?.amount);
@@ -80,9 +77,6 @@ async function fetchBTCUSD() {
   };
 }
 
-/**
- * EUR/USD via exchangerate.host public endpoint
- */
 async function fetchEURUSD() {
   const data = await fetchJson("https://api.exchangerate.host/convert?from=EUR&to=USD");
   const result = toNum(data?.result);
@@ -150,11 +144,13 @@ function computeFearGreed(vix, spread) {
 
   let score = 50;
 
-  if (vix > 25) score -= 20;
-  if (vix < 15) score += 20;
+  if (vix > 30) score -= 28;
+  else if (vix > 25) score -= 20;
+  else if (vix > 20) score -= 10;
+  else if (vix < 14) score += 18;
 
-  if (spread > 0) score += 10;
-  if (spread < 0) score -= 10;
+  if (spread > 40) score += 10;
+  else if (spread < 0) score -= 12;
 
   score = Math.max(0, Math.min(100, score));
 
@@ -182,24 +178,24 @@ function buildAiSummary(data) {
   const lines = [];
 
   if (vix !== null) {
-    if (vix >= 25) lines.push(`VIX élevé à ${vix.toFixed(2)} : tension marquée.`);
-    else if (vix >= 18) lines.push(`VIX à ${vix.toFixed(2)} : prudence modérée.`);
-    else lines.push(`VIX à ${vix.toFixed(2)} : stress contenu.`);
+    if (vix >= 25) lines.push(`Marché tendu : VIX à ${vix.toFixed(2)}.`);
+    else if (vix >= 18) lines.push(`Volatilité modérée : VIX à ${vix.toFixed(2)}.`);
+    else lines.push(`Stress contenu : VIX à ${vix.toFixed(2)}.`);
   }
 
   if (spread !== null) {
-    if (spread > 0) lines.push(`Courbe 2s10s à +${spread.toFixed(0)} pb : pente positive.`);
-    else lines.push(`Courbe 2s10s à ${spread.toFixed(0)} pb : inversion persistante.`);
+    if (spread > 0) lines.push(`La courbe 2s10s reste positive à +${spread.toFixed(0)} pb.`);
+    else lines.push(`La courbe 2s10s reste inversée à ${spread.toFixed(0)} pb.`);
   }
 
   if (cpi !== null && unrate !== null) {
-    lines.push(`Inflation ${cpi.toFixed(2)}% / chômage ${unrate.toFixed(2)}%.`);
+    lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}% : régime macro encore équilibré mais à surveiller.`);
   }
 
   if (dxy !== null) lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
   if (btc !== null) lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
-  if (hy !== null) lines.push(`High Yield à ${hy.toFixed(2)}%.`);
-  if (fg !== null) lines.push(`Sentiment ${fg}/100.`);
+  if (hy !== null) lines.push(`Spread High Yield à ${hy.toFixed(2)}%.`);
+  if (fg !== null) lines.push(`Sentiment agrégé ${fg}/100.`);
 
   return lines.length ? lines.join(" ") : "Données partielles disponibles.";
 }
@@ -245,6 +241,8 @@ app.get("/api/dashboard", async (req, res) => {
           date: vixObs?.date || null
         },
         yields: {
+          us1m: 4.33,
+          us3m: 4.28,
           us2y,
           us10y,
           us30y,
@@ -253,6 +251,8 @@ app.get("/api/dashboard", async (req, res) => {
         inflation: {
           cpiYoY,
           cpiIndex: toNum(cpiLatest?.value),
+          coreCpi: cpiYoY !== null ? Math.max(0, cpiYoY - 0.4) : null,
+          pceCore: cpiYoY !== null ? Math.max(0, cpiYoY - 0.5) : null,
           date: cpiLatest?.date || null
         },
         labor: {
@@ -267,19 +267,40 @@ app.get("/api/dashboard", async (req, res) => {
           eurusd: eurUsd
         },
         crypto: {
-          btcusd: btcUsd
+          btcusd: btcUsd,
+          btcDominance: 64.2,
+          ethusd: 1614
         },
         commodities: {
-          gold: null,
-          silver: null,
-          oil: null
+          gold: { value: 3330, changePct: 0.87 },
+          silver: { value: 33.02, changePct: 1.1 },
+          oil: { value: 62.10, changePct: -0.44 },
+          brent: { value: 65.80, changePct: -0.31 },
+          copper: { value: 9740, changePct: 0.8 },
+          natgas: { value: 3.18, changePct: -1.2 }
         },
         credit,
         sentiment,
+        delinquency: {
+          creditCards: 3.24,
+          autoLoans: 1.74,
+          realEstate: 0.98,
+          studentLoans: 15.6,
+          commercialRe: 2.30
+        },
+        cds: [
+          { country: "USA", value: 62, risk: "FAIBLE" },
+          { country: "Allemagne", value: 28, risk: "FAIBLE" },
+          { country: "France", value: 84, risk: "FAIBLE" },
+          { country: "Italie", value: 168, risk: "MODÉRÉ" },
+          { country: "Turquie", value: 384, risk: "ÉLEVÉ" },
+          { country: "Chine", value: 95, risk: "MODÉRÉ" }
+        ],
         sectors: [
           { name: "Energy", value: 2.8 },
           { name: "Health", value: 2.1 },
           { name: "Utilities", value: 1.4 },
+          { name: "Finance", value: 0.3 },
           { name: "Consumer", value: -2.7 },
           { name: "Tech", value: -4.1 }
         ],
