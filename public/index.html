@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>◆ Terminal Macro V4</title>
+  <title>◆ Terminal Macro V5</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -162,6 +162,11 @@
     .label { color: #9ab1d2; }
     .value { color: #fff; font-weight: 700; }
 
+    .delta {
+      font-size: 10px;
+      margin-left: 8px;
+    }
+
     .status-badge {
       display: inline-block;
       padding: 1px 6px;
@@ -199,6 +204,7 @@
     .fg-meta {
       font-size: 11px;
       line-height: 1.8;
+      min-width: 140px;
     }
 
     .gauge-row {
@@ -296,7 +302,40 @@
       font-size: 12px;
       line-height: 1.6;
       color: #d5dded;
-      min-height: 84px;
+      min-height: 100px;
+    }
+
+    .ai-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ai-input {
+      flex: 1;
+      background: #040d1a;
+      border: 1px solid var(--line);
+      color: #fff;
+      padding: 7px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .ai-send {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: #fff;
+      padding: 7px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
+    .ai-send:hover {
+      border-color: var(--orange);
+      color: var(--orange);
     }
 
     .footer {
@@ -329,7 +368,7 @@
         <div id="clock" class="blue">--:--:-- NY</div>
       </div>
       <div class="top-right">
-        <div class="muted">SOURCES: FRED / COINBASE / FX</div>
+        <div class="muted">SOURCES: FRED / COINBASE / FRANKFURTER / YAHOO</div>
         <button class="refresh-btn" onclick="loadDashboard()">⟳ ACTUALISER</button>
       </div>
     </div>
@@ -560,6 +599,10 @@
           <span class="panel-tag">AUTO</span>
         </div>
         <div class="ai-box" id="ai-summary">Chargement...</div>
+        <div class="ai-actions">
+          <input class="ai-input" placeholder="Analysez..." />
+          <button class="ai-send">Envoyer ↗</button>
+        </div>
       </div>
     </div>
 
@@ -585,6 +628,12 @@
     function formatPct(value, digits = 2) {
       if (value === null || value === undefined || Number.isNaN(value)) return "--";
       return `${formatNumber(value, digits)}%`;
+    }
+
+    function formatSignedPct(value, digits = 2) {
+      if (value === null || value === undefined || Number.isNaN(value)) return "--";
+      const sign = value > 0 ? "+" : "";
+      return `${sign}${formatNumber(value, digits)}%`;
     }
 
     function formatPb(value) {
@@ -723,13 +772,13 @@
         setText("vix-regime", d.derived?.vixRegime || "--");
 
         setText("gold-big-val", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
-        setText("gold-big-chg", goldChg !== null ? `▲ ${formatPct(goldChg, 2)}` : "--");
+        setText("gold-big-chg", goldChg !== null ? formatSignedPct(goldChg, 2) : "--");
 
         setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
         setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
 
         setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
-        setText("gold-silver-ratio", gold !== null && silver ? `${formatNumber(gold / silver, 1)}x` : "--");
+        setText("gold-silver-ratio", d.derived?.goldSilverRatio !== null && d.derived?.goldSilverRatio !== undefined ? `${formatNumber(d.derived.goldSilverRatio, 1)}x` : "--");
         setText("btc-dom", btcDom !== null ? formatPct(btcDom, 1) : "--");
         setText("ethusd-val", ethusd !== null ? `$${formatNumber(ethusd, 0)}` : "--");
 
