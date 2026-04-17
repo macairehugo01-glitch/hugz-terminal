@@ -3,29 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>◆ Terminal Macro</title>
+  <title>◆ Terminal Macro V4</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root{
-      --bg:#020916;
-      --bg2:#07101d;
-      --line:#173153;
-      --text:#e2ebf7;
-      --muted:#5b729b;
+      --bg:#030b1a;
+      --bg2:#071121;
+      --line:#1b3152;
+      --lineSoft:#10233d;
+      --text:#dce7f6;
+      --muted:#5e749c;
       --orange:#f0a500;
-      --green:#21e36d;
-      --red:#ff5a5a;
-      --yellow:#f3b43a;
-      --blue:#8bb4ff;
-      --panelPad:8px;
-      --font:Consolas, Monaco, "Courier New", monospace;
+      --green:#22e36f;
+      --red:#ff5c5c;
+      --yellow:#f3b53b;
+      --blue:#8cb5ff;
     }
 
     html, body {
       background: var(--bg);
       color: var(--text);
-      font-family: var(--font);
+      font-family: Consolas, Monaco, "Courier New", monospace;
       width: 100%;
       min-height: 100%;
       overflow-x: hidden;
@@ -38,14 +37,13 @@
     }
 
     .topbar {
-      height: 32px;
+      height: 34px;
       border-bottom: 1px solid var(--line);
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 0 8px;
       background: #03101f;
-      font-size: 12px;
     }
 
     .top-left, .top-right {
@@ -55,24 +53,10 @@
       min-width: 0;
     }
 
-    .logo {
-      color: var(--orange);
-      letter-spacing: 2px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .live-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      display: inline-block;
-      margin-right: 5px;
-    }
+    .logo { color: var(--orange); letter-spacing: 2px; font-weight: 700; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 5px; }
 
     .muted { color: var(--muted); }
-    .orange { color: var(--orange); }
     .green { color: var(--green); }
     .red { color: var(--red); }
     .yellow { color: var(--yellow); }
@@ -87,14 +71,10 @@
       cursor: pointer;
       font-family: inherit;
     }
-
-    .refresh-btn:hover {
-      border-color: var(--orange);
-      color: var(--orange);
-    }
+    .refresh-btn:hover { border-color: var(--orange); color: var(--orange); }
 
     .ticker {
-      height: 28px;
+      height: 27px;
       display: flex;
       align-items: center;
       gap: 18px;
@@ -103,27 +83,12 @@
       border-bottom: 1px solid var(--line);
       background: #020918;
       padding: 0 6px;
-      font-size: 12px;
       scrollbar-width: none;
     }
-
     .ticker::-webkit-scrollbar { display: none; }
-
-    .ticker-item {
-      display: inline-flex;
-      gap: 4px;
-      align-items: center;
-      flex-shrink: 0;
-    }
-
-    .ticker-sym {
-      color: #9cc0ff;
-    }
-
-    .ticker-val {
-      color: #fff;
-      font-weight: 700;
-    }
+    .ticker-item { display: inline-flex; gap: 5px; align-items: center; flex-shrink: 0; }
+    .ticker-sym { color: #9cc0ff; }
+    .ticker-val { color: #fff; font-weight: 700; }
 
     .grid {
       display: grid;
@@ -134,12 +99,8 @@
 
     .panel {
       background: var(--bg);
-      padding: var(--panelPad);
-      min-height: 165px;
-    }
-
-    .panel.tall {
-      min-height: 190px;
+      padding: 8px;
+      min-height: 170px;
     }
 
     .panel-title {
@@ -147,46 +108,42 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
-      font-size: 11px;
-      letter-spacing: 1.6px;
+      font-size: 10px;
+      letter-spacing: 1.7px;
       text-transform: uppercase;
       color: var(--orange);
     }
 
-    .panel-tag {
-      color: var(--muted);
-      font-size: 10px;
-      letter-spacing: 1px;
-    }
+    .panel-tag { color: var(--muted); font-size: 9px; }
 
     .two-big {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-top: 6px;
+      margin-bottom: 8px;
     }
 
     .big {
       text-align: center;
-      padding-top: 6px;
+      padding-top: 4px;
     }
 
     .big-label {
       color: var(--muted);
-      font-size: 9px;
+      font-size: 8px;
       margin-bottom: 8px;
       text-transform: uppercase;
     }
 
     .big-value {
-      font-size: 22px;
+      font-size: 21px;
       line-height: 1;
       font-weight: 700;
       color: #fff;
     }
 
-    .big-date {
-      margin-top: 7px;
+    .big-sub {
+      margin-top: 6px;
       font-size: 10px;
       color: #8ca4ca;
     }
@@ -196,36 +153,141 @@
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(23,49,83,0.45);
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(27,49,82,0.42);
       font-size: 12px;
     }
-
     .metric-row:last-child { border-bottom: none; }
 
-    .label {
-      color: #9ab1d2;
-    }
-
-    .value {
-      color: #fff;
-      font-weight: 700;
-    }
-
-    .mini-note {
-      color: var(--muted);
-      font-size: 10px;
-      margin-top: 8px;
-    }
+    .label { color: #9ab1d2; }
+    .value { color: #fff; font-weight: 700; }
 
     .status-badge {
       display: inline-block;
       padding: 1px 6px;
       border: 1px solid var(--line);
       font-size: 10px;
-      margin-left: 6px;
-      color: #bcd0ef;
+      color: #c5d7f3;
     }
+
+    .note {
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 7px;
+    }
+
+    .sparkline-wrap {
+      height: 54px;
+      margin: 6px 0 8px;
+    }
+
+    .curve-svg {
+      width: 100%;
+      height: 92px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .fg-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 8px;
+    }
+
+    .fg-meta {
+      font-size: 11px;
+      line-height: 1.8;
+    }
+
+    .gauge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 11px;
+    }
+
+    .gauge-label {
+      width: 92px;
+      color: #9ab1d2;
+      flex-shrink: 0;
+    }
+
+    .gauge-bar {
+      flex: 1;
+      height: 4px;
+      background: #08101f;
+    }
+
+    .gauge-fill {
+      height: 100%;
+    }
+
+    .gauge-val {
+      width: 55px;
+      text-align: right;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .sector-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(27,49,82,0.42);
+      font-size: 11px;
+    }
+    .sector-row:last-child { border-bottom: none; }
+
+    .sector-name {
+      width: 72px;
+      color: #9ab1d2;
+      flex-shrink: 0;
+    }
+
+    .sector-bar {
+      flex: 1;
+      height: 3px;
+      background: #08101f;
+    }
+
+    .sector-fill {
+      height: 100%;
+    }
+
+    .sector-val {
+      width: 48px;
+      text-align: right;
+      font-weight: 700;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .cds-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(27,49,82,0.42);
+      font-size: 11px;
+    }
+    .cds-row:last-child { border-bottom: none; }
+
+    .cds-country { color: #9ab1d2; }
+    .cds-risk {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      border: 1px solid var(--line);
+    }
+
+    .risk-low { color: var(--green); }
+    .risk-med { color: var(--yellow); }
+    .risk-high { color: var(--red); }
 
     .ai-box {
       background: #08101f;
@@ -237,48 +299,6 @@
       min-height: 84px;
     }
 
-    .sector-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(23,49,83,0.45);
-      font-size: 11px;
-    }
-
-    .sector-row:last-child { border-bottom: none; }
-
-    .sector-name {
-      width: 74px;
-      color: #9ab1d2;
-      flex-shrink: 0;
-    }
-
-    .sector-bar {
-      flex: 1;
-      height: 3px;
-      background: #08101f;
-      position: relative;
-    }
-
-    .sector-fill {
-      height: 100%;
-    }
-
-    .sector-val {
-      width: 50px;
-      text-align: right;
-      font-weight: 700;
-      font-size: 11px;
-    }
-
-    .compact-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 1px;
-      background: var(--line);
-    }
-
     .footer {
       border-top: 1px solid var(--line);
       padding: 7px 8px;
@@ -287,15 +307,8 @@
     }
 
     @media (max-width: 1100px) {
-      .grid,
-      .compact-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .two-big {
-        grid-template-columns: 1fr;
-      }
-
+      .grid { grid-template-columns: 1fr; }
+      .two-big { grid-template-columns: 1fr; }
       .topbar {
         height: auto;
         padding: 8px;
@@ -303,6 +316,7 @@
         align-items: flex-start;
         flex-direction: column;
       }
+      .fg-wrap { flex-direction: column; gap: 8px; }
     }
   </style>
 </head>
@@ -323,155 +337,224 @@
     <div class="ticker">
       <div class="ticker-item"><span class="ticker-sym">BTC/USD</span><span class="ticker-val" id="ticker-btc">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">EUR/USD</span><span class="ticker-val" id="ticker-eurusd">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">DXY PROXY</span><span class="ticker-val" id="ticker-dxy">--</span></div>
+      <div class="ticker-item"><span class="ticker-sym">DXY</span><span class="ticker-val" id="ticker-dxy">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">VIX</span><span class="ticker-val" id="ticker-vix">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">US10Y</span><span class="ticker-val" id="ticker-us10y">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">2s10s</span><span class="ticker-val" id="ticker-spread">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">CPI YOY</span><span class="ticker-val" id="ticker-cpi">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">UNRATE</span><span class="ticker-val" id="ticker-unrate">--</span></div>
       <div class="ticker-item"><span class="ticker-sym">GOLD</span><span class="ticker-val" id="ticker-gold">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">OIL</span><span class="ticker-val" id="ticker-oil">--</span></div>
+      <div class="ticker-item"><span class="ticker-sym">WTI</span><span class="ticker-val" id="ticker-oil">--</span></div>
     </div>
 
     <div class="grid">
-      <div class="panel tall">
+      <div class="panel">
         <div class="panel-title">
-          <span>DOLLAR & VOLATILITÉ</span>
+          <span>INDICATEURS DE RISQUE</span>
           <span class="panel-tag">LIVE</span>
         </div>
+
         <div class="two-big">
           <div class="big">
             <div class="big-label">DXY PROXY</div>
             <div class="big-value" id="dxy-val">--</div>
-            <div class="big-date" id="dxy-date">--</div>
+            <div class="big-sub" id="dxy-date">--</div>
           </div>
           <div class="big">
             <div class="big-label">VIX</div>
             <div class="big-value" id="vix-val">--</div>
-            <div class="big-date" id="vix-date">--</div>
+            <div class="big-sub" id="vix-date">--</div>
           </div>
         </div>
-        <div class="mini-note">
-          Régime volatilité :
-          <span id="vix-regime" class="status-badge">--</span>
+
+        <div class="sparkline-wrap">
+          <svg viewBox="0 0 260 54" style="width:100%;height:54px">
+            <polyline fill="none" stroke="#ff5c5c" stroke-width="1.4"
+              points="0,34 20,32 40,35 60,36 80,34 100,39 120,37 140,41 160,39 180,43 200,42 220,45 240,43 260,46"/>
+            <text x="0" y="52" fill="#5e749c" font-size="8">30j DXY</text>
+            <text x="216" y="52" fill="#ff5c5c" font-size="8">risk</text>
+          </svg>
         </div>
+
+        <div class="note">Régime volatilité : <span id="vix-regime" class="status-badge">--</span></div>
       </div>
 
-      <div class="panel tall">
+      <div class="panel">
         <div class="panel-title">
-          <span>FX & CRYPTO</span>
+          <span>OR & ACTIFS REFUGES</span>
           <span class="panel-tag">LIVE</span>
         </div>
+
         <div class="two-big">
           <div class="big">
-            <div class="big-label">EUR/USD</div>
-            <div class="big-value" id="eurusd-val">--</div>
-            <div class="big-date" id="eurusd-date">--</div>
+            <div class="big-label">GOLD</div>
+            <div class="big-value yellow" id="gold-big-val">--</div>
+            <div class="big-sub" id="gold-big-chg">--</div>
           </div>
           <div class="big">
             <div class="big-label">BTC/USD</div>
-            <div class="big-value" id="btcusd-val">--</div>
-            <div class="big-date" id="btcusd-date">--</div>
+            <div class="big-value green" id="btcusd-val">--</div>
+            <div class="big-sub" id="btcusd-date">--</div>
           </div>
         </div>
-      </div>
 
-      <div class="panel tall">
-        <div class="panel-title">
-          <span>COURBE US</span>
-          <span class="panel-tag">FRED</span>
-        </div>
-        <div class="metric-row"><span class="label">US 2Y</span><span class="value" id="us2y-val">--</span></div>
-        <div class="metric-row"><span class="label">US 10Y</span><span class="value" id="us10y-val">--</span></div>
-        <div class="metric-row"><span class="label">US 30Y</span><span class="value" id="us30y-val">--</span></div>
-        <div class="metric-row"><span class="label">Spread 2s10s</span><span class="value" id="spread-val">--</span></div>
-        <div class="mini-note">
-          État de courbe :
-          <span id="curve-state" class="status-badge">--</span>
-        </div>
-      </div>
-
-      <div class="panel tall">
-        <div class="panel-title">
-          <span>INFLATION</span>
-          <span class="panel-tag">FRED</span>
-        </div>
-        <div class="two-big">
-          <div class="big">
-            <div class="big-label">CPI YOY</div>
-            <div class="big-value" id="cpi-val">--</div>
-            <div class="big-date" id="cpi-date">--</div>
-          </div>
-          <div class="big">
-            <div class="big-label">INDICE CPI</div>
-            <div class="big-value" id="cpi-index-val">--</div>
-            <div class="big-date" id="cpi-index-date">niveau</div>
-          </div>
-        </div>
-        <div class="metric-row"><span class="label">Fed Upper Bound</span><span class="value" id="fed-inline-val">--</span></div>
-      </div>
-
-      <div class="panel tall">
-        <div class="panel-title">
-          <span>EMPLOI & CRÉDIT</span>
-          <span class="panel-tag">FRED</span>
-        </div>
-        <div class="metric-row"><span class="label">Chômage US</span><span class="value" id="unrate-val">--</span></div>
-        <div class="metric-row"><span class="label">High Yield</span><span class="value" id="hy-val">--</span></div>
-        <div class="metric-row"><span class="label">Investment Grade</span><span class="value" id="ig-val">--</span></div>
-        <div class="metric-row"><span class="label">Ratio HY/IG</span><span class="value" id="credit-ratio">--</span></div>
-      </div>
-
-      <div class="panel tall">
-        <div class="panel-title">
-          <span>SENTIMENT & RÉGIMES</span>
-          <span class="panel-tag">AUTO</span>
-        </div>
-        <div class="two-big">
-          <div class="big">
-            <div class="big-label">FEAR & GREED</div>
-            <div class="big-value" id="fg-val">--</div>
-            <div class="big-date" id="fg-label">--</div>
-          </div>
-          <div class="big">
-            <div class="big-label">VOLATILITÉ</div>
-            <div class="big-value" id="regime-vol-big">--</div>
-            <div class="big-date" id="regime-curve-big">--</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
-          <span>OR & COMMODITIES</span>
-          <span class="panel-tag">LIVE</span>
-        </div>
-        <div class="metric-row"><span class="label">Gold</span><span class="value" id="gold-val">--</span></div>
+        <div class="metric-row"><span class="label">Gold/Silver Ratio</span><span class="value" id="gold-silver-ratio">--</span></div>
         <div class="metric-row"><span class="label">Silver</span><span class="value" id="silver-val">--</span></div>
-        <div class="metric-row"><span class="label">Oil (WTI)</span><span class="value" id="oil-val">--</span></div>
+        <div class="metric-row"><span class="label">BTC Dominance</span><span class="value" id="btc-dom">--</span></div>
+        <div class="metric-row"><span class="label">ETH/USD</span><span class="value" id="ethusd-val">--</span></div>
       </div>
 
       <div class="panel">
         <div class="panel-title">
-          <span>INDICATEURS CLÉS</span>
-          <span class="panel-tag">SYNTHÈSE</span>
+          <span>COURBE DES TAUX US</span>
+          <span class="panel-tag">TREASURY</span>
         </div>
-        <div class="metric-row"><span class="label">Dollar proxy</span><span class="value" id="kpi-dxy">--</span></div>
-        <div class="metric-row"><span class="label">Volatilité</span><span class="value" id="kpi-vix">--</span></div>
-        <div class="metric-row"><span class="label">Inflation</span><span class="value" id="kpi-cpi">--</span></div>
-        <div class="metric-row"><span class="label">Chômage</span><span class="value" id="kpi-unrate">--</span></div>
-        <div class="metric-row"><span class="label">BTC</span><span class="value" id="kpi-btc">--</span></div>
+
+        <svg class="curve-svg" viewBox="0 0 220 92">
+          <line x1="0" y1="76" x2="220" y2="76" stroke="#10233d" stroke-width="0.7"/>
+          <line x1="0" y1="56" x2="220" y2="56" stroke="#10233d" stroke-width="0.7"/>
+          <line x1="0" y1="36" x2="220" y2="36" stroke="#10233d" stroke-width="0.7"/>
+
+          <polyline fill="none" stroke="#2d4768" stroke-width="1.1" stroke-dasharray="3,2"
+            points="8,70 30,62 55,50 80,44 105,38 140,36 175,35 210,34"/>
+          <polyline fill="none" stroke="#22e36f" stroke-width="1.7"
+            points="8,60 30,64 55,65 80,63 105,57 140,52 175,48 210,46"/>
+
+          <circle cx="8" cy="60" r="2" fill="#22e36f"/>
+          <circle cx="30" cy="64" r="2" fill="#22e36f"/>
+          <circle cx="55" cy="65" r="2" fill="#22e36f"/>
+          <circle cx="80" cy="63" r="2" fill="#22e36f"/>
+          <circle cx="105" cy="57" r="2" fill="#22e36f"/>
+          <circle cx="140" cy="52" r="2" fill="#22e36f"/>
+          <circle cx="175" cy="48" r="2" fill="#22e36f"/>
+          <circle cx="210" cy="46" r="2" fill="#22e36f"/>
+
+          <text x="2" y="88" fill="#5e749c" font-size="7">1M</text>
+          <text x="25" y="88" fill="#5e749c" font-size="7">3M</text>
+          <text x="50" y="88" fill="#5e749c" font-size="7">2Y</text>
+          <text x="78" y="88" fill="#5e749c" font-size="7">5Y</text>
+          <text x="103" y="88" fill="#5e749c" font-size="7">10Y</text>
+          <text x="172" y="88" fill="#5e749c" font-size="7">30Y</text>
+        </svg>
+
+        <div class="metric-row"><span class="label">1 mois</span><span class="value" id="us1m-val">--</span></div>
+        <div class="metric-row"><span class="label">3 mois</span><span class="value" id="us3m-val">--</span></div>
+        <div class="metric-row"><span class="label">2 ans</span><span class="value" id="us2y-val">--</span></div>
+        <div class="metric-row"><span class="label">10 ans</span><span class="value" id="us10y-val">--</span></div>
+        <div class="metric-row"><span class="label">30 ans</span><span class="value" id="us30y-val">--</span></div>
+        <div class="metric-row"><span class="label">2s10s</span><span class="value" id="spread-val">--</span></div>
       </div>
 
       <div class="panel">
         <div class="panel-title">
-          <span>SECTEURS (1M)</span>
+          <span>INFLATION & CRÉDIT</span>
+          <span class="panel-tag">USA</span>
+        </div>
+
+        <div class="two-big">
+          <div class="big">
+            <div class="big-label">CPI</div>
+            <div class="big-value yellow" id="cpi-val">--</div>
+            <div class="big-sub" id="cpi-date">--</div>
+          </div>
+          <div class="big">
+            <div class="big-label">CORE CPI</div>
+            <div class="big-value yellow" id="core-cpi-val">--</div>
+            <div class="big-sub">hors vol.</div>
+          </div>
+        </div>
+
+        <div class="metric-row"><span class="label">PCE Core</span><span class="value" id="pce-core-val">--</span></div>
+        <div class="metric-row"><span class="label">Spread HY</span><span class="value" id="hy-val">--</span></div>
+        <div class="metric-row"><span class="label">Spread IG</span><span class="value" id="ig-val">--</span></div>
+        <div class="metric-row"><span class="label">HY / IG Ratio</span><span class="value" id="credit-ratio">--</span></div>
+        <div class="metric-row"><span class="label">Taux Fed</span><span class="value" id="fed-val">--</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <span>DÉLINQUANCE & SANTÉ CRÉDIT</span>
+          <span class="panel-tag">FRED</span>
+        </div>
+
+        <div class="gauge-row">
+          <span class="gauge-label">Cartes crédit</span>
+          <div class="gauge-bar"><div class="gauge-fill" id="g-credit" style="background:#ff5c5c;width:0%"></div></div>
+          <span class="gauge-val" id="g-credit-v">--</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">Auto loans</span>
+          <div class="gauge-bar"><div class="gauge-fill" id="g-auto" style="background:#f3b53b;width:0%"></div></div>
+          <span class="gauge-val" id="g-auto-v">--</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">Immobilier</span>
+          <div class="gauge-bar"><div class="gauge-fill" id="g-real" style="background:#22e36f;width:0%"></div></div>
+          <span class="gauge-val" id="g-real-v">--</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">Student loans</span>
+          <div class="gauge-bar"><div class="gauge-fill" id="g-student" style="background:#ff5c5c;width:0%"></div></div>
+          <span class="gauge-val" id="g-student-v">--</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">Commercial RE</span>
+          <div class="gauge-bar"><div class="gauge-fill" id="g-cre" style="background:#f3b53b;width:0%"></div></div>
+          <span class="gauge-val" id="g-cre-v">--</span>
+        </div>
+
+        <div class="metric-row"><span class="label">Chômage</span><span class="value" id="unrate-val">--</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <span>SENTIMENT & COMMODITÉS</span>
           <span class="panel-tag">AUTO</span>
+        </div>
+
+        <div class="fg-wrap">
+          <svg viewBox="0 0 100 60" style="width:120px;height:72px">
+            <path d="M10,55 A40,40 0 0,1 90,55" fill="none" stroke="#10233d" stroke-width="8"/>
+            <path d="M10,55 A40,40 0 0,1 90,55" fill="none" stroke="url(#gradfg)" stroke-width="8"/>
+            <defs>
+              <linearGradient id="gradfg" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ff5c5c"/>
+                <stop offset="50%" stop-color="#f3b53b"/>
+                <stop offset="100%" stop-color="#22e36f"/>
+              </linearGradient>
+            </defs>
+            <line id="fg-needle" x1="50" y1="55" x2="28" y2="28" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="50" cy="55" r="3" fill="#fff"/>
+            <text x="50" y="44" text-anchor="middle" fill="#f3b53b" font-size="12" font-weight="700" id="fg-val">--</text>
+            <text x="50" y="54" text-anchor="middle" fill="#f3b53b" font-size="6" id="fg-label">--</text>
+          </svg>
+
+          <div class="fg-meta">
+            <div class="metric-row"><span class="label">WTI</span><span class="value" id="oil-val">--</span></div>
+            <div class="metric-row"><span class="label">Brent</span><span class="value" id="brent-val">--</span></div>
+            <div class="metric-row"><span class="label">Cuivre</span><span class="value" id="copper-val">--</span></div>
+            <div class="metric-row"><span class="label">Nat. Gas</span><span class="value" id="natgas-val">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <span>CDS SOUVERAINS 5A</span>
+          <span class="panel-tag">RISQUE PAYS</span>
+        </div>
+        <div id="cds-wrap"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <span>PERFORMANCES SECTEURS S&P</span>
+          <span class="panel-tag">1 MOIS</span>
         </div>
         <div id="sectors-wrap"></div>
       </div>
 
-      <div class="panel" style="grid-column: span 3;">
+      <div class="panel">
         <div class="panel-title">
           <span>ANALYSE IA</span>
           <span class="panel-tag">AUTO</span>
@@ -480,9 +563,7 @@
       </div>
     </div>
 
-    <div class="footer" id="footer-status">
-      Chargement...
-    </div>
+    <div class="footer" id="footer-status">Chargement...</div>
   </div>
 
   <script>
@@ -511,14 +592,6 @@
       return `${formatNumber(value, 0)} pb`;
     }
 
-    function colorize(elId, value, rules) {
-      const el = document.getElementById(elId);
-      if (!el) return;
-      el.classList.remove("green", "red", "yellow", "blue", "orange");
-      const cls = rules(value);
-      if (cls) el.classList.add(cls);
-    }
-
     function updateClock() {
       const now = new Date();
       const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
@@ -533,7 +606,7 @@
       if (!wrap) return;
 
       if (!Array.isArray(sectors) || sectors.length === 0) {
-        wrap.innerHTML = `<div class="mini-note">Pas de données secteurs.</div>`;
+        wrap.innerHTML = `<div class="note">Pas de données secteurs.</div>`;
         return;
       }
 
@@ -556,6 +629,48 @@
       }).join("");
     }
 
+    function renderCDS(cds) {
+      const wrap = document.getElementById("cds-wrap");
+      if (!wrap) return;
+
+      if (!Array.isArray(cds) || cds.length === 0) {
+        wrap.innerHTML = `<div class="note">Pas de données CDS.</div>`;
+        return;
+      }
+
+      wrap.innerHTML = cds.map(item => {
+        const cls = item.risk === "ÉLEVÉ" ? "risk-high" : item.risk === "MODÉRÉ" ? "risk-med" : "risk-low";
+        return `
+          <div class="cds-row">
+            <span class="cds-country">${item.country}</span>
+            <span class="value">${formatNumber(item.value, 0)} pb</span>
+            <span class="cds-risk ${cls}">${item.risk}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function setGauge(id, value, max) {
+      const el = document.getElementById(id);
+      if (!el || value === null || value === undefined) return;
+      const pct = Math.max(0, Math.min(100, (value / max) * 100));
+      el.style.width = `${pct}%`;
+    }
+
+    function updateFearGreedNeedle(score) {
+      const needle = document.getElementById("fg-needle");
+      if (!needle || score === null || score === undefined) return;
+
+      const minDeg = -125;
+      const maxDeg = -55;
+      const deg = minDeg + ((score / 100) * (maxDeg - minDeg));
+      const rad = deg * Math.PI / 180;
+      const x = 50 + Math.cos(rad) * 30;
+      const y = 55 + Math.sin(rad) * 30;
+      needle.setAttribute("x2", x.toFixed(1));
+      needle.setAttribute("y2", y.toFixed(1));
+    }
+
     async function loadDashboard() {
       try {
         setText("footer-status", "Chargement des données...");
@@ -567,39 +682,59 @@
         }
 
         const d = json.data;
+
         const dxy = d.dxyProxy?.value ?? null;
         const vix = d.vix?.value ?? null;
+        const us1m = d.yields?.us1m ?? null;
+        const us3m = d.yields?.us3m ?? null;
         const us2y = d.yields?.us2y ?? null;
         const us10y = d.yields?.us10y ?? null;
         const us30y = d.yields?.us30y ?? null;
         const spread = d.yields?.spread2s10s ?? null;
         const cpi = d.inflation?.cpiYoY ?? null;
-        const cpiIndex = d.inflation?.cpiIndex ?? null;
+        const coreCpi = d.inflation?.coreCpi ?? null;
+        const pceCore = d.inflation?.pceCore ?? null;
         const unrate = d.labor?.unemploymentRate ?? null;
         const fed = d.fed?.upperBound ?? null;
         const eurusd = d.fx?.eurusd?.value ?? null;
         const btc = d.crypto?.btcusd?.value ?? null;
+        const btcDom = d.crypto?.btcDominance ?? null;
+        const ethusd = d.crypto?.ethusd ?? null;
+
         const gold = d.commodities?.gold?.value ?? null;
+        const goldChg = d.commodities?.gold?.changePct ?? null;
         const silver = d.commodities?.silver?.value ?? null;
         const oil = d.commodities?.oil?.value ?? null;
+        const brent = d.commodities?.brent?.value ?? null;
+        const copper = d.commodities?.copper?.value ?? null;
+        const natgas = d.commodities?.natgas?.value ?? null;
+
         const hy = d.credit?.hy ?? null;
         const ig = d.credit?.ig ?? null;
         const ratio = d.credit?.ratio ?? null;
+
         const fg = d.sentiment?.value ?? null;
         const fgLabel = d.sentiment?.label ?? "--";
 
         setText("dxy-val", formatNumber(dxy, 2));
         setText("dxy-date", d.dxyProxy?.date || "--");
-
         setText("vix-val", formatNumber(vix, 2));
         setText("vix-date", d.vix?.date || "--");
+        setText("vix-regime", d.derived?.vixRegime || "--");
 
-        setText("eurusd-val", formatNumber(eurusd, 4));
-        setText("eurusd-date", d.fx?.eurusd?.lastRefreshed ? new Date(d.fx.eurusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
+        setText("gold-big-val", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
+        setText("gold-big-chg", goldChg !== null ? `▲ ${formatPct(goldChg, 2)}` : "--");
 
         setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
         setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
 
+        setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
+        setText("gold-silver-ratio", gold !== null && silver ? `${formatNumber(gold / silver, 1)}x` : "--");
+        setText("btc-dom", btcDom !== null ? formatPct(btcDom, 1) : "--");
+        setText("ethusd-val", ethusd !== null ? `$${formatNumber(ethusd, 0)}` : "--");
+
+        setText("us1m-val", formatPct(us1m, 2));
+        setText("us3m-val", formatPct(us3m, 2));
         setText("us2y-val", formatPct(us2y, 2));
         setText("us10y-val", formatPct(us10y, 2));
         setText("us30y-val", formatPct(us30y, 2));
@@ -607,24 +742,23 @@
 
         setText("cpi-val", formatPct(cpi, 2));
         setText("cpi-date", d.inflation?.date || "--");
-        setText("cpi-index-val", formatNumber(cpiIndex, 2));
-        setText("fed-inline-val", formatPct(fed, 2));
+        setText("core-cpi-val", formatPct(coreCpi, 2));
+        setText("pce-core-val", formatPct(pceCore, 2));
+        setText("hy-val", formatPct(hy, 2));
+        setText("ig-val", formatPct(ig, 2));
+        setText("credit-ratio", ratio !== null ? formatNumber(ratio, 2) : "--");
+        setText("fed-val", formatPct(fed, 2));
 
         setText("unrate-val", formatPct(unrate, 2));
 
-        setText("hy-val", hy !== null ? formatPct(hy, 2) : "--");
-        setText("ig-val", ig !== null ? formatPct(ig, 2) : "--");
-        setText("credit-ratio", ratio !== null ? formatNumber(ratio, 2) : "--");
-
         setText("fg-val", fg !== null ? formatNumber(fg, 0) : "--");
         setText("fg-label", fgLabel);
+        updateFearGreedNeedle(fg);
 
-        setText("regime-vol-big", d.derived?.vixRegime || "--");
-        setText("regime-curve-big", d.derived?.curveState || "--");
-
-        setText("gold-val", gold !== null ? `$${formatNumber(gold, 2)}` : "--");
-        setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
         setText("oil-val", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
+        setText("brent-val", brent !== null ? `$${formatNumber(brent, 2)}` : "--");
+        setText("copper-val", copper !== null ? `$${formatNumber(copper, 0)}` : "--");
+        setText("natgas-val", natgas !== null ? `$${formatNumber(natgas, 2)}` : "--");
 
         setText("ticker-btc", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
         setText("ticker-eurusd", formatNumber(eurusd, 4));
@@ -634,29 +768,24 @@
         setText("ticker-spread", formatPb(spread));
         setText("ticker-cpi", formatPct(cpi, 2));
         setText("ticker-unrate", formatPct(unrate, 2));
-        setText("ticker-gold", gold !== null ? `$${formatNumber(gold, 2)}` : "--");
+        setText("ticker-gold", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
         setText("ticker-oil", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
 
-        setText("vix-regime", d.derived?.vixRegime || "--");
-        setText("curve-state", d.derived?.curveState || "--");
+        setGauge("g-credit", d.delinquency?.creditCards, 4.0);
+        setGauge("g-auto", d.delinquency?.autoLoans, 3.0);
+        setGauge("g-real", d.delinquency?.realEstate, 2.0);
+        setGauge("g-student", d.delinquency?.studentLoans, 18.0);
+        setGauge("g-cre", d.delinquency?.commercialRe, 4.0);
 
-        setText("kpi-dxy", formatNumber(dxy, 2));
-        setText("kpi-vix", formatNumber(vix, 2));
-        setText("kpi-cpi", formatPct(cpi, 2));
-        setText("kpi-unrate", formatPct(unrate, 2));
-        setText("kpi-btc", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
+        setText("g-credit-v", formatPct(d.delinquency?.creditCards, 2));
+        setText("g-auto-v", formatPct(d.delinquency?.autoLoans, 2));
+        setText("g-real-v", formatPct(d.delinquency?.realEstate, 2));
+        setText("g-student-v", formatPct(d.delinquency?.studentLoans, 1));
+        setText("g-cre-v", formatPct(d.delinquency?.commercialRe, 2));
 
-        setText("ai-summary", d.aiSummary || "Pas de résumé disponible.");
-
+        renderCDS(d.cds || []);
         renderSectors(d.sectors || []);
-
-        colorize("vix-val", vix, v => v >= 25 ? "yellow" : v >= 18 ? "orange" : "green");
-        colorize("spread-val", spread, v => v >= 0 ? "green" : "red");
-        colorize("cpi-val", cpi, v => v >= 3 ? "yellow" : v >= 2 ? "green" : "blue");
-        colorize("unrate-val", unrate, v => v >= 5 ? "red" : v >= 4 ? "yellow" : "green");
-        colorize("btcusd-val", btc, () => "green");
-        colorize("eurusd-val", eurusd, () => "blue");
-        colorize("fg-val", fg, v => v < 25 ? "red" : v < 45 ? "yellow" : v < 65 ? "blue" : "green");
+        setText("ai-summary", d.aiSummary || "Pas de résumé disponible.");
 
         setText(
           "footer-status",
