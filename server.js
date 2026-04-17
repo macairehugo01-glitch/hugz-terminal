@@ -6,8 +6,6 @@ const PORT = process.env.PORT || 3000;
 
 const FRED_API_KEY =
   process.env.FRED_API_KEY || "2945c843ac2ef54c3d1272b9f9cc2747";
-const ALPHA_VANTAGE_API_KEY =
-  process.env.ALPHA_VANTAGE_API_KEY || "36BBCSJ7TEV9IB64";
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -16,8 +14,8 @@ function toNum(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url);
+async function fetchJson(url, options = {}) {
+  const res = await fetch(url, options);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} - ${url}`);
   }
@@ -66,26 +64,36 @@ async function fredSeriesAll(seriesId) {
   return Array.isArray(data.observations) ? data.observations : [];
 }
 
-async function alphaFx(from, to) {
-  const url =
-    `https://www.alphavantage.co/query` +
-    `?function=CURRENCY_EXCHANGE_RATE` +
-    `&from_currency=${encodeURIComponent(from)}` +
-    `&to_currency=${encodeURIComponent(to)}` +
-    `&apikey=${encodeURIComponent(ALPHA_VANTAGE_API_KEY)}`;
-
-  const data = await fetchJson(url);
-  const rate = data["Realtime Currency Exchange Rate"];
-  if (!rate) {
-    throw new Error(`Alpha FX missing data for ${from}/${to}`);
+/**
+ * BTC via Coinbase public spot endpoint
+ */
+async function fetchBTCUSD() {
+  const data = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+  const amount = toNum(data?.data?.amount);
+  if (amount === null) {
+    throw new Error("BTC/USD missing data");
   }
 
   return {
-    value: toNum(rate["5. Exchange Rate"]),
-    bid: toNum(rate["8. Bid Price"]),
-    ask: toNum(rate["9. Ask Price"]),
-    lastRefreshed: rate["6. Last Refreshed"] || null,
-    timeZone: rate["7. Time Zone"] || null
+    value: amount,
+    lastRefreshed: new Date().toISOString()
+  };
+}
+
+/**
+ * EUR/USD via exchangerate.host public endpoint
+ */
+async function fetchEURUSD() {
+  const data = await fetchJson("https://api.exchangerate.host/convert?from=EUR&to=USD");
+  const result = toNum(data?.result);
+
+  if (result === null) {
+    throw new Error("EUR/USD missing data");
+  }
+
+  return {
+    value: result,
+    lastRefreshed: new Date().toISOString()
   };
 }
 
@@ -206,8 +214,8 @@ app.get("/api/dashboard", async (req, res) => {
     const unemploymentObs = await safe(() => fredSeries("UNRATE"));
     const fedUpperObs = await safe(() => fredSeries("DFEDTARU"));
     const cpiAll = await safe(() => fredSeriesAll("CPIAUCSL"), []);
-    const eurUsd = await safe(() => alphaFx("EUR", "USD"));
-    const btcUsd = await safe(() => alphaFx("BTC", "USD"));
+    const eurUsd = await safe(() => fetchEURUSD());
+    const btcUsd = await safe(() => fetchBTCUSD());
     const credit = await safe(() => getCreditSpread());
 
     const cpiLatest = getLastValidObservation(cpiAll);
@@ -225,7 +233,7 @@ app.get("/api/dashboard", async (req, res) => {
       updatedAt: new Date().toISOString(),
       sources: {
         fred: "FRED",
-        alphaVantage: "Alpha Vantage"
+        market: "Coinbase / exchangerate.host"
       },
       data: {
         dxyProxy: {
