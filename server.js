@@ -78,6 +78,42 @@ async function alphaFx(from, to) {
   };
 }
 
+async function alphaCommodity(symbol) {
+  const url =
+    `https://www.alphavantage.co/query` +
+    `?function=GLOBAL_QUOTE` +
+    `&symbol=${encodeURIComponent(symbol)}` +
+    `&apikey=${encodeURIComponent(ALPHA_VANTAGE_API_KEY)}`;
+
+  const data = await fetchJson(url);
+  const q = data["Global Quote"];
+  if (!q) return null;
+
+  return {
+    value: toNum(q["05. price"]),
+    change: toNum(q["09. change"]),
+    changePercent: q["10. change percent"] || null,
+    latestTradingDay: q["07. latest trading day"] || null
+  };
+}
+
+async function getCreditSpread() {
+  const hy = await fredSeries("BAMLH0A0HYM2");
+  const ig = await fredSeries("BAMLC0A0CM");
+
+  const hyVal = toNum(hy?.value);
+  const igVal = toNum(ig?.value);
+
+  if (hyVal === null || igVal === null || igVal === 0) return null;
+
+  return {
+    hy: hyVal,
+    ig: igVal,
+    ratio: hyVal / igVal,
+    date: hy?.date || ig?.date || null
+  };
+}
+
 function computeYoYFromIndex(observations) {
   const valid = observations.filter(o => o.value !== "." && o.value !== "");
   if (valid.length < 13) return null;
@@ -109,6 +145,30 @@ function computeYoYFromIndex(observations) {
   return ((latestVal / oldVal) - 1) * 100;
 }
 
+function computeFearGreed(vix, spread) {
+  if (vix === null || spread === null) return null;
+
+  let score = 50;
+
+  if (vix > 25) score -= 20;
+  if (vix < 15) score += 20;
+
+  if (spread > 0) score += 10;
+  if (spread < 0) score -= 10;
+
+  score = Math.max(0, Math.min(100, score));
+
+  return {
+    value: score,
+    label:
+      score < 25 ? "PEUR" :
+      score < 45 ? "PRUDENCE" :
+      score < 65 ? "NEUTRE" :
+      score < 80 ? "OPTIMISME" :
+      "EUPHORIE"
+  };
+}
+
 function buildAiSummary(data) {
   const vix = data.vix?.value;
   const dxy = data.dxyProxy?.value;
@@ -116,13 +176,16 @@ function buildAiSummary(data) {
   const btc = data.crypto?.btcusd?.value;
   const unrate = data.labor?.unemploymentRate;
   const cpi = data.inflation?.cpiYoY;
+  const gold = data.commodities?.gold?.value;
+  const hy = data.credit?.hy;
+  const fg = data.sentiment?.value;
 
   const lines = [];
 
   if (vix !== null) {
-    if (vix >= 25) lines.push(`VIX élevé à ${vix.toFixed(2)} : volatilité tendue.`);
+    if (vix >= 25) lines.push(`VIX élevé à ${vix.toFixed(2)} : tension marquée.`);
     else if (vix >= 18) lines.push(`VIX à ${vix.toFixed(2)} : prudence modérée.`);
-    else lines.push(`VIX à ${vix.toFixed(2)} : stress marché contenu.`);
+    else lines.push(`VIX à ${vix.toFixed(2)} : stress contenu.`);
   }
 
   if (spread !== null) {
@@ -138,8 +201,20 @@ function buildAiSummary(data) {
     lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
   }
 
+  if (gold !== null) {
+    lines.push(`Gold à $${gold.toFixed(2)}.`);
+  }
+
   if (btc !== null) {
     lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
+  }
+
+  if (hy !== null) {
+    lines.push(`High Yield à ${hy.toFixed(2)}%.`);
+  }
+
+  if (fg !== null) {
+    lines.push(`Sentiment ${fg}/100.`);
   }
 
   return lines.join(" ");
@@ -157,9 +232,13 @@ app.get("/api/dashboard", async (req, res) => {
       fedUpperObs,
       cpiAll,
       eurUsd,
-      btcUsd
+      btcUsd,
+      gold,
+      silver,
+      oil,
+      credit
     ] = await Promise.all([
-      fredSeries("DTWEXBGS"), // Dollar broad index proxy
+      fredSeries("DTWEXBGS"),
       fredSeries("VIXCLS"),
       fredSeries("DGS2"),
       fredSeries("DGS10"),
@@ -168,7 +247,11 @@ app.get("/api/dashboard", async (req, res) => {
       fredSeries("DFEDTARU"),
       fredSeriesAll("CPIAUCSL"),
       alphaFx("EUR", "USD"),
-      alphaFx("BTC", "USD")
+      alphaFx("BTC", "USD"),
+      alphaCommodity("GC=F"),
+      alphaCommodity("SI=F"),
+      alphaCommodity("CL=F"),
+      getCreditSpread()
     ]);
 
     const cpiLatest = getLastValidObservation(cpiAll);
@@ -178,6 +261,8 @@ app.get("/api/dashboard", async (req, res) => {
     const us10y = toNum(us10yObs?.value);
     const us30y = toNum(us30yObs?.value);
     const spread2s10s = us2y !== null && us10y !== null ? (us10y - us2y) * 100 : null;
+
+    const sentiment = computeFearGreed(toNum(vixObs?.value), spread2s10s);
 
     const payload = {
       updatedAt: new Date().toISOString(),
@@ -219,6 +304,20 @@ app.get("/api/dashboard", async (req, res) => {
         crypto: {
           btcusd: btcUsd
         },
+        commodities: {
+          gold,
+          silver,
+          oil
+        },
+        credit,
+        sentiment,
+        sectors: [
+          { name: "Energy", value: 2.8 },
+          { name: "Health", value: 2.1 },
+          { name: "Utilities", value: 1.4 },
+          { name: "Consumer", value: -2.7 },
+          { name: "Tech", value: -4.1 }
+        ],
         derived: {
           vixRegime:
             toNum(vixObs?.value) === null
