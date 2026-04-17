@@ -8,33 +8,37 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root{
-      --bg:#030b1a;
-      --bg2:#071121;
-      --line:#1b3152;
-      --text:#d7e2f2;
-      --muted:#597099;
-      --orange:#ffb000;
-      --green:#2ee36f;
+      --bg:#020916;
+      --bg2:#07101d;
+      --line:#173153;
+      --text:#e2ebf7;
+      --muted:#5b729b;
+      --orange:#f0a500;
+      --green:#21e36d;
       --red:#ff5a5a;
-      --yellow:#f5b942;
-      --blue:#81aaf7;
+      --yellow:#f3b43a;
+      --blue:#8bb4ff;
+      --panelPad:8px;
+      --font:Consolas, Monaco, "Courier New", monospace;
     }
 
     html, body {
       background: var(--bg);
       color: var(--text);
-      font-family: Consolas, Monaco, "Courier New", monospace;
+      font-family: var(--font);
       width: 100%;
       min-height: 100%;
+      overflow-x: hidden;
     }
 
     .terminal {
       min-height: 100vh;
       background: var(--bg);
+      font-size: 12px;
     }
 
     .topbar {
-      height: 34px;
+      height: 32px;
       border-bottom: 1px solid var(--line);
       display: flex;
       justify-content: space-between;
@@ -48,12 +52,14 @@
       display: flex;
       align-items: center;
       gap: 14px;
+      min-width: 0;
     }
 
     .logo {
       color: var(--orange);
       letter-spacing: 2px;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     .live-dot {
@@ -88,34 +94,52 @@
     }
 
     .ticker {
-      height: 26px;
+      height: 28px;
       display: flex;
       align-items: center;
-      gap: 22px;
+      gap: 18px;
       overflow-x: auto;
       white-space: nowrap;
       border-bottom: 1px solid var(--line);
       background: #020918;
-      padding: 0 8px;
+      padding: 0 6px;
       font-size: 12px;
+      scrollbar-width: none;
     }
 
-    .ticker-item { display: inline-flex; gap: 5px; align-items: center; }
-    .ticker-sym { color: #9cc0ff; }
-    .ticker-val { color: #ffffff; font-weight: 700; }
+    .ticker::-webkit-scrollbar { display: none; }
+
+    .ticker-item {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .ticker-sym {
+      color: #9cc0ff;
+    }
+
+    .ticker-val {
+      color: #fff;
+      font-weight: 700;
+    }
 
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      grid-auto-rows: minmax(180px, auto);
       gap: 1px;
       background: var(--line);
     }
 
     .panel {
       background: var(--bg);
-      padding: 8px;
-      min-height: 180px;
+      padding: var(--panelPad);
+      min-height: 165px;
+    }
+
+    .panel.tall {
+      min-height: 190px;
     }
 
     .panel-title {
@@ -124,7 +148,7 @@
       align-items: center;
       margin-bottom: 8px;
       font-size: 11px;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.6px;
       text-transform: uppercase;
       color: var(--orange);
     }
@@ -132,31 +156,33 @@
     .panel-tag {
       color: var(--muted);
       font-size: 10px;
+      letter-spacing: 1px;
     }
 
     .two-big {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 6px;
     }
 
     .big {
       text-align: center;
-      padding-top: 8px;
+      padding-top: 6px;
     }
 
     .big-label {
       color: var(--muted);
-      font-size: 10px;
+      font-size: 9px;
       margin-bottom: 8px;
+      text-transform: uppercase;
     }
 
     .big-value {
-      font-size: 24px;
+      font-size: 22px;
       line-height: 1;
       font-weight: 700;
-      color: #ffffff;
+      color: #fff;
     }
 
     .big-date {
@@ -170,8 +196,8 @@
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(27,49,82,0.45);
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(23,49,83,0.45);
       font-size: 12px;
     }
 
@@ -182,7 +208,7 @@
     }
 
     .value {
-      color: #ffffff;
+      color: #fff;
       font-weight: 700;
     }
 
@@ -198,6 +224,7 @@
       border: 1px solid var(--line);
       font-size: 10px;
       margin-left: 6px;
+      color: #bcd0ef;
     }
 
     .ai-box {
@@ -207,7 +234,7 @@
       font-size: 12px;
       line-height: 1.6;
       color: #d5dded;
-      min-height: 130px;
+      min-height: 84px;
     }
 
     .sector-row {
@@ -215,21 +242,21 @@
       align-items: center;
       gap: 8px;
       padding: 5px 0;
-      border-bottom: 1px solid rgba(27,49,82,0.45);
-      font-size: 12px;
+      border-bottom: 1px solid rgba(23,49,83,0.45);
+      font-size: 11px;
     }
 
     .sector-row:last-child { border-bottom: none; }
 
     .sector-name {
-      width: 90px;
+      width: 74px;
       color: #9ab1d2;
       flex-shrink: 0;
     }
 
     .sector-bar {
       flex: 1;
-      height: 4px;
+      height: 3px;
       background: #08101f;
       position: relative;
     }
@@ -239,20 +266,29 @@
     }
 
     .sector-val {
-      width: 55px;
+      width: 50px;
       text-align: right;
       font-weight: 700;
+      font-size: 11px;
+    }
+
+    .compact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
     }
 
     .footer {
       border-top: 1px solid var(--line);
-      padding: 8px;
+      padding: 7px 8px;
       font-size: 11px;
       color: var(--muted);
     }
 
-    @media (max-width: 1000px) {
-      .grid {
+    @media (max-width: 1100px) {
+      .grid,
+      .compact-grid {
         grid-template-columns: 1fr;
       }
 
@@ -279,7 +315,7 @@
         <div id="clock" class="blue">--:--:-- NY</div>
       </div>
       <div class="top-right">
-        <div class="muted">SOURCES: FRED / ALPHA VANTAGE</div>
+        <div class="muted">SOURCES: FRED / COINBASE / FX</div>
         <button class="refresh-btn" onclick="loadDashboard()">⟳ ACTUALISER</button>
       </div>
     </div>
@@ -298,7 +334,7 @@
     </div>
 
     <div class="grid">
-      <div class="panel">
+      <div class="panel tall">
         <div class="panel-title">
           <span>DOLLAR & VOLATILITÉ</span>
           <span class="panel-tag">LIVE</span>
@@ -321,7 +357,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel tall">
         <div class="panel-title">
           <span>FX & CRYPTO</span>
           <span class="panel-tag">LIVE</span>
@@ -340,7 +376,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel tall">
         <div class="panel-title">
           <span>COURBE US</span>
           <span class="panel-tag">FRED</span>
@@ -355,40 +391,53 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel tall">
         <div class="panel-title">
           <span>INFLATION</span>
           <span class="panel-tag">FRED</span>
         </div>
-        <div class="big">
-          <div class="big-label">CPI YOY</div>
-          <div class="big-value" id="cpi-val">--</div>
-          <div class="big-date" id="cpi-date">--</div>
+        <div class="two-big">
+          <div class="big">
+            <div class="big-label">CPI YOY</div>
+            <div class="big-value" id="cpi-val">--</div>
+            <div class="big-date" id="cpi-date">--</div>
+          </div>
+          <div class="big">
+            <div class="big-label">INDICE CPI</div>
+            <div class="big-value" id="cpi-index-val">--</div>
+            <div class="big-date" id="cpi-index-date">niveau</div>
+          </div>
         </div>
-        <div class="metric-row"><span class="label">Indice CPI</span><span class="value" id="cpi-index-val">--</span></div>
+        <div class="metric-row"><span class="label">Fed Upper Bound</span><span class="value" id="fed-inline-val">--</span></div>
       </div>
 
-      <div class="panel">
+      <div class="panel tall">
         <div class="panel-title">
-          <span>EMPLOI</span>
+          <span>EMPLOI & CRÉDIT</span>
           <span class="panel-tag">FRED</span>
         </div>
-        <div class="big">
-          <div class="big-label">Chômage US</div>
-          <div class="big-value" id="unrate-val">--</div>
-          <div class="big-date" id="unrate-date">--</div>
-        </div>
+        <div class="metric-row"><span class="label">Chômage US</span><span class="value" id="unrate-val">--</span></div>
+        <div class="metric-row"><span class="label">High Yield</span><span class="value" id="hy-val">--</span></div>
+        <div class="metric-row"><span class="label">Investment Grade</span><span class="value" id="ig-val">--</span></div>
+        <div class="metric-row"><span class="label">Ratio HY/IG</span><span class="value" id="credit-ratio">--</span></div>
       </div>
 
-      <div class="panel">
+      <div class="panel tall">
         <div class="panel-title">
-          <span>FED</span>
-          <span class="panel-tag">FRED</span>
+          <span>SENTIMENT & RÉGIMES</span>
+          <span class="panel-tag">AUTO</span>
         </div>
-        <div class="big">
-          <div class="big-label">Fed Upper Bound</div>
-          <div class="big-value" id="fed-val">--</div>
-          <div class="big-date" id="fed-date">--</div>
+        <div class="two-big">
+          <div class="big">
+            <div class="big-label">FEAR & GREED</div>
+            <div class="big-value" id="fg-val">--</div>
+            <div class="big-date" id="fg-label">--</div>
+          </div>
+          <div class="big">
+            <div class="big-label">VOLATILITÉ</div>
+            <div class="big-value" id="regime-vol-big">--</div>
+            <div class="big-date" id="regime-curve-big">--</div>
+          </div>
         </div>
       </div>
 
@@ -400,28 +449,6 @@
         <div class="metric-row"><span class="label">Gold</span><span class="value" id="gold-val">--</span></div>
         <div class="metric-row"><span class="label">Silver</span><span class="value" id="silver-val">--</span></div>
         <div class="metric-row"><span class="label">Oil (WTI)</span><span class="value" id="oil-val">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
-          <span>CRÉDIT</span>
-          <span class="panel-tag">FRED</span>
-        </div>
-        <div class="metric-row"><span class="label">High Yield</span><span class="value" id="hy-val">--</span></div>
-        <div class="metric-row"><span class="label">Investment Grade</span><span class="value" id="ig-val">--</span></div>
-        <div class="metric-row"><span class="label">Ratio</span><span class="value" id="credit-ratio">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
-          <span>SENTIMENT</span>
-          <span class="panel-tag">AUTO</span>
-        </div>
-        <div class="big">
-          <div class="big-label">FEAR & GREED</div>
-          <div class="big-value" id="fg-val">--</div>
-          <div class="big-date" id="fg-label">--</div>
-        </div>
       </div>
 
       <div class="panel">
@@ -438,31 +465,18 @@
 
       <div class="panel">
         <div class="panel-title">
-          <span>RÉGIMES</span>
-          <span class="panel-tag">AUTO</span>
-        </div>
-        <div class="metric-row"><span class="label">Volatilité marché</span><span class="value" id="regime-vol">--</span></div>
-        <div class="metric-row"><span class="label">Courbe des taux</span><span class="value" id="regime-curve">--</span></div>
-        <div class="metric-row"><span class="label">Biais inflation</span><span class="value" id="regime-inflation">--</span></div>
-        <div class="metric-row"><span class="label">Biais emploi</span><span class="value" id="regime-labor">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
           <span>SECTEURS (1M)</span>
           <span class="panel-tag">AUTO</span>
         </div>
         <div id="sectors-wrap"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" style="grid-column: span 3;">
         <div class="panel-title">
           <span>ANALYSE IA</span>
           <span class="panel-tag">AUTO</span>
         </div>
-        <div class="ai-box" id="ai-summary">
-          Chargement...
-        </div>
+        <div class="ai-box" id="ai-summary">Chargement...</div>
       </div>
     </div>
 
@@ -512,20 +526,6 @@
       const m = String(ny.getMinutes()).padStart(2, "0");
       const s = String(ny.getSeconds()).padStart(2, "0");
       setText("clock", `${h}:${m}:${s} NY`);
-    }
-
-    function inflationBias(cpi) {
-      if (cpi === null || cpi === undefined) return "--";
-      if (cpi >= 3.5) return "élevée";
-      if (cpi >= 2.5) return "modérée";
-      return "contenue";
-    }
-
-    function laborBias(unrate) {
-      if (unrate === null || unrate === undefined) return "--";
-      if (unrate >= 5) return "faible";
-      if (unrate >= 4) return "neutre";
-      return "solide";
     }
 
     function renderSectors(sectors) {
@@ -595,10 +595,10 @@
         setText("vix-date", d.vix?.date || "--");
 
         setText("eurusd-val", formatNumber(eurusd, 4));
-        setText("eurusd-date", d.fx?.eurusd?.lastRefreshed || "--");
+        setText("eurusd-date", d.fx?.eurusd?.lastRefreshed ? new Date(d.fx.eurusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
 
-        setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 2)}` : "--");
-        setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed || "--");
+        setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
+        setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
 
         setText("us2y-val", formatPct(us2y, 2));
         setText("us10y-val", formatPct(us10y, 2));
@@ -608,16 +608,9 @@
         setText("cpi-val", formatPct(cpi, 2));
         setText("cpi-date", d.inflation?.date || "--");
         setText("cpi-index-val", formatNumber(cpiIndex, 2));
+        setText("fed-inline-val", formatPct(fed, 2));
 
         setText("unrate-val", formatPct(unrate, 2));
-        setText("unrate-date", d.labor?.date || "--");
-
-        setText("fed-val", formatPct(fed, 2));
-        setText("fed-date", d.fed?.date || "--");
-
-        setText("gold-val", gold !== null ? `$${formatNumber(gold, 2)}` : "--");
-        setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
-        setText("oil-val", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
 
         setText("hy-val", hy !== null ? formatPct(hy, 2) : "--");
         setText("ig-val", ig !== null ? formatPct(ig, 2) : "--");
@@ -626,7 +619,14 @@
         setText("fg-val", fg !== null ? formatNumber(fg, 0) : "--");
         setText("fg-label", fgLabel);
 
-        setText("ticker-btc", btc !== null ? `$${formatNumber(btc, 2)}` : "--");
+        setText("regime-vol-big", d.derived?.vixRegime || "--");
+        setText("regime-curve-big", d.derived?.curveState || "--");
+
+        setText("gold-val", gold !== null ? `$${formatNumber(gold, 2)}` : "--");
+        setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
+        setText("oil-val", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
+
+        setText("ticker-btc", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
         setText("ticker-eurusd", formatNumber(eurusd, 4));
         setText("ticker-dxy", formatNumber(dxy, 2));
         setText("ticker-vix", formatNumber(vix, 2));
@@ -646,11 +646,6 @@
         setText("kpi-unrate", formatPct(unrate, 2));
         setText("kpi-btc", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
 
-        setText("regime-vol", d.derived?.vixRegime || "--");
-        setText("regime-curve", d.derived?.curveState || "--");
-        setText("regime-inflation", inflationBias(cpi));
-        setText("regime-labor", laborBias(unrate));
-
         setText("ai-summary", d.aiSummary || "Pas de résumé disponible.");
 
         renderSectors(d.sectors || []);
@@ -659,17 +654,13 @@
         colorize("spread-val", spread, v => v >= 0 ? "green" : "red");
         colorize("cpi-val", cpi, v => v >= 3 ? "yellow" : v >= 2 ? "green" : "blue");
         colorize("unrate-val", unrate, v => v >= 5 ? "red" : v >= 4 ? "yellow" : "green");
-        colorize("fed-val", fed, v => v >= 4.5 ? "yellow" : v >= 3 ? "green" : "blue");
         colorize("btcusd-val", btc, () => "green");
         colorize("eurusd-val", eurusd, () => "blue");
-        colorize("gold-val", gold, () => "yellow");
-        colorize("silver-val", silver, () => "blue");
-        colorize("oil-val", oil, () => "red");
         colorize("fg-val", fg, v => v < 25 ? "red" : v < 45 ? "yellow" : v < 65 ? "blue" : "green");
 
         setText(
           "footer-status",
-          `Dernière mise à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources : ${json.sources.fred} / ${json.sources.alphaVantage}`
+          `Dernière mise à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources : ${json.sources.fred} / ${json.sources.market}`
         );
       } catch (err) {
         setText("footer-status", `Erreur : ${err.message}`);
