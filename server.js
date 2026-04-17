@@ -15,7 +15,14 @@ function toNum(v) {
 }
 
 async function fetchJson(url, options = {}) {
-  const res = await fetch(url, options);
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      ...(options.headers || {})
+    }
+  });
+
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} - ${url}`);
   }
@@ -67,9 +74,7 @@ async function fredSeriesAll(seriesId) {
 async function fetchBTCUSD() {
   const data = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
   const amount = toNum(data?.data?.amount);
-  if (amount === null) {
-    throw new Error("BTC/USD missing data");
-  }
+  if (amount === null) throw new Error("BTC/USD missing data");
 
   return {
     value: amount,
@@ -78,15 +83,59 @@ async function fetchBTCUSD() {
 }
 
 async function fetchEURUSD() {
-  const data = await fetchJson("https://api.exchangerate.host/convert?from=EUR&to=USD");
-  const result = toNum(data?.result);
-
-  if (result === null) {
-    throw new Error("EUR/USD missing data");
-  }
+  const data = await fetchJson("https://api.frankfurter.app/latest?from=EUR&to=USD");
+  const result = toNum(data?.rates?.USD);
+  if (result === null) throw new Error("EUR/USD missing data");
 
   return {
     value: result,
+    lastRefreshed: new Date().toISOString()
+  };
+}
+
+/**
+ * Yahoo Finance chart endpoint
+ * Exemples:
+ * GC=F gold futures
+ * SI=F silver futures
+ * CL=F WTI
+ * BZ=F Brent
+ * HG=F Copper
+ * NG=F Nat Gas
+ * ETH-USD
+ */
+async function fetchYahooQuote(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+  const data = await fetchJson(url);
+
+  const result = data?.chart?.result?.[0];
+  if (!result) {
+    throw new Error(`Yahoo missing result for ${symbol}`);
+  }
+
+  const meta = result.meta || {};
+  const price = toNum(meta.regularMarketPrice);
+  const prevClose = toNum(meta.chartPreviousClose);
+
+  if (price === null) {
+    throw new Error(`Yahoo missing price for ${symbol}`);
+  }
+
+  let change = null;
+  let changePct = null;
+
+  if (prevClose !== null && prevClose !== 0) {
+    change = price - prevClose;
+    changePct = (change / prevClose) * 100;
+  }
+
+  return {
+    value: price,
+    previousClose: prevClose,
+    change,
+    changePct,
+    currency: meta.currency || null,
+    exchangeName: meta.exchangeName || null,
     lastRefreshed: new Date().toISOString()
   };
 }
@@ -174,11 +223,14 @@ function buildAiSummary(data) {
   const cpi = data.inflation?.cpiYoY;
   const hy = data.credit?.hy;
   const fg = data.sentiment?.value;
+  const gold = data.commodities?.gold?.value;
+  const silver = data.commodities?.silver?.value;
+  const ratio = gold && silver ? gold / silver : null;
 
   const lines = [];
 
   if (vix !== null) {
-    if (vix >= 25) lines.push(`Marché tendu : VIX à ${vix.toFixed(2)}.`);
+    if (vix >= 25) lines.push(`Marché sous tension : VIX à ${vix.toFixed(2)}.`);
     else if (vix >= 18) lines.push(`Volatilité modérée : VIX à ${vix.toFixed(2)}.`);
     else lines.push(`Stress contenu : VIX à ${vix.toFixed(2)}.`);
   }
@@ -189,12 +241,14 @@ function buildAiSummary(data) {
   }
 
   if (cpi !== null && unrate !== null) {
-    lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}% : régime macro encore équilibré mais à surveiller.`);
+    lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}% : régime macro équilibré mais sous surveillance.`);
   }
 
   if (dxy !== null) lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
   if (btc !== null) lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
-  if (hy !== null) lines.push(`Spread High Yield à ${hy.toFixed(2)}%.`);
+  if (gold !== null) lines.push(`Gold à $${gold.toFixed(2)}.`);
+  if (ratio !== null) lines.push(`Gold/Silver ratio à ${ratio.toFixed(1)}x.`);
+  if (hy !== null) lines.push(`High Yield à ${hy.toFixed(2)}%.`);
   if (fg !== null) lines.push(`Sentiment agrégé ${fg}/100.`);
 
   return lines.length ? lines.join(" ") : "Données partielles disponibles.";
@@ -214,6 +268,14 @@ app.get("/api/dashboard", async (req, res) => {
     const btcUsd = await safe(() => fetchBTCUSD());
     const credit = await safe(() => getCreditSpread());
 
+    const gold = await safe(() => fetchYahooQuote("GC=F"));
+    const silver = await safe(() => fetchYahooQuote("SI=F"));
+    const oil = await safe(() => fetchYahooQuote("CL=F"));
+    const brent = await safe(() => fetchYahooQuote("BZ=F"));
+    const copper = await safe(() => fetchYahooQuote("HG=F"));
+    const natgas = await safe(() => fetchYahooQuote("NG=F"));
+    const eth = await safe(() => fetchYahooQuote("ETH-USD"));
+
     const cpiLatest = getLastValidObservation(cpiAll);
     const cpiYoY = computeYoYFromIndex(cpiAll);
 
@@ -229,7 +291,7 @@ app.get("/api/dashboard", async (req, res) => {
       updatedAt: new Date().toISOString(),
       sources: {
         fred: "FRED",
-        market: "Coinbase / exchangerate.host"
+        market: "Coinbase / Frankfurter / Yahoo Finance"
       },
       data: {
         dxyProxy: {
@@ -269,15 +331,15 @@ app.get("/api/dashboard", async (req, res) => {
         crypto: {
           btcusd: btcUsd,
           btcDominance: 64.2,
-          ethusd: 1614
+          ethusd: eth?.value ?? null
         },
         commodities: {
-          gold: { value: 3330, changePct: 0.87 },
-          silver: { value: 33.02, changePct: 1.1 },
-          oil: { value: 62.10, changePct: -0.44 },
-          brent: { value: 65.80, changePct: -0.31 },
-          copper: { value: 9740, changePct: 0.8 },
-          natgas: { value: 3.18, changePct: -1.2 }
+          gold,
+          silver,
+          oil,
+          brent,
+          copper,
+          natgas
         },
         credit,
         sentiment,
@@ -305,6 +367,8 @@ app.get("/api/dashboard", async (req, res) => {
           { name: "Tech", value: -4.1 }
         ],
         derived: {
+          goldSilverRatio:
+            gold?.value && silver?.value ? gold.value / silver.value : null,
           vixRegime:
             toNum(vixObs?.value) === null
               ? null
