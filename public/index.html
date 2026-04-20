@@ -3,15 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>◆ Terminal Macro V5</title>
+  <title>◆ Terminal Macro V6</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root{
       --bg:#030b1a;
-      --bg2:#071121;
       --line:#1b3152;
-      --lineSoft:#10233d;
       --text:#dce7f6;
       --muted:#5e749c;
       --orange:#f0a500;
@@ -71,7 +69,11 @@
       cursor: pointer;
       font-family: inherit;
     }
-    .refresh-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+    .refresh-btn:hover {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
 
     .ticker {
       height: 27px;
@@ -85,8 +87,16 @@
       padding: 0 6px;
       scrollbar-width: none;
     }
+
     .ticker::-webkit-scrollbar { display: none; }
-    .ticker-item { display: inline-flex; gap: 5px; align-items: center; flex-shrink: 0; }
+
+    .ticker-item {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
     .ticker-sym { color: #9cc0ff; }
     .ticker-val { color: #fff; font-weight: 700; }
 
@@ -157,6 +167,7 @@
       border-bottom: 1px solid rgba(27,49,82,0.42);
       font-size: 12px;
     }
+
     .metric-row:last-child { border-bottom: none; }
 
     .label { color: #9ab1d2; }
@@ -241,6 +252,7 @@
       border-bottom: 1px solid rgba(27,49,82,0.42);
       font-size: 11px;
     }
+
     .sector-row:last-child { border-bottom: none; }
 
     .sector-name {
@@ -276,9 +288,11 @@
       border-bottom: 1px solid rgba(27,49,82,0.42);
       font-size: 11px;
     }
+
     .cds-row:last-child { border-bottom: none; }
 
     .cds-country { color: #9ab1d2; }
+
     .cds-risk {
       font-size: 9px;
       padding: 1px 5px;
@@ -770,7 +784,12 @@
         setText("gold-big-chg", goldChg !== null ? formatSignedPct(goldChg, 2) : "--");
 
         setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
-        setText("btcusd-date", d.crypto?.btcusd?.lastRefreshed ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
+        setText(
+          "btcusd-date",
+          d.crypto?.btcusd?.lastRefreshed
+            ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR")
+            : "--"
+        );
 
         setText(
           "gold-silver-ratio",
@@ -778,6 +797,7 @@
             ? `${formatNumber(d.derived.goldSilverRatio, 1)}x`
             : "--"
         );
+
         setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
         setText("btc-dom", btcDom !== null ? formatPct(btcDom, 1) : "--");
         setText("ethusd-val", ethusd !== null ? `$${formatNumber(ethusd, 0)}` : "--");
@@ -838,7 +858,7 @@
 
         setText(
           "footer-status",
-          `Dernière mise à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources : ${json.sources.fred} / ${json.sources.market}`
+          `Dernière mise à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources : ${json.sources?.fred || "N/A"} / ${json.sources?.market || "N/A"}`
         );
       } catch (err) {
         setText("footer-status", `Erreur : ${err.message}`);
