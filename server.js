@@ -4,417 +4,170 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const FRED_API_KEY =
-  process.env.FRED_API_KEY || "2945c843ac2ef54c3d1272b9f9cc2747";
+const FRED_API_KEY = "2945c843ac2ef54c3d1272b9f9cc2747";
 
 app.use(express.static(path.join(__dirname, "public")));
 
-function toNum(v) {
+const toNum = v => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
-}
+};
 
-async function fetchJson(url, options = {}) {
+async function fetchJson(url) {
   const res = await fetch(url, {
-    ...options,
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      ...(options.headers || {})
-    }
+    headers: { "User-Agent": "Mozilla/5.0" }
   });
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} - ${url}`);
-  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-async function safe(task, fallback = null) {
-  try {
-    return await task();
-  } catch (err) {
-    console.error("SAFE ERROR:", err.message);
-    return fallback;
-  }
+async function safe(fn) {
+  try { return await fn(); }
+  catch (e) { return null; }
 }
 
-function getLastValidObservation(observations) {
-  if (!Array.isArray(observations)) return null;
-  for (let i = observations.length - 1; i >= 0; i--) {
-    const v = observations[i]?.value;
-    if (v !== "." && v !== "" && v !== null && v !== undefined) {
-      return observations[i];
-    }
-  }
-  return null;
-}
-
-async function fredSeries(seriesId) {
-  const url =
-    `https://api.stlouisfed.org/fred/series/observations` +
-    `?series_id=${encodeURIComponent(seriesId)}` +
-    `&api_key=${encodeURIComponent(FRED_API_KEY)}` +
-    `&file_type=json`;
-
+async function fred(id) {
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_API_KEY}&file_type=json`;
   const data = await fetchJson(url);
-  return getLastValidObservation(data.observations);
+  const obs = data.observations.reverse().find(o => o.value !== ".");
+  return { value: toNum(obs?.value), date: obs?.date };
 }
 
-async function fredSeriesAll(seriesId) {
-  const url =
-    `https://api.stlouisfed.org/fred/series/observations` +
-    `?series_id=${encodeURIComponent(seriesId)}` +
-    `&api_key=${encodeURIComponent(FRED_API_KEY)}` +
-    `&file_type=json`;
-
+async function yahoo(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
   const data = await fetchJson(url);
-  return Array.isArray(data.observations) ? data.observations : [];
-}
-
-async function fetchBTCUSD() {
-  const data = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
-  const amount = toNum(data?.data?.amount);
-  if (amount === null) throw new Error("BTC/USD missing data");
-
-  return {
-    value: amount,
-    lastRefreshed: new Date().toISOString()
-  };
-}
-
-async function fetchEURUSD() {
-  const data = await fetchJson("https://api.frankfurter.app/latest?from=EUR&to=USD");
-  const result = toNum(data?.rates?.USD);
-  if (result === null) throw new Error("EUR/USD missing data");
-
-  return {
-    value: result,
-    lastRefreshed: new Date().toISOString()
-  };
-}
-
-/**
- * Yahoo Finance chart endpoint
- * GC=F gold
- * SI=F silver
- * CL=F WTI
- * BZ=F Brent
- * HG=F Copper
- * NG=F NatGas
- * ETH-USD Ethereum
- */
-async function fetchYahooQuote(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
-  const data = await fetchJson(url);
-
-  const result = data?.chart?.result?.[0];
-  if (!result) {
-    throw new Error(`Yahoo missing result for ${symbol}`);
-  }
-
-  const meta = result.meta || {};
-  const price = toNum(meta.regularMarketPrice);
-  const prevClose = toNum(meta.chartPreviousClose);
-
-  if (price === null) {
-    throw new Error(`Yahoo missing price for ${symbol}`);
-  }
-
-  let change = null;
-  let changePct = null;
-
-  if (prevClose !== null && prevClose !== 0) {
-    change = price - prevClose;
-    changePct = (change / prevClose) * 100;
-  }
-
+  const meta = data.chart.result[0].meta;
+  const price = meta.regularMarketPrice;
+  const prev = meta.chartPreviousClose;
   return {
     value: price,
-    previousClose: prevClose,
-    change,
-    changePct,
-    currency: meta.currency || null,
-    exchangeName: meta.exchangeName || null,
-    lastRefreshed: new Date().toISOString()
+    changePct: prev ? ((price - prev) / prev) * 100 : null
   };
 }
 
-async function getCreditSpread() {
-  const hy = await safe(() => fredSeries("BAMLH0A0HYM2"));
-  const ig = await safe(() => fredSeries("BAMLC0A0CM"));
+async function btc() {
+  const d = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+  return { value: toNum(d.data.amount) };
+}
 
-  const hyVal = toNum(hy?.value);
-  const igVal = toNum(ig?.value);
+async function eurusd() {
+  const d = await fetchJson("https://api.frankfurter.app/latest?from=EUR&to=USD");
+  return { value: toNum(d.rates.USD) };
+}
 
-  if (hyVal === null || igVal === null || igVal === 0) return null;
+async function btcDominance() {
+  const d = await fetchJson("https://api.coingecko.com/api/v3/global");
+  return toNum(d.data.market_cap_percentage.btc);
+}
 
-  return {
-    hy: hyVal,
-    ig: igVal,
-    ratio: hyVal / igVal,
-    date: hy?.date || ig?.date || null
+async function sectorETF() {
+  const map = {
+    Energy: "XLE",
+    Health: "XLV",
+    Utilities: "XLU",
+    Finance: "XLF",
+    Consumer: "XLY",
+    Tech: "XLK"
   };
-}
 
-function computeYoYFromIndex(observations) {
-  const valid = observations.filter(o => o.value !== "." && o.value !== "");
-  if (valid.length < 13) return null;
+  const out = [];
 
-  const latest = valid[valid.length - 1];
-  const latestDate = new Date(latest.date);
-  const latestVal = toNum(latest.value);
-  if (latestVal === null) return null;
-
-  let yearAgo = null;
-  for (let i = valid.length - 2; i >= 0; i--) {
-    const d = new Date(valid[i].date);
-    if (
-      d.getFullYear() === latestDate.getFullYear() - 1 &&
-      d.getMonth() === latestDate.getMonth()
-    ) {
-      yearAgo = valid[i];
-      break;
-    }
+  for (const k in map) {
+    const q = await safe(() => yahoo(map[k]));
+    if (q) out.push({ name: k, value: q.changePct || 0 });
   }
 
-  if (!yearAgo) {
-    yearAgo = valid[valid.length - 13];
-  }
-
-  const oldVal = toNum(yearAgo?.value);
-  if (oldVal === null || oldVal === 0) return null;
-
-  return ((latestVal / oldVal) - 1) * 100;
-}
-
-function computeFearGreed(vix, spread) {
-  if (vix == null || spread == null) return null;
-
-  let score = 50;
-
-  if (vix > 30) score -= 28;
-  else if (vix > 25) score -= 20;
-  else if (vix > 20) score -= 10;
-  else if (vix < 14) score += 18;
-
-  if (spread > 40) score += 10;
-  else if (spread < 0) score -= 12;
-
-  score = Math.max(0, Math.min(100, score));
-
-  return {
-    value: score,
-    label:
-      score < 25 ? "PEUR" :
-      score < 45 ? "PRUDENCE" :
-      score < 65 ? "NEUTRE" :
-      score < 80 ? "OPTIMISME" :
-      "EUPHORIE"
-  };
-}
-
-function buildAiSummary(data) {
-  const vix = data.vix?.value;
-  const dxy = data.dxyProxy?.value;
-  const spread = data.yields?.spread2s10s;
-  const btc = data.crypto?.btcusd?.value;
-  const unrate = data.labor?.unemploymentRate;
-  const cpi = data.inflation?.cpiYoY;
-  const hy = data.credit?.hy;
-  const fg = data.sentiment?.value;
-  const gold = data.commodities?.gold?.value;
-  const silver = data.commodities?.silver?.value;
-  const ratio =
-    typeof gold === "number" &&
-    typeof silver === "number" &&
-    silver !== 0
-      ? gold / silver
-      : null;
-
-  const lines = [];
-
-  if (typeof vix === "number") {
-    if (vix >= 25) lines.push(`Marché sous tension : VIX à ${vix.toFixed(2)}.`);
-    else if (vix >= 18) lines.push(`Volatilité modérée : VIX à ${vix.toFixed(2)}.`);
-    else lines.push(`Stress contenu : VIX à ${vix.toFixed(2)}.`);
-  }
-
-  if (typeof spread === "number") {
-    if (spread > 0) lines.push(`La courbe 2s10s reste positive à +${spread.toFixed(0)} pb.`);
-    else lines.push(`La courbe 2s10s reste inversée à ${spread.toFixed(0)} pb.`);
-  }
-
-  if (typeof cpi === "number" && typeof unrate === "number") {
-    lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}% : régime macro équilibré mais sous surveillance.`);
-  }
-
-  if (typeof dxy === "number") lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
-  if (typeof btc === "number") lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
-  if (typeof gold === "number") lines.push(`Gold à $${gold.toFixed(2)}.`);
-  if (typeof ratio === "number") lines.push(`Gold/Silver ratio à ${ratio.toFixed(1)}x.`);
-  if (typeof hy === "number") lines.push(`High Yield à ${hy.toFixed(2)}%.`);
-  if (typeof fg === "number") lines.push(`Sentiment agrégé ${fg.toFixed(0)}/100.`);
-
-  return lines.length ? lines.join(" ") : "Données partielles disponibles.";
+  return out;
 }
 
 app.get("/api/dashboard", async (req, res) => {
   try {
-    const dxyObs = await safe(() => fredSeries("DTWEXBGS"));
-    const vixObs = await safe(() => fredSeries("VIXCLS"));
-    const us2yObs = await safe(() => fredSeries("DGS2"));
-    const us10yObs = await safe(() => fredSeries("DGS10"));
-    const us30yObs = await safe(() => fredSeries("DGS30"));
-    const unemploymentObs = await safe(() => fredSeries("UNRATE"));
-    const fedUpperObs = await safe(() => fredSeries("DFEDTARU"));
-    const cpiAll = await safe(() => fredSeriesAll("CPIAUCSL"), []);
-    const eurUsd = await safe(() => fetchEURUSD());
-    const btcUsd = await safe(() => fetchBTCUSD());
-    const credit = await safe(() => getCreditSpread());
+    const [
+      dxy, vix,
+      us1m, us3m, us2y, us10y, us30y,
+      unrate, fed,
+      cpi, coreCpi, pce,
+      btcusd, eur,
+      gold, silver, oil, brent, copper, natgas,
+      eth,
+      btcDom,
+      sectors
+    ] = await Promise.all([
+      safe(() => fred("DTWEXBGS")),
+      safe(() => fred("VIXCLS")),
+      safe(() => fred("DGS1MO")),
+      safe(() => fred("DGS3MO")),
+      safe(() => fred("DGS2")),
+      safe(() => fred("DGS10")),
+      safe(() => fred("DGS30")),
+      safe(() => fred("UNRATE")),
+      safe(() => fred("DFEDTARU")),
+      safe(() => fred("CPIAUCSL")),
+      safe(() => fred("CPILFESL")),
+      safe(() => fred("PCEPILFE")),
+      safe(() => btc()),
+      safe(() => eurusd()),
+      safe(() => yahoo("GC=F")),
+      safe(() => yahoo("SI=F")),
+      safe(() => yahoo("CL=F")),
+      safe(() => yahoo("BZ=F")),
+      safe(() => yahoo("HG=F")),
+      safe(() => yahoo("NG=F")),
+      safe(() => yahoo("ETH-USD")),
+      safe(() => btcDominance()),
+      safe(() => sectorETF())
+    ]);
 
-    const gold = await safe(() => fetchYahooQuote("GC=F"));
-    const silver = await safe(() => fetchYahooQuote("SI=F"));
-    const oil = await safe(() => fetchYahooQuote("CL=F"));
-    const brent = await safe(() => fetchYahooQuote("BZ=F"));
-    const copper = await safe(() => fetchYahooQuote("HG=F"));
-    const natgas = await safe(() => fetchYahooQuote("NG=F"));
-    const eth = await safe(() => fetchYahooQuote("ETH-USD"));
+    const spread = us10y?.value && us2y?.value
+      ? (us10y.value - us2y.value) * 100
+      : null;
 
-    const cpiLatest = getLastValidObservation(cpiAll);
-    const cpiYoY = computeYoYFromIndex(cpiAll);
+    const ratio =
+      gold?.value && silver?.value
+        ? gold.value / silver.value
+        : null;
 
-    const us2y = toNum(us2yObs?.value);
-    const us10y = toNum(us10yObs?.value);
-    const us30y = toNum(us30yObs?.value);
-    const spread2s10s =
-      us2y !== null && us10y !== null ? (us10y - us2y) * 100 : null;
-
-    const sentiment = computeFearGreed(toNum(vixObs?.value), spread2s10s);
-
-    const payload = {
+    res.json({
       updatedAt: new Date().toISOString(),
-      sources: {
-        fred: "FRED",
-        market: "Coinbase / Frankfurter / Yahoo Finance"
-      },
       data: {
-        dxyProxy: {
-          value: toNum(dxyObs?.value),
-          date: dxyObs?.date || null
-        },
-        vix: {
-          value: toNum(vixObs?.value),
-          date: vixObs?.date || null
-        },
+        dxyProxy: dxy,
+        vix,
         yields: {
-          us1m: 4.33,
-          us3m: 4.28,
-          us2y,
-          us10y,
-          us30y,
-          spread2s10s
+          us1m: us1m?.value,
+          us3m: us3m?.value,
+          us2y: us2y?.value,
+          us10y: us10y?.value,
+          us30y: us30y?.value,
+          spread2s10s: spread
         },
         inflation: {
-          cpiYoY,
-          cpiIndex: toNum(cpiLatest?.value),
-          coreCpi: cpiYoY !== null ? Math.max(0, cpiYoY - 0.4) : null,
-          pceCore: cpiYoY !== null ? Math.max(0, cpiYoY - 0.5) : null,
-          date: cpiLatest?.date || null
+          cpiYoY: cpi?.value,
+          coreCpi: coreCpi?.value,
+          pceCore: pce?.value
         },
-        labor: {
-          unemploymentRate: toNum(unemploymentObs?.value),
-          date: unemploymentObs?.date || null
-        },
-        fed: {
-          upperBound: toNum(fedUpperObs?.value),
-          date: fedUpperObs?.date || null
-        },
-        fx: {
-          eurusd: eurUsd
-        },
+        labor: { unemploymentRate: unrate?.value },
+        fed: { upperBound: fed?.value },
+        fx: { eurusd: eur },
         crypto: {
-          btcusd: btcUsd,
-          btcDominance: 64.2,
-          ethusd: eth?.value ?? null
+          btcusd,
+          btcDominance: btcDom,
+          ethusd: eth?.value
         },
         commodities: {
-          gold,
-          silver,
-          oil,
-          brent,
-          copper,
-          natgas
+          gold, silver, oil, brent, copper, natgas
         },
-        credit,
-        sentiment,
-        delinquency: {
-          creditCards: 3.24,
-          autoLoans: 1.74,
-          realEstate: 0.98,
-          studentLoans: 15.6,
-          commercialRe: 2.30
-        },
-        cds: [
-          { country: "USA", value: 62, risk: "FAIBLE" },
-          { country: "Allemagne", value: 28, risk: "FAIBLE" },
-          { country: "France", value: 84, risk: "FAIBLE" },
-          { country: "Italie", value: 168, risk: "MODÉRÉ" },
-          { country: "Turquie", value: 384, risk: "ÉLEVÉ" },
-          { country: "Chine", value: 95, risk: "MODÉRÉ" }
-        ],
-        sectors: [
-          { name: "Energy", value: 2.8 },
-          { name: "Health", value: 2.1 },
-          { name: "Utilities", value: 1.4 },
-          { name: "Finance", value: 0.3 },
-          { name: "Consumer", value: -2.7 },
-          { name: "Tech", value: -4.1 }
-        ],
+        sectors,
         derived: {
-          goldSilverRatio:
-            typeof gold?.value === "number" &&
-            typeof silver?.value === "number" &&
-            silver.value !== 0
-              ? gold.value / silver.value
-              : null,
-          vixRegime:
-            toNum(vixObs?.value) === null
-              ? null
-              : toNum(vixObs?.value) >= 25
-              ? "élevé"
-              : toNum(vixObs?.value) >= 18
-              ? "modéré"
-              : "faible",
-          curveState:
-            spread2s10s === null
-              ? null
-              : spread2s10s > 0
-              ? "positive"
-              : "inversée"
+          goldSilverRatio: ratio
         }
       }
-    };
-
-    payload.data.aiSummary = buildAiSummary(payload.data);
-
-    res.json(payload);
-  } catch (error) {
-    console.error("DASHBOARD ERROR:", error);
-    res.status(500).json({
-      error: "dashboard_fetch_failed",
-      message: error.message
     });
+
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
-app.get("/health", (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() });
-});
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("RUNNING V6 ON " + PORT);
 });
