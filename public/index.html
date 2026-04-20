@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>◆ Terminal Macro V6</title>
+  <title>◆ Terminal Macro V7</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -312,6 +312,7 @@
       line-height: 1.6;
       color: #d5dded;
       min-height: 100px;
+      white-space: pre-wrap;
     }
 
     .ai-actions {
@@ -467,22 +468,6 @@
             points="8,70 30,62 55,50 80,44 105,38 140,36 175,35 210,34"/>
           <polyline fill="none" stroke="#22e36f" stroke-width="1.7"
             points="8,60 30,64 55,65 80,63 105,57 140,52 175,48 210,46"/>
-
-          <circle cx="8" cy="60" r="2" fill="#22e36f"/>
-          <circle cx="30" cy="64" r="2" fill="#22e36f"/>
-          <circle cx="55" cy="65" r="2" fill="#22e36f"/>
-          <circle cx="80" cy="63" r="2" fill="#22e36f"/>
-          <circle cx="105" cy="57" r="2" fill="#22e36f"/>
-          <circle cx="140" cy="52" r="2" fill="#22e36f"/>
-          <circle cx="175" cy="48" r="2" fill="#22e36f"/>
-          <circle cx="210" cy="46" r="2" fill="#22e36f"/>
-
-          <text x="2" y="88" fill="#5e749c" font-size="7">1M</text>
-          <text x="25" y="88" fill="#5e749c" font-size="7">3M</text>
-          <text x="50" y="88" fill="#5e749c" font-size="7">2Y</text>
-          <text x="78" y="88" fill="#5e749c" font-size="7">5Y</text>
-          <text x="103" y="88" fill="#5e749c" font-size="7">10Y</text>
-          <text x="172" y="88" fill="#5e749c" font-size="7">30Y</text>
         </svg>
 
         <div class="metric-row"><span class="label">1 mois</span><span class="value" id="us1m-val">--</span></div>
@@ -609,8 +594,8 @@
         </div>
         <div class="ai-box" id="ai-summary">Chargement...</div>
         <div class="ai-actions">
-          <input class="ai-input" placeholder="Analysez..." />
-          <button class="ai-send">Envoyer ↗</button>
+          <input id="ai-input" class="ai-input" placeholder="Analysez..." />
+          <button id="ai-send" class="ai-send">Envoyer ↗</button>
         </div>
       </div>
     </div>
@@ -620,6 +605,7 @@
 
   <script>
     const REFRESH_MS = 5 * 60 * 1000;
+    let latestDashboard = null;
 
     function setText(id, value) {
       const el = document.getElementById(id);
@@ -729,6 +715,37 @@
       needle.setAttribute("y2", y.toFixed(1));
     }
 
+    async function askAI() {
+      const input = document.getElementById("ai-input");
+      const output = document.getElementById("ai-summary");
+      const question = input.value.trim();
+
+      if (!question) return;
+
+      output.textContent = "Analyse en cours...";
+
+      try {
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question,
+            dashboard: latestDashboard
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Erreur IA");
+        }
+
+        output.textContent = data.text || "Pas de réponse.";
+      } catch (err) {
+        output.textContent = `Erreur IA : ${err.message}`;
+      }
+    }
+
     async function loadDashboard() {
       try {
         setText("footer-status", "Chargement des données...");
@@ -738,6 +755,8 @@
         if (!res.ok) {
           throw new Error(json.message || "Erreur API");
         }
+
+        latestDashboard = json;
 
         const d = json.data;
 
@@ -864,6 +883,13 @@
         setText("footer-status", `Erreur : ${err.message}`);
       }
     }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("ai-send").addEventListener("click", askAI);
+      document.getElementById("ai-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") askAI();
+      });
+    });
 
     updateClock();
     setInterval(updateClock, 1000);
