@@ -1,7 +1,7 @@
 {
-  "name": "bloomberg-terminal-v6",
+  "name": "bloomberg-terminal-v7",
   "version": "1.0.0",
-  "description": "Terminal macro live dense v6",
+  "description": "Terminal macro live dense avec IA",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
