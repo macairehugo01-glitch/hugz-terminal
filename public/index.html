@@ -895,6 +895,300 @@
     setInterval(updateClock, 1000);
     loadDashboard();
     setInterval(loadDashboard, REFRESH_MS);
-  </script>
+ <script>
+  const REFRESH_MS = 5 * 60 * 1000;
+  let latestDashboard = null;
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function formatNumber(value, digits = 2) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "--";
+    return Number(value).toLocaleString("fr-FR", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+  }
+
+  function formatPct(value, digits = 2) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "--";
+    return `${formatNumber(value, digits)}%`;
+  }
+
+  function formatSignedPct(value, digits = 2) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "--";
+    const sign = value > 0 ? "+" : "";
+    return `${sign}${formatNumber(value, digits)}%`;
+  }
+
+  function formatPb(value) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "--";
+    return `${formatNumber(value, 0)} pb`;
+  }
+
+  function updateClock() {
+    const now = new Date();
+    const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const h = String(ny.getHours()).padStart(2, "0");
+    const m = String(ny.getMinutes()).padStart(2, "0");
+    const s = String(ny.getSeconds()).padStart(2, "0");
+    setText("clock", `${h}:${m}:${s} NY`);
+  }
+
+  function renderSectors(sectors) {
+    const wrap = document.getElementById("sectors-wrap");
+    if (!wrap) return;
+
+    if (!Array.isArray(sectors) || sectors.length === 0) {
+      wrap.innerHTML = `<div class="note">Pas de données secteurs.</div>`;
+      return;
+    }
+
+    const maxAbs = Math.max(...sectors.map(s => Math.abs(s.value)), 1);
+
+    wrap.innerHTML = sectors.map(s => {
+      const width = Math.max(8, (Math.abs(s.value) / maxAbs) * 100);
+      const color = s.value >= 0 ? "var(--green)" : "var(--red)";
+      const cls = s.value >= 0 ? "green" : "red";
+      const sign = s.value >= 0 ? "+" : "";
+      return `
+        <div class="sector-row">
+          <div class="sector-name">${s.name}</div>
+          <div class="sector-bar">
+            <div class="sector-fill" style="width:${width}%;background:${color}"></div>
+          </div>
+          <div class="sector-val ${cls}">${sign}${formatNumber(s.value, 1)}%</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderCDS(cds) {
+    const wrap = document.getElementById("cds-wrap");
+    if (!wrap) return;
+
+    if (!Array.isArray(cds) || cds.length === 0) {
+      wrap.innerHTML = `<div class="note">Pas de données CDS.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = cds.map(item => {
+      const cls = item.risk === "ÉLEVÉ" ? "risk-high" : item.risk === "MODÉRÉ" ? "risk-med" : "risk-low";
+      return `
+        <div class="cds-row">
+          <span class="cds-country">${item.country}</span>
+          <span class="value">${formatNumber(item.value, 0)} pb</span>
+          <span class="cds-risk ${cls}">${item.risk}</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function setGauge(id, value, max) {
+    const el = document.getElementById(id);
+    if (!el || value === null || value === undefined) return;
+    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    el.style.width = `${pct}%`;
+  }
+
+  function updateFearGreedNeedle(score) {
+    const needle = document.getElementById("fg-needle");
+    if (!needle || score === null || score === undefined) return;
+
+    const minDeg = -125;
+    const maxDeg = -55;
+    const deg = minDeg + ((score / 100) * (maxDeg - minDeg));
+    const rad = deg * Math.PI / 180;
+    const x = 50 + Math.cos(rad) * 30;
+    const y = 55 + Math.sin(rad) * 30;
+    needle.setAttribute("x2", x.toFixed(1));
+    needle.setAttribute("y2", y.toFixed(1));
+  }
+
+  async function askAI() {
+    const input = document.getElementById("ai-input");
+    const output = document.getElementById("ai-summary");
+    const question = input.value.trim();
+
+    if (!question) return;
+
+    output.textContent = "Analyse en cours...";
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          dashboard: latestDashboard
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Erreur IA");
+      }
+
+      output.textContent = data.text || "Pas de réponse.";
+    } catch (err) {
+      output.textContent = `Erreur IA : ${err.message}`;
+    }
+  }
+
+  async function loadDashboard() {
+    try {
+      setText("footer-status", "Chargement des données...");
+      const res = await fetch("/api/dashboard");
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.message || "Erreur API");
+      }
+
+      latestDashboard = json;
+
+      const d = json.data;
+
+      const dxy = d.dxyProxy?.value ?? null;
+      const vix = d.vix?.value ?? null;
+      const us1m = d.yields?.us1m ?? null;
+      const us3m = d.yields?.us3m ?? null;
+      const us2y = d.yields?.us2y ?? null;
+      const us10y = d.yields?.us10y ?? null;
+      const us30y = d.yields?.us30y ?? null;
+      const spread = d.yields?.spread2s10s ?? null;
+      const cpi = d.inflation?.cpiYoY ?? null;
+      const coreCpi = d.inflation?.coreCpi ?? null;
+      const pceCore = d.inflation?.pceCore ?? null;
+      const unrate = d.labor?.unemploymentRate ?? null;
+      const fed = d.fed?.upperBound ?? null;
+      const eurusd = d.fx?.eurusd?.value ?? null;
+      const btc = d.crypto?.btcusd?.value ?? null;
+      const btcDom = d.crypto?.btcDominance ?? null;
+      const ethusd = d.crypto?.ethusd ?? null;
+
+      const gold = d.commodities?.gold?.value ?? null;
+      const goldChg = d.commodities?.gold?.changePct ?? null;
+      const silver = d.commodities?.silver?.value ?? null;
+      const oil = d.commodities?.oil?.value ?? null;
+      const brent = d.commodities?.brent?.value ?? null;
+      const copper = d.commodities?.copper?.value ?? null;
+      const natgas = d.commodities?.natgas?.value ?? null;
+
+      const hy = d.credit?.hy ?? null;
+      const ig = d.credit?.ig ?? null;
+      const ratio = d.credit?.ratio ?? null;
+
+      const fg = d.sentiment?.value ?? null;
+      const fgLabel = d.sentiment?.label ?? "--";
+
+      setText("dxy-val", formatNumber(dxy, 2));
+      setText("dxy-date", d.dxyProxy?.date || "--");
+      setText("vix-val", formatNumber(vix, 2));
+      setText("vix-date", d.vix?.date || "--");
+      setText("vix-regime", d.derived?.vixRegime || "--");
+
+      setText("gold-big-val", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
+      setText("gold-big-chg", goldChg !== null ? formatSignedPct(goldChg, 2) : "--");
+
+      setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
+      setText(
+        "btcusd-date",
+        d.crypto?.btcusd?.lastRefreshed
+          ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR")
+          : "--"
+      );
+
+      setText(
+        "gold-silver-ratio",
+        typeof d.derived?.goldSilverRatio === "number"
+          ? `${formatNumber(d.derived.goldSilverRatio, 1)}x`
+          : "--"
+      );
+
+      setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
+      setText("btc-dom", btcDom !== null ? formatPct(btcDom, 1) : "--");
+      setText("ethusd-val", ethusd !== null ? `$${formatNumber(ethusd, 0)}` : "--");
+
+      setText("us1m-val", formatPct(us1m, 2));
+      setText("us3m-val", formatPct(us3m, 2));
+      setText("us2y-val", formatPct(us2y, 2));
+      setText("us10y-val", formatPct(us10y, 2));
+      setText("us30y-val", formatPct(us30y, 2));
+      setText("spread-val", formatPb(spread));
+
+      setText("cpi-val", formatPct(cpi, 2));
+      setText("cpi-date", d.inflation?.date || "--");
+      setText("core-cpi-val", formatPct(coreCpi, 2));
+      setText("pce-core-val", formatPct(pceCore, 2));
+      setText("hy-val", formatPct(hy, 2));
+      setText("ig-val", formatPct(ig, 2));
+      setText("credit-ratio", ratio !== null ? formatNumber(ratio, 2) : "--");
+      setText("fed-val", formatPct(fed, 2));
+
+      setText("unrate-val", formatPct(unrate, 2));
+
+      setText("fg-val", fg !== null ? formatNumber(fg, 0) : "--");
+      setText("fg-label", fgLabel);
+      updateFearGreedNeedle(fg);
+
+      setText("oil-val", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
+      setText("brent-val", brent !== null ? `$${formatNumber(brent, 2)}` : "--");
+      setText("copper-val", copper !== null ? `$${formatNumber(copper, 0)}` : "--");
+      setText("natgas-val", natgas !== null ? `$${formatNumber(natgas, 2)}` : "--");
+
+      setText("ticker-btc", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
+      setText("ticker-eurusd", formatNumber(eurusd, 4));
+      setText("ticker-dxy", formatNumber(dxy, 2));
+      setText("ticker-vix", formatNumber(vix, 2));
+      setText("ticker-us10y", formatPct(us10y, 2));
+      setText("ticker-spread", formatPb(spread));
+      setText("ticker-cpi", formatPct(cpi, 2));
+      setText("ticker-unrate", formatPct(unrate, 2));
+      setText("ticker-gold", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
+      setText("ticker-oil", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
+
+      setGauge("g-credit", d.delinquency?.creditCards, 4.0);
+      setGauge("g-auto", d.delinquency?.autoLoans, 3.0);
+      setGauge("g-real", d.delinquency?.realEstate, 2.0);
+      setGauge("g-student", d.delinquency?.studentLoans, 18.0);
+      setGauge("g-cre", d.delinquency?.commercialRe, 4.0);
+
+      setText("g-credit-v", formatPct(d.delinquency?.creditCards, 2));
+      setText("g-auto-v", formatPct(d.delinquency?.autoLoans, 2));
+      setText("g-real-v", formatPct(d.delinquency?.realEstate, 2));
+      setText("g-student-v", formatPct(d.delinquency?.studentLoans, 1));
+      setText("g-cre-v", formatPct(d.delinquency?.commercialRe, 2));
+
+      renderCDS(d.cds || []);
+      renderSectors(d.sectors || []);
+      setText("ai-summary", d.aiSummary || "Pas de résumé disponible.");
+
+      setText(
+        "footer-status",
+        `Dernière mise à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources : ${json.sources?.fred || "N/A"} / ${json.sources?.market || "N/A"}`
+      );
+    } catch (err) {
+      setText("footer-status", `Erreur : ${err.message}`);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("ai-send").addEventListener("click", askAI);
+    document.getElementById("ai-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") askAI();
+    });
+  });
+
+  updateClock();
+  setInterval(updateClock, 1000);
+  loadDashboard();
+  setInterval(loadDashboard, REFRESH_MS);
+</script>
+
+    
 </body>
 </html>
