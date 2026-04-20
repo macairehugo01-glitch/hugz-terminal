@@ -6,25 +6,28 @@ const PORT = process.env.PORT || 3000;
 
 const FRED_API_KEY =
   process.env.FRED_API_KEY || "2945c843ac2ef54c3d1272b9f9cc2747";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json({ limit: "1mb" }));
 
 function toNum(v) {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchJson(url) {
+async function fetchJson(url, options = {}) {
   const res = await fetch(url, {
+    ...options,
     headers: {
-      "User-Agent": "Mozilla/5.0"
+      "User-Agent": "Mozilla/5.0",
+      ...(options.headers || {})
     }
   });
 
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} - ${url}`);
   }
-
   return res.json();
 }
 
@@ -39,14 +42,12 @@ async function safe(fn, fallback = null) {
 
 function getLastValidObservation(observations) {
   if (!Array.isArray(observations)) return null;
-
   for (let i = observations.length - 1; i >= 0; i--) {
     const v = observations[i]?.value;
     if (v !== "." && v !== "" && v !== null && v !== undefined) {
       return observations[i];
     }
   }
-
   return null;
 }
 
@@ -77,108 +78,6 @@ async function fredAll(seriesId) {
   return Array.isArray(data.observations) ? data.observations : [];
 }
 
-async function fetchBTCUSD() {
-  const data = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
-  const amount = toNum(data?.data?.amount);
-  if (amount === null) throw new Error("BTC/USD missing data");
-
-  return {
-    value: amount,
-    lastRefreshed: new Date().toISOString()
-  };
-}
-
-async function fetchEURUSD() {
-  const data = await fetchJson("https://api.frankfurter.app/latest?from=EUR&to=USD");
-  const result = toNum(data?.rates?.USD);
-  if (result === null) throw new Error("EUR/USD missing data");
-
-  return {
-    value: result,
-    lastRefreshed: new Date().toISOString()
-  };
-}
-
-async function fetchYahooQuote(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
-  const data = await fetchJson(url);
-
-  const result = data?.chart?.result?.[0];
-  if (!result) {
-    throw new Error(`Yahoo missing result for ${symbol}`);
-  }
-
-  const meta = result.meta || {};
-  const price = toNum(meta.regularMarketPrice);
-  const prevClose = toNum(meta.chartPreviousClose);
-
-  if (price === null) {
-    throw new Error(`Yahoo missing price for ${symbol}`);
-  }
-
-  let change = null;
-  let changePct = null;
-
-  if (prevClose !== null && prevClose !== 0) {
-    change = price - prevClose;
-    changePct = (change / prevClose) * 100;
-  }
-
-  return {
-    value: price,
-    previousClose: prevClose,
-    change,
-    changePct,
-    currency: meta.currency || null,
-    exchangeName: meta.exchangeName || null,
-    lastRefreshed: new Date().toISOString()
-  };
-}
-
-async function fetchBTCDominance() {
-  const data = await fetchJson("https://api.coingecko.com/api/v3/global");
-  return toNum(data?.data?.market_cap_percentage?.btc);
-}
-
-async function fetchSectorETFs() {
-  const mapping = {
-    Energy: "XLE",
-    Health: "XLV",
-    Utilities: "XLU",
-    Finance: "XLF",
-    Consumer: "XLY",
-    Tech: "XLK"
-  };
-
-  const out = [];
-
-  for (const [name, symbol] of Object.entries(mapping)) {
-    const quote = await safe(() => fetchYahooQuote(symbol));
-    if (quote && typeof quote.changePct === "number") {
-      out.push({ name, value: quote.changePct });
-    }
-  }
-
-  return out;
-}
-
-async function getCreditSpread() {
-  const hy = await safe(() => fred("BAMLH0A0HYM2"));
-  const ig = await safe(() => fred("BAMLC0A0CM"));
-
-  const hyVal = toNum(hy?.value);
-  const igVal = toNum(ig?.value);
-
-  if (hyVal === null || igVal === null || igVal === 0) return null;
-
-  return {
-    hy: hyVal,
-    ig: igVal,
-    ratio: hyVal / igVal,
-    date: hy?.date || ig?.date || null
-  };
-}
-
 function computeYoYFromIndex(observations) {
   const valid = observations.filter(o => o.value !== "." && o.value !== "");
   if (valid.length < 13) return null;
@@ -186,7 +85,6 @@ function computeYoYFromIndex(observations) {
   const latest = valid[valid.length - 1];
   const latestDate = new Date(latest.date);
   const latestVal = toNum(latest.value);
-
   if (latestVal === null) return null;
 
   let yearAgo = null;
@@ -210,6 +108,69 @@ function computeYoYFromIndex(observations) {
   if (oldVal === null || oldVal === 0) return null;
 
   return ((latestVal / oldVal) - 1) * 100;
+}
+
+async function fetchBTCUSD() {
+  const data = await fetchJson("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+  const amount = toNum(data?.data?.amount);
+  if (amount === null) throw new Error("BTC/USD missing data");
+
+  return {
+    value: amount,
+    lastRefreshed: new Date().toISOString()
+  };
+}
+
+async function fetchEURUSD() {
+  const data = await fetchJson("https://api.frankfurter.app/latest?from=EUR&to=USD");
+  const result = toNum(data?.rates?.USD);
+  if (result === null) throw new Error("EUR/USD missing data");
+
+  return {
+    value: result,
+    lastRefreshed: new Date().toISOString()
+  };
+}
+
+async function fetchBTCDominance() {
+  const data = await fetchJson("https://api.coingecko.com/api/v3/global");
+  return toNum(data?.data?.market_cap_percentage?.btc);
+}
+
+async function fetchYahooBatch(symbols) {
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(","))}`;
+  const data = await fetchJson(url);
+  const rows = data?.quoteResponse?.result || [];
+
+  const map = {};
+  for (const row of rows) {
+    const symbol = row.symbol;
+    map[symbol] = {
+      value: toNum(row.regularMarketPrice),
+      changePct: toNum(row.regularMarketChangePercent),
+      previousClose: toNum(row.regularMarketPreviousClose),
+      currency: row.currency || null,
+      lastRefreshed: new Date().toISOString()
+    };
+  }
+  return map;
+}
+
+async function getCreditSpread() {
+  const hy = await safe(() => fred("BAMLH0A0HYM2"));
+  const ig = await safe(() => fred("BAMLC0A0CM"));
+
+  const hyVal = toNum(hy?.value);
+  const igVal = toNum(ig?.value);
+
+  if (hyVal === null || igVal === null || igVal === 0) return null;
+
+  return {
+    hy: hyVal,
+    ig: igVal,
+    ratio: hyVal / igVal,
+    date: hy?.date || ig?.date || null
+  };
 }
 
 function computeFearGreed(vix, spread) {
@@ -297,20 +258,13 @@ app.get("/api/dashboard", async (req, res) => {
       unemploymentObs,
       fedUpperObs,
       cpiAll,
-      coreCpiObs,
-      pceCoreObs,
+      coreCpiAll,
+      pceCoreAll,
       eurUsd,
       btcUsd,
       btcDominance,
       credit,
-      gold,
-      silver,
-      oil,
-      brent,
-      copper,
-      natgas,
-      eth,
-      sectors
+      yahooBatch
     ] = await Promise.all([
       safe(() => fred("DTWEXBGS")),
       safe(() => fred("VIXCLS")),
@@ -322,24 +276,22 @@ app.get("/api/dashboard", async (req, res) => {
       safe(() => fred("UNRATE")),
       safe(() => fred("DFEDTARU")),
       safe(() => fredAll("CPIAUCSL"), []),
-      safe(() => fred("CPILFESL")),
-      safe(() => fred("PCEPILFE")),
+      safe(() => fredAll("CPILFESL"), []),
+      safe(() => fredAll("PCEPILFE"), []),
       safe(() => fetchEURUSD()),
       safe(() => fetchBTCUSD()),
       safe(() => fetchBTCDominance()),
       safe(() => getCreditSpread()),
-      safe(() => fetchYahooQuote("GC=F")),
-      safe(() => fetchYahooQuote("SI=F")),
-      safe(() => fetchYahooQuote("CL=F")),
-      safe(() => fetchYahooQuote("BZ=F")),
-      safe(() => fetchYahooQuote("HG=F")),
-      safe(() => fetchYahooQuote("NG=F")),
-      safe(() => fetchYahooQuote("ETH-USD")),
-      safe(() => fetchSectorETFs(), [])
+      safe(() => fetchYahooBatch([
+        "GC=F", "SI=F", "CL=F", "BZ=F", "HG=F", "NG=F", "ETH-USD",
+        "XLE", "XLV", "XLU", "XLF", "XLY", "XLK"
+      ]), {})
     ]);
 
     const cpiLatest = getLastValidObservation(cpiAll);
     const cpiYoY = computeYoYFromIndex(cpiAll);
+    const coreCpiYoY = computeYoYFromIndex(coreCpiAll);
+    const pceCoreYoY = computeYoYFromIndex(pceCoreAll);
 
     const us1m = toNum(us1mObs?.value);
     const us3m = toNum(us3mObs?.value);
@@ -352,8 +304,22 @@ app.get("/api/dashboard", async (req, res) => {
 
     const sentiment = computeFearGreed(toNum(vixObs?.value), spread2s10s);
 
-    const coreCpi = toNum(coreCpiObs?.value);
-    const pceCore = toNum(pceCoreObs?.value);
+    const gold = yahooBatch["GC=F"] || null;
+    const silver = yahooBatch["SI=F"] || null;
+    const oil = yahooBatch["CL=F"] || null;
+    const brent = yahooBatch["BZ=F"] || null;
+    const copper = yahooBatch["HG=F"] || null;
+    const natgas = yahooBatch["NG=F"] || null;
+    const eth = yahooBatch["ETH-USD"] || null;
+
+    const sectors = [
+      { name: "Energy", value: toNum(yahooBatch["XLE"]?.changePct) ?? null },
+      { name: "Health", value: toNum(yahooBatch["XLV"]?.changePct) ?? null },
+      { name: "Utilities", value: toNum(yahooBatch["XLU"]?.changePct) ?? null },
+      { name: "Finance", value: toNum(yahooBatch["XLF"]?.changePct) ?? null },
+      { name: "Consumer", value: toNum(yahooBatch["XLY"]?.changePct) ?? null },
+      { name: "Tech", value: toNum(yahooBatch["XLK"]?.changePct) ?? null }
+    ].filter(x => typeof x.value === "number");
 
     const payload = {
       updatedAt: new Date().toISOString(),
@@ -381,8 +347,8 @@ app.get("/api/dashboard", async (req, res) => {
         inflation: {
           cpiYoY,
           cpiIndex: toNum(cpiLatest?.value),
-          coreCpi,
-          pceCore,
+          coreCpi: coreCpiYoY,
+          pceCore: pceCoreYoY,
           date: cpiLatest?.date || null
         },
         labor: {
@@ -459,6 +425,76 @@ app.get("/api/dashboard", async (req, res) => {
     console.error("DASHBOARD ERROR:", error);
     res.status(500).json({
       error: "dashboard_fetch_failed",
+      message: error.message
+    });
+  }
+});
+
+app.post("/api/ai", async (req, res) => {
+  try {
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({
+        error: "missing_openai_key",
+        message: "OPENAI_API_KEY manquant sur le serveur."
+      });
+    }
+
+    const question = String(req.body?.question || "").trim();
+    const dashboard = req.body?.dashboard || null;
+
+    if (!question) {
+      return res.status(400).json({
+        error: "missing_question",
+        message: "Question vide."
+      });
+    }
+
+    const prompt = `
+Tu es un analyste macro de terminal financier.
+Réponds en français.
+Réponse concise, dense, utile, 120 à 220 mots max.
+Ne donne pas de conseil financier personnalisé.
+Appuie-toi d'abord sur les données du tableau de bord JSON ci-dessous si elles existent.
+
+DASHBOARD JSON:
+${JSON.stringify(dashboard, null, 2)}
+
+QUESTION UTILISATEUR:
+${question}
+`.trim();
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-5.4",
+        input: prompt
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(500).json({
+        error: "openai_error",
+        message: data?.error?.message || "Erreur OpenAI"
+      });
+    }
+
+    const text =
+      data.output_text ||
+      data.output?.map(o =>
+        o?.content?.map(c => c?.text || "").join("")
+      ).join("\n").trim() ||
+      "Pas de réponse.";
+
+    res.json({ text });
+  } catch (error) {
+    res.status(500).json({
+      error: "ai_route_failed",
       message: error.message
     });
   }
