@@ -1,97 +1,110 @@
 /*
-  ◆ TERMINAL MACRO — server.js
-  Sources :
-    • FRED  → taux, inflation, chômage, délinquance, or, pétrole, cuivre, gaz
-    • Coinbase → BTC / ETH
-    • Frankfurter → EUR/USD
-    • Alternative.me → Fear & Greed
-    • Yahoo Finance (pas de clé) → secteurs S&P, Brent, Silver
-    • Anthropic Claude → analyse IA
+  ◆ TERMINAL MACRO v3.0
+  ─────────────────────────────────────────────────────────────────
+  Sources de données :
+    • FRED St. Louis  → taux, inflation, chômage, délinquance, or, pétrole, cuivre, gaz
+    • Coinbase        → BTC / ETH (prix spot temps réel)
+    • Frankfurter     → EUR/USD et autres crosses FX
+    • Alternative.me  → Fear & Greed Index crypto
+    • Yahoo Finance   → Secteurs S&P (ETFs XL*), Silver, Brent, métaux
+  IA : Anthropic Claude — mode ultra-économe en tokens
+  ─────────────────────────────────────────────────────────────────
 */
 
 const express = require("express");
-const path = require("path");
+const path    = require("path");
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const FRED_API_KEY   = process.env.FRED_API_KEY   || "2945c843ac2ef54c3d1272b9f9cc2747";
-const ANTHROPIC_KEY  = process.env.ANTHROPIC_KEY  || "";   // sk-ant-...
+// ── CLÉS API ──────────────────────────────────────────────────────
+const FRED_KEY      = process.env.FRED_API_KEY   || "2945c843ac2ef54c3d1272b9f9cc2747";
+const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY  || "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";
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json({ limit: "2mb" }));
 
-/* ─────────────────────────────────────────────
-   UTILS
-───────────────────────────────────────────── */
+// ── CACHE côté serveur (évite re-fetch inutiles = économise bandwidth + IA) ──
+const CACHE = new Map();
+const CACHE_TTL = {
+  fred_daily  : 4  * 60 * 60 * 1000,  // 4h  — données FRED journalières
+  fred_monthly: 12 * 60 * 60 * 1000,  // 12h — données mensuelles
+  crypto      : 60 * 1000,             // 1 min — crypto
+  yahoo       : 10 * 60 * 1000,        // 10 min — Yahoo
+  fng         : 30 * 60 * 1000,        // 30 min — Fear&Greed
+};
+
+function cacheGet(key) {
+  const e = CACHE.get(key);
+  if (!e) return null;
+  if (Date.now() - e.ts > e.ttl) { CACHE.delete(key); return null; }
+  return e.data;
+}
+function cacheSet(key, data, ttl) {
+  CACHE.set(key, { data, ts: Date.now(), ttl });
+  return data;
+}
+
+// ── UTILITAIRES ───────────────────────────────────────────────────
 function toNum(v) {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchJson(url, options = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
+async function fetchJson(url, opts = {}) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 14000);
   try {
     const res = await fetch(url, {
-      signal: controller.signal,
-      ...options,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; MacroTerminal/2.0)",
-        Accept: "application/json",
-        ...(options.headers || {})
-      }
+      signal: ctrl.signal, ...opts,
+      headers: { "User-Agent": "Mozilla/5.0 MacroTerminal/3.0", Accept: "application/json", ...(opts.headers || {}) }
     });
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`HTTP ${res.status} — ${url.slice(0, 80)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
-  } finally {
-    clearTimeout(timer);
-  }
+  } finally { clearTimeout(timer); }
 }
 
 async function safe(fn, fallback = null) {
-  try {
-    return await fn();
-  } catch (e) {
-    console.warn("[SAFE]", e.message.slice(0, 120));
-    return fallback;
-  }
+  try { return await fn(); }
+  catch (e) { console.warn("[SAFE]", e.message?.slice(0, 100)); return fallback; }
 }
 
-/* ─────────────────────────────────────────────
-   FRED helpers
-───────────────────────────────────────────── */
-function getLastValid(observations) {
-  if (!Array.isArray(observations)) return null;
-  for (let i = observations.length - 1; i >= 0; i--) {
-    const v = observations[i]?.value;
-    if (v !== "." && v !== "" && v != null) return observations[i];
-  }
-  return null;
-}
-
+// ── FRED ──────────────────────────────────────────────────────────
 async function fredObs(seriesId, limit = 10) {
-  const url =
-    `https://api.stlouisfed.org/fred/series/observations` +
-    `?series_id=${encodeURIComponent(seriesId)}` +
-    `&api_key=${encodeURIComponent(FRED_API_KEY)}` +
-    `&sort_order=desc&limit=${limit}&file_type=json`;
+  const cached = cacheGet(`fred_${seriesId}`);
+  if (cached) return cached;
+
+  const url = `https://api.stlouisfed.org/fred/series/observations`
+    + `?series_id=${encodeURIComponent(seriesId)}`
+    + `&api_key=${encodeURIComponent(FRED_KEY)}`
+    + `&sort_order=desc&limit=${limit}&file_type=json`;
   const data = await fetchJson(url);
-  // desc order → first valid
-  const obs = Array.isArray(data.observations)
+  const obs  = Array.isArray(data.observations)
     ? data.observations.find(o => o.value !== "." && o.value !== "")
     : null;
-  return { value: toNum(obs?.value), date: obs?.date || null };
+  const result = { value: toNum(obs?.value), date: obs?.date || null };
+  return cacheSet(`fred_${seriesId}`, result, CACHE_TTL.fred_daily);
 }
 
 async function fredAll(seriesId) {
-  const url =
-    `https://api.stlouisfed.org/fred/series/observations` +
-    `?series_id=${encodeURIComponent(seriesId)}` +
-    `&api_key=${encodeURIComponent(FRED_API_KEY)}&file_type=json`;
+  const cached = cacheGet(`fredAll_${seriesId}`);
+  if (cached) return cached;
+  const url = `https://api.stlouisfed.org/fred/series/observations`
+    + `?series_id=${encodeURIComponent(seriesId)}`
+    + `&api_key=${encodeURIComponent(FRED_KEY)}&file_type=json`;
   const data = await fetchJson(url);
-  return Array.isArray(data.observations) ? data.observations : [];
+  const obs  = Array.isArray(data.observations) ? data.observations : [];
+  return cacheSet(`fredAll_${seriesId}`, obs, CACHE_TTL.fred_monthly);
+}
+
+function getLastValid(obs) {
+  if (!Array.isArray(obs)) return null;
+  for (let i = obs.length - 1; i >= 0; i--) {
+    const v = obs[i]?.value;
+    if (v !== "." && v !== "" && v != null) return obs[i];
+  }
+  return null;
 }
 
 function computeYoY(observations) {
@@ -100,269 +113,270 @@ function computeYoY(observations) {
   const latest = valid[valid.length - 1];
   const latestVal = toNum(latest.value);
   if (latestVal === null) return null;
-  const latestDate = new Date(latest.date);
-  let yearAgo = null;
+  const ld = new Date(latest.date);
+  let ya = null;
   for (let i = valid.length - 2; i >= 0; i--) {
     const d = new Date(valid[i].date);
-    if (
-      d.getFullYear() === latestDate.getFullYear() - 1 &&
-      d.getMonth() === latestDate.getMonth()
-    ) { yearAgo = valid[i]; break; }
+    if (d.getFullYear() === ld.getFullYear() - 1 && d.getMonth() === ld.getMonth()) { ya = valid[i]; break; }
   }
-  if (!yearAgo) yearAgo = valid[valid.length - 13];
-  const oldVal = toNum(yearAgo?.value);
+  if (!ya) ya = valid[valid.length - 13];
+  const oldVal = toNum(ya?.value);
   if (oldVal === null || oldVal === 0) return null;
   return ((latestVal / oldVal) - 1) * 100;
 }
 
-/* ─────────────────────────────────────────────
-   CRYPTO
-───────────────────────────────────────────── */
+// ── CRYPTO ────────────────────────────────────────────────────────
 async function fetchCoinbase(pair) {
+  const cached = cacheGet(`cb_${pair}`);
+  if (cached) return cached;
   const d = await fetchJson(`https://api.coinbase.com/v2/prices/${pair}/spot`);
   const v = toNum(d?.data?.amount);
-  if (v === null) throw new Error(`${pair} missing`);
-  return { value: v, lastRefreshed: new Date().toISOString() };
+  if (v === null) throw new Error(`${pair} no data`);
+  const result = { value: v, ts: new Date().toISOString() };
+  return cacheSet(`cb_${pair}`, result, CACHE_TTL.crypto);
 }
 
 async function fetchBTCDominance() {
+  const cached = cacheGet("btcdom");
+  if (cached) return cached;
   const d = await fetchJson("https://api.coingecko.com/api/v3/global");
-  return toNum(d?.data?.market_cap_percentage?.btc);
+  const v = toNum(d?.data?.market_cap_percentage?.btc);
+  return cacheSet("btcdom", v, CACHE_TTL.yahoo);
 }
 
-/* ─────────────────────────────────────────────
-   FX
-───────────────────────────────────────────── */
+// ── FX ────────────────────────────────────────────────────────────
 async function fetchEURUSD() {
+  const cached = cacheGet("eurusd");
+  if (cached) return cached;
   const d = await fetchJson("https://api.frankfurter.app/latest?from=EUR&to=USD");
   const v = toNum(d?.rates?.USD);
-  if (v === null) throw new Error("EUR/USD missing");
-  return { value: v, lastRefreshed: new Date().toISOString() };
+  if (v === null) throw new Error("EUR/USD no data");
+  const result = { value: v, ts: new Date().toISOString() };
+  return cacheSet("eurusd", result, CACHE_TTL.yahoo);
 }
 
-/* ─────────────────────────────────────────────
-   FEAR & GREED
-───────────────────────────────────────────── */
+// ── FEAR & GREED ──────────────────────────────────────────────────
 async function fetchFearGreed() {
-  const d = await fetchJson("https://api.alternative.me/fng/?limit=1");
+  const cached = cacheGet("fng");
+  if (cached) return cached;
+  const d   = await fetchJson("https://api.alternative.me/fng/?limit=1");
   const row = d?.data?.[0];
-  if (!row) throw new Error("FNG missing");
-  return {
-    value: toNum(row.value),
-    label: row.value_classification || null
-  };
+  if (!row) throw new Error("FNG no data");
+  const result = { value: toNum(row.value), label: row.value_classification || null };
+  return cacheSet("fng", result, CACHE_TTL.fng);
 }
 
 function fearGreedFallback(vix, spread) {
   if (vix == null) return null;
   let s = 50;
-  if (vix > 35) s -= 35;
-  else if (vix > 30) s -= 28;
-  else if (vix > 25) s -= 18;
-  else if (vix > 20) s -= 8;
-  else if (vix < 14) s += 18;
-  if (spread != null) {
-    if (spread > 40) s += 8;
-    else if (spread < 0) s -= 12;
-  }
+  if (vix > 35) s -= 35; else if (vix > 30) s -= 26; else if (vix > 25) s -= 16;
+  else if (vix > 20) s -= 8; else if (vix < 14) s += 18;
+  if (spread != null) { if (spread > 40) s += 8; else if (spread < 0) s -= 12; }
   s = Math.max(0, Math.min(100, s));
   const label = s < 25 ? "PEUR EXTRÊME" : s < 45 ? "PEUR" : s < 55 ? "NEUTRE" : s < 75 ? "OPTIMISME" : "EUPHORIE";
   return { value: s, label };
 }
 
-/* ─────────────────────────────────────────────
-   CREDIT SPREADS (FRED)
-   BAMLH0A0HYM2 = HY OAS (%)
-   BAMLC0A0CM   = IG OAS (%)
-───────────────────────────────────────────── */
+// ── CRÉDIT SPREADS ────────────────────────────────────────────────
 async function fetchCreditSpreads() {
+  const cached = cacheGet("credit");
+  if (cached) return cached;
   const [hy, ig] = await Promise.all([
-    fredObs("BAMLH0A0HYM2", 5),
-    fredObs("BAMLC0A0CM", 5)
+    safe(() => fredObs("BAMLH0A0HYM2", 5)),
+    safe(() => fredObs("BAMLC0A0CM",   5))
   ]);
-  const hyV = hy?.value, igV = ig?.value;
-  return {
-    hy: hyV,
-    ig: igV,
-    ratio: (hyV != null && igV != null && igV !== 0) ? hyV / igV : null,
+  const result = {
+    hy: hy?.value, ig: ig?.value,
+    ratio: (hy?.value && ig?.value && ig.value !== 0) ? hy.value / ig.value : null,
     date: hy?.date || null
   };
+  return cacheSet("credit", result, CACHE_TTL.fred_daily);
 }
 
-/* ─────────────────────────────────────────────
-   DÉLINQUANCE — VRAIES SÉRIES FRED (quarterly)
-   DRCCLACBS  = Cartes crédit (% of balance 90+d)
-   DRAUTONSA  = Auto loans
-   DRSFRMACBS = Immobilier résidentiel
-   DRBLACBS   = Student loans (proxy : consumer loans)
-   DRCONGSX   = Consumer loans (proxy commercial)
-───────────────────────────────────────────── */
+// ── DÉLINQUANCE — SÉRIES FRED RÉELLES ─────────────────────────────
 async function fetchDelinquency() {
+  const cached = cacheGet("delinquency");
+  if (cached) return cached;
   const [cc, auto, re, sl, cre] = await Promise.all([
-    safe(() => fredObs("DRCCLACBS", 5)),   // cartes crédit
-    safe(() => fredObs("DRAUTONSA", 5)),   // auto loans
-    safe(() => fredObs("DRSFRMACBS", 5)),  // résidentiel
-    safe(() => fredObs("DRSREACBS", 5)),   // real estate (proxy student)
-    safe(() => fredObs("DRCLACBS", 5))     // consumer loans (proxy CRE)
+    safe(() => fredObs("DRCCLACBS",  5)),
+    safe(() => fredObs("DRAUTONSA",  5)),
+    safe(() => fredObs("DRSFRMACBS", 5)),
+    safe(() => fredObs("DRSREACBS",  5)),
+    safe(() => fredObs("DRCLACBS",   5))
   ]);
-  return {
-    creditCards:  cc?.value  ?? 3.24,
-    autoLoans:    auto?.value ?? 1.74,
-    realEstate:   re?.value  ?? 0.98,
-    studentLoans: sl?.value  ?? 9.80,   // FRED donne real-estate loans comme proxy
-    commercialRe: cre?.value ?? 2.30
+  const result = {
+    creditCards : cc?.value  ?? null,
+    autoLoans   : auto?.value ?? null,
+    realEstate  : re?.value   ?? null,
+    studentLoans: sl?.value   ?? null,
+    commercialRe: cre?.value  ?? null,
+    date        : cc?.date    || auto?.date || null
   };
+  return cacheSet("delinquency", result, CACHE_TTL.fred_monthly);
 }
 
-/* ─────────────────────────────────────────────
-   SECTEURS S&P 500 via Yahoo Finance (no key)
-   On récupère les ETFs sectoriels XL* vs SPY
-   Variation 1 mois = (close / close_1month_ago - 1) * 100
-───────────────────────────────────────────── */
+// ── SECTEURS S&P — MULTI-TIMEFRAME via Yahoo Finance ──────────────
 const SECTOR_ETFS = [
-  { name: "Energy",     sym: "XLE" },
-  { name: "Health",     sym: "XLV" },
-  { name: "Utilities",  sym: "XLU" },
-  { name: "Finance",    sym: "XLF" },
-  { name: "Industrie",  sym: "XLI" },
-  { name: "Matériaux",  sym: "XLB" },
-  { name: "Consumer",   sym: "XLY" },
-  { name: "Tech",       sym: "XLK" },
-  { name: "Immo",       sym: "XLRE" },
-  { name: "Conso. base",sym: "XLP" }
+  { name: "Energie",     sym: "XLE"  },
+  { name: "Santé",       sym: "XLV"  },
+  { name: "Utilities",   sym: "XLU"  },
+  { name: "Finance",     sym: "XLF"  },
+  { name: "Industrie",   sym: "XLI"  },
+  { name: "Matériaux",   sym: "XLB"  },
+  { name: "Conso. disc.",sym: "XLY"  },
+  { name: "Tech",        sym: "XLK"  },
+  { name: "Immo.",       sym: "XLRE" },
+  { name: "Conso. base", sym: "XLP"  },
+  { name: "Telecom",     sym: "XLC"  }
 ];
 
-async function fetchSectorPerf(sym) {
-  // Yahoo Finance v8 — 1 mois, 1 jour interval
-  const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${sym}` +
-    `?range=1mo&interval=1d&includePrePost=false`;
-  const d = await fetchJson(url);
+const UT_CONFIG = {
+  "1D" : { range: "5d",  interval: "1d",  label: "1 Jour"   },
+  "1W" : { range: "1mo", interval: "1d",  label: "1 Semaine"},
+  "1M" : { range: "1mo", interval: "1d",  label: "1 Mois"   },
+  "3M" : { range: "3mo", interval: "1d",  label: "3 Mois"   },
+  "6M" : { range: "6mo", interval: "1wk", label: "6 Mois"   },
+  "1Y" : { range: "1y",  interval: "1mo", label: "1 An"     },
+  "YTD": { range: "ytd", interval: "1d",  label: "YTD"      }
+};
+
+async function fetchSectorForUT(sym, ut) {
+  const cfg   = UT_CONFIG[ut] || UT_CONFIG["1M"];
+  const ckey  = `sector_${sym}_${ut}`;
+  const cached = cacheGet(ckey);
+  if (cached !== null) return cached;
+
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}`
+    + `?range=${cfg.range}&interval=${cfg.interval}&includePrePost=false`;
+  const d      = await fetchJson(url);
   const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-  if (!Array.isArray(closes) || closes.length < 2) return null;
-  const first = closes.find(v => v != null);
-  const last  = [...closes].reverse().find(v => v != null);
-  if (first == null || last == null || first === 0) return null;
-  return ((last / first) - 1) * 100;
+  if (!Array.isArray(closes) || closes.length < 2) return cacheSet(ckey, null, CACHE_TTL.yahoo);
+
+  let first, last;
+  if (ut === "1D") {
+    // Variation du jour : dernier close vs avant-dernier close
+    const valid = closes.filter(v => v != null);
+    if (valid.length < 2) return cacheSet(ckey, null, CACHE_TTL.yahoo);
+    last  = valid[valid.length - 1];
+    first = valid[valid.length - 2];
+  } else {
+    first = closes.find(v => v != null);
+    last  = [...closes].reverse().find(v => v != null);
+  }
+
+  if (first == null || last == null || first === 0) return cacheSet(ckey, null, CACHE_TTL.yahoo);
+  const perf = ((last / first) - 1) * 100;
+  return cacheSet(ckey, perf, CACHE_TTL.yahoo);
 }
 
-async function fetchAllSectors() {
+async function fetchAllSectors(ut = "1M") {
   const results = await Promise.all(
-    SECTOR_ETFS.map(s => safe(() => fetchSectorPerf(s.sym)))
+    SECTOR_ETFS.map(s => safe(() => fetchSectorForUT(s.sym, ut)))
   );
-  return SECTOR_ETFS.map((s, i) => ({
-    name:  s.name,
-    value: results[i] ?? 0
-  })).sort((a, b) => b.value - a.value);
+  return SECTOR_ETFS.map((s, i) => ({ name: s.name, sym: s.sym, value: results[i] }))
+    .sort((a, b) => (b.value ?? -99) - (a.value ?? -99));
 }
 
-/* ─────────────────────────────────────────────
-   COMMODITÉS
-   FRED: or, argent, WTI, gaz naturel, cuivre
-   Yahoo Finance: Brent (si FRED rate)
-───────────────────────────────────────────── */
+// ── COMMODITÉS — FRED + Yahoo fallback ────────────────────────────
 async function fetchCommodities() {
-  const [gold, silver, wti, natgas, copper, brentFred] = await Promise.all([
-    safe(() => fredObs("GOLDAMGBD228NLBM", 5)),  // or London PM fixing USD/oz
-    safe(() => fredObs("SLVPRUSD", 5)),           // argent USD/oz
-    safe(() => fredObs("DCOILWTICO", 5)),          // WTI USD/bbl
-    safe(() => fredObs("DHHNGSP", 5)),             // Henry Hub USD/MMBtu
-    safe(() => fredObs("PCOPPUSDM", 5)),           // cuivre USD/lb
-    safe(() => fredObs("DCOILBRENTEU", 5))         // Brent USD/bbl
+  const cached = cacheGet("commodities");
+  if (cached) return cached;
+
+  const [goldF, silverF, wtiF, brentF, copperF, natgasF] = await Promise.all([
+    safe(() => fredObs("GOLDAMGBD228NLBM", 5)),
+    safe(() => fredObs("SLVPRUSD",         5)),
+    safe(() => fredObs("DCOILWTICO",       5)),
+    safe(() => fredObs("DCOILBRENTEU",     5)),
+    safe(() => fredObs("PCOPPUSDM",        5)),
+    safe(() => fredObs("DHHNGSP",          5))
   ]);
 
-  // Fallback Yahoo pour or si FRED vide
-  let goldVal = gold?.value;
-  if (goldVal == null) {
-    const yGold = await safe(async () => {
-      const d = await fetchJson(
-        "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=5d&interval=1d"
-      );
-      const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      return closes?.reverse().find(v => v != null) ?? null;
-    });
-    goldVal = yGold;
+  // Yahoo fallbacks pour futures
+  async function yahooClose(sym) {
+    const d = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5d&interval=1d`);
+    const c = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+    return Array.isArray(c) ? [...c].reverse().find(v => v != null) ?? null : null;
   }
 
-  // Fallback Yahoo pour argent
-  let silverVal = silver?.value;
-  if (silverVal == null) {
-    const ySilver = await safe(async () => {
-      const d = await fetchJson(
-        "https://query1.finance.yahoo.com/v8/finance/chart/SI=F?range=5d&interval=1d"
-      );
-      const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      return closes?.reverse().find(v => v != null) ?? null;
-    });
-    silverVal = ySilver;
-  }
+  const [yGold, ySilver, yWTI, yBrent, yCopper, yGas] = await Promise.all([
+    goldF?.value   == null ? safe(() => yahooClose("GC=F"))  : Promise.resolve(null),
+    silverF?.value == null ? safe(() => yahooClose("SI=F"))  : Promise.resolve(null),
+    wtiF?.value    == null ? safe(() => yahooClose("CL=F"))  : Promise.resolve(null),
+    brentF?.value  == null ? safe(() => yahooClose("BZ=F"))  : Promise.resolve(null),
+    copperF?.value == null ? safe(() => yahooClose("HG=F"))  : Promise.resolve(null),
+    natgasF?.value == null ? safe(() => yahooClose("NG=F"))  : Promise.resolve(null)
+  ]);
 
-  // Fallback Yahoo pour cuivre (FRED donne en USD/lb, Yahoo en cents/lb)
-  let copperVal = copper?.value;
-  if (copperVal == null) {
-    const yCopper = await safe(async () => {
-      const d = await fetchJson(
-        "https://query1.finance.yahoo.com/v8/finance/chart/HG=F?range=5d&interval=1d"
-      );
-      const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      return closes?.reverse().find(v => v != null) ?? null;
-    });
-    copperVal = yCopper;
-  }
-
-  // WTI Yahoo fallback
-  let wtiVal = wti?.value;
-  if (wtiVal == null) {
-    const yWTI = await safe(async () => {
-      const d = await fetchJson(
-        "https://query1.finance.yahoo.com/v8/finance/chart/CL=F?range=5d&interval=1d"
-      );
-      const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      return closes?.reverse().find(v => v != null) ?? null;
-    });
-    wtiVal = yWTI;
-  }
-
-  // Brent Yahoo fallback
-  let brentVal = brentFred?.value;
-  if (brentVal == null) {
-    const yBrent = await safe(async () => {
-      const d = await fetchJson(
-        "https://query1.finance.yahoo.com/v8/finance/chart/BZ=F?range=5d&interval=1d"
-      );
-      const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      return closes?.reverse().find(v => v != null) ?? null;
-    });
-    brentVal = yBrent;
-  }
-
-  // Nat gas Yahoo fallback
-  let natgasVal = natgas?.value;
-  if (natgasVal == null) {
-    const yGas = await safe(async () => {
-      const d = await fetchJson(
-        "https://query1.finance.yahoo.com/v8/finance/chart/NG=F?range=5d&interval=1d"
-      );
-      const closes = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      return closes?.reverse().find(v => v != null) ?? null;
-    });
-    natgasVal = yGas;
-  }
-
-  return {
-    gold:   { value: goldVal },
-    silver: { value: silverVal },
-    oil:    { value: wtiVal },
-    brent:  { value: brentVal },
-    copper: { value: copperVal },   // USD/lb
-    natgas: { value: natgasVal }
+  const result = {
+    gold  : { value: goldF?.value   ?? yGold,   date: goldF?.date   || null },
+    silver: { value: silverF?.value ?? ySilver, date: silverF?.date || null },
+    oil   : { value: wtiF?.value    ?? yWTI,    date: wtiF?.date    || null },
+    brent : { value: brentF?.value  ?? yBrent,  date: brentF?.date  || null },
+    copper: { value: copperF?.value ?? yCopper, date: copperF?.date || null },
+    natgas: { value: natgasF?.value ?? yGas,    date: natgasF?.date || null }
   };
+  return cacheSet("commodities", result, CACHE_TTL.fred_daily);
 }
 
-/* ─────────────────────────────────────────────
-   RÉSUMÉ IA textuel (sans appel Claude)
-───────────────────────────────────────────── */
-function buildAiSummary(data) {
+// ── RÉSUMÉ IA — ULTRA-ÉCONOME EN TOKENS ──────────────────────────
+// Stratégie : prompt ultra-court + contexte JSON compact + max_tokens limité
+// Estimation : ~300 tokens input + 200 tokens output ≈ 0.002$ par appel avec Haiku
+async function callClaudeEco(question, contextData, maxTokens = 220) {
+  if (!ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY manquante");
+
+  // Contexte minimal — uniquement les valeurs numériques clés
+  const d = contextData || {};
+  const snap = {
+    vix   : d.vix?.value,
+    dxy   : d.dxyProxy?.value,
+    s10s  : d.yields?.spread2s10s,
+    us10y : d.yields?.us10y,
+    cpi   : d.inflation?.cpiYoY,
+    unr   : d.labor?.unemploymentRate,
+    fed   : d.fed?.upperBound,
+    btc   : d.crypto?.btcusd?.value ? Math.round(d.crypto.btcusd.value) : null,
+    gold  : d.commodities?.gold?.value ? Math.round(d.commodities.gold.value) : null,
+    wti   : d.commodities?.oil?.value,
+    hy    : d.credit?.hy,
+    ig    : d.credit?.ig,
+    fg    : d.sentiment?.value,
+    dlinCC: d.delinquency?.creditCards,
+    dlinAu: d.delinquency?.autoLoans,
+    // Top 3 secteurs (gagnants + perdants)
+    sec   : Array.isArray(d.sectors)
+      ? [...d.sectors].sort((a,b)=>(b.value??-99)-(a.value??-99)).slice(0,3)
+          .map(s=>`${s.name}:${s.value?.toFixed(1)}%`)
+      : []
+  };
+
+  // Prompt système hyper-court pour minimiser les tokens
+  const system = `Analyste macro Bloomberg. FR. Dense. Facts chiffrés. Max ${maxTokens} tokens. Pas de conseil perso.`;
+
+  // Contexte injecté dans le message user (plus court qu'un system long)
+  const userMsg = `Données: ${JSON.stringify(snap)}\n\n${question}`;
+
+  const res  = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_KEY,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model      : "claude-haiku-4-5-20251001",  // Haiku = 20x moins cher que Sonnet
+      max_tokens : maxTokens,
+      system,
+      messages   : [{ role: "user", content: userMsg }]
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || "Erreur Anthropic");
+  return data.content?.[0]?.text || "Pas de réponse.";
+}
+
+// ── RÉSUMÉ AUTOMATIQUE (généré 1x par cycle de données) ───────────
+function buildLocalSummary(data) {
   const vix    = data.vix?.value;
   const dxy    = data.dxyProxy?.value;
   const spread = data.yields?.spread2s10s;
@@ -371,83 +385,69 @@ function buildAiSummary(data) {
   const cpi    = data.inflation?.cpiYoY;
   const hy     = data.credit?.hy;
   const ig     = data.credit?.ig;
-  const fg     = data.sentiment?.value;
   const gold   = data.commodities?.gold?.value;
   const silver = data.commodities?.silver?.value;
   const wti    = data.commodities?.oil?.value;
-  const ratio  = (gold && silver && silver !== 0) ? gold / silver : null;
+  const fg     = data.sentiment?.value;
+  const ratio  = (gold && silver && silver > 0) ? gold / silver : null;
 
   const lines = [];
 
   if (vix != null) {
-    if (vix >= 30) lines.push(`⚠ Stress élevé : VIX à ${vix.toFixed(2)} — régime de peur.`);
-    else if (vix >= 20) lines.push(`Volatilité modérée : VIX à ${vix.toFixed(2)}.`);
-    else lines.push(`Stress contenu : VIX à ${vix.toFixed(2)}.`);
+    if (vix >= 30) lines.push(`⚠️ STRESS ÉLEVÉ — VIX ${vix.toFixed(2)} (peur extrême).`);
+    else if (vix >= 20) lines.push(`⚡ VIX ${vix.toFixed(2)} — volatilité modérée.`);
+    else lines.push(`✅ VIX ${vix.toFixed(2)} — marchés calmes.`);
   }
-
   if (spread != null) {
-    const sign = spread > 0 ? `+${spread.toFixed(0)}` : spread.toFixed(0);
-    const state = spread > 0 ? "positive (normalisation post-inversion)" : "inversée (signal récession)";
-    lines.push(`Courbe 2s10s ${state} à ${sign} pb.`);
+    const s = spread.toFixed(0);
+    lines.push(spread > 0
+      ? `📈 Courbe 2s10s +${s}pb — normalisation post-inversion.`
+      : `🔴 Courbe 2s10s ${s}pb — INVERSÉE (signal récession).`);
   }
-
   if (cpi != null && unrate != null)
-    lines.push(`Inflation ${cpi.toFixed(2)}% — Chômage ${unrate.toFixed(2)}%.`);
-
+    lines.push(`💹 CPI ${cpi.toFixed(2)}% | Chômage ${unrate.toFixed(2)}%.`);
   if (dxy != null)
-    lines.push(`Dollar proxy (DXY) à ${dxy.toFixed(2)}${dxy < 100 ? " — dollar faible, pression haussière sur les matières premières." : "."}`);
-
+    lines.push(`💵 DXY ${dxy.toFixed(2)}${dxy < 100 ? " — dollar faible, matières premières haussières." : dxy > 104 ? " — dollar fort." : "."}`);
   if (gold != null)
-    lines.push(`Or à $${gold.toFixed(0)}/oz${gold > 3000 ? " — ATH historique, demande refuge." : "."}`);
-
+    lines.push(`🥇 Or $${Math.round(gold)}/oz${gold > 3200 ? " — ATH historique." : "."}`);
   if (ratio != null)
-    lines.push(`Gold/Silver ratio : ${ratio.toFixed(1)}x${ratio > 90 ? " — argent sous-évalué vs or." : "."}`);
-
-  if (wti != null)
-    lines.push(`WTI à $${wti.toFixed(2)}/bbl.`);
-
-  if (btc != null)
-    lines.push(`BTC à $${Math.round(btc).toLocaleString("en-US")}.`);
-
-  if (hy != null && ig != null)
-    lines.push(`Spreads crédit : HY ${hy.toFixed(2)}% — IG ${ig.toFixed(2)}% — ratio ${(hy/ig).toFixed(2)}x.`);
-
-  if (fg != null)
-    lines.push(`Sentiment Fear & Greed : ${fg.toFixed(0)}/100.`);
-
-  return lines.length ? lines.join(" ") : "Données partielles en cours de chargement.";
+    lines.push(`⚖️ Gold/Silver ${ratio.toFixed(1)}x${ratio > 90 ? " — argent sous-évalué." : "."}`);
+  if (wti != null) lines.push(`🛢️ WTI $${wti.toFixed(2)}/bbl.`);
+  if (btc != null) lines.push(`₿ BTC $${Math.round(btc).toLocaleString("en-US")}.`);
+  if (hy != null && ig != null) lines.push(`📊 Spreads HY ${hy.toFixed(2)}% | IG ${ig.toFixed(2)}%.`);
+  if (fg != null) {
+    const fgl = data.sentiment?.label || "";
+    lines.push(`😱 Fear & Greed ${Math.round(fg)}/100 — ${fgl}.`);
+  }
+  return lines.join(" ");
 }
 
-/* ─────────────────────────────────────────────
-   ROUTE GET /api/dashboard
-───────────────────────────────────────────── */
+// ── ROUTE : GET /api/dashboard ────────────────────────────────────
 app.get("/api/dashboard", async (req, res) => {
   try {
+    const ut = req.query.ut || "1M"; // timeframe secteurs
+
     const [
       dxyObs, vixObs,
-      us1mObs, us3mObs, us2yObs, us10yObs, us30yObs,
-      unemploymentObs, fedUpperObs,
+      us1m, us3m, us2y, us10y, us30y,
+      unemployment, fedUpper,
       cpiAll, coreCpiAll, pceCoreAll,
-      eurUsd,
-      btcUsd, ethUsd, btcDom,
-      fearGreed,
-      credit,
-      delinquency,
-      commodities,
+      eurUsd, btcUsd, ethUsd, btcDom,
+      fearGreed, credit, delinquency, commodities,
       sectors
     ] = await Promise.all([
-      safe(() => fredObs("DTWEXBGS", 5)),
-      safe(() => fredObs("VIXCLS", 5)),
-      safe(() => fredObs("DGS1MO", 5)),
-      safe(() => fredObs("DGS3MO", 5)),
-      safe(() => fredObs("DGS2",   5)),
-      safe(() => fredObs("DGS10",  5)),
-      safe(() => fredObs("DGS30",  5)),
-      safe(() => fredObs("UNRATE", 5)),
-      safe(() => fredObs("DFEDTARU", 5)),
-      safe(() => fredAll("CPIAUCSL"),  []),
-      safe(() => fredAll("CPILFESL"),  []),
-      safe(() => fredAll("PCEPILFE"),  []),
+      safe(() => fredObs("DTWEXBGS",  5)),
+      safe(() => fredObs("VIXCLS",    5)),
+      safe(() => fredObs("DGS1MO",    5)),
+      safe(() => fredObs("DGS3MO",    5)),
+      safe(() => fredObs("DGS2",      5)),
+      safe(() => fredObs("DGS10",     5)),
+      safe(() => fredObs("DGS30",     5)),
+      safe(() => fredObs("UNRATE",    5)),
+      safe(() => fredObs("DFEDTARU",  5)),
+      safe(() => fredAll("CPIAUCSL"),    []),
+      safe(() => fredAll("CPILFESL"),    []),
+      safe(() => fredAll("PCEPILFE"),    []),
       safe(() => fetchEURUSD()),
       safe(() => fetchCoinbase("BTC-USD")),
       safe(() => fetchCoinbase("ETH-USD")),
@@ -456,177 +456,129 @@ app.get("/api/dashboard", async (req, res) => {
       safe(() => fetchCreditSpreads()),
       safe(() => fetchDelinquency()),
       fetchCommodities(),
-      safe(() => fetchAllSectors(), [])
+      safe(() => fetchAllSectors(ut), [])
     ]);
 
-    const us1m = us1mObs?.value, us3m = us3mObs?.value;
-    const us2y = us2yObs?.value, us10y = us10yObs?.value, us30y = us30yObs?.value;
-    const spread2s10s = (us2y != null && us10y != null) ? (us10y - us2y) * 100 : null;
+    const y2  = toNum(us2y?.value),  y10 = toNum(us10y?.value);
+    const spread2s10s = (y2 != null && y10 != null) ? (y10 - y2) * 100 : null;
 
-    const sentiment = fearGreed || fearGreedFallback(vixObs?.value, spread2s10s);
+    const sentiment = fearGreed || fearGreedFallback(toNum(vixObs?.value), spread2s10s);
 
     const cpiLatest = getLastValid(cpiAll);
-    const cpiYoY    = computeYoY(cpiAll);
-    const coreCpi   = computeYoY(coreCpiAll);
-    const pceCore   = computeYoY(pceCoreAll);
-
-    const goldV   = commodities.gold?.value;
-    const silverV = commodities.silver?.value;
-
-    const payload = {
-      updatedAt: new Date().toISOString(),
-      sources: {
-        fred:   "FRED St. Louis",
-        market: "Coinbase / Frankfurter / Yahoo Finance / Alternative.me"
+    const data = {
+      dxyProxy  : { value: toNum(dxyObs?.value), date: dxyObs?.date },
+      vix       : { value: toNum(vixObs?.value), date: vixObs?.date },
+      yields    : {
+        us1m : toNum(us1m?.value),  us3m : toNum(us3m?.value),
+        us2y : y2,                  us10y: y10,
+        us30y: toNum(us30y?.value), spread2s10s
       },
-      data: {
-        dxyProxy: { value: dxyObs?.value, date: dxyObs?.date },
-        vix:      { value: vixObs?.value,  date: vixObs?.date  },
-        yields:   { us1m, us3m, us2y, us10y, us30y, spread2s10s },
-        inflation: {
-          cpiYoY, cpiIndex: toNum(cpiLatest?.value),
-          coreCpi, pceCore, date: cpiLatest?.date || null
-        },
-        labor: {
-          unemploymentRate: unemploymentObs?.value,
-          date: unemploymentObs?.date || null
-        },
-        fed: {
-          upperBound: fedUpperObs?.value,
-          date: fedUpperObs?.date || null
-        },
-        fx:     { eurusd: eurUsd },
-        crypto: {
-          btcusd:       btcUsd,
-          btcDominance: btcDom,
-          ethusd:       ethUsd?.value ?? null
-        },
-        commodities,
-        credit,
-        sentiment,
-        delinquency,
-        cds: [
-          { country: "USA",       value: 62,  risk: "FAIBLE"  },
-          { country: "Allemagne", value: 28,  risk: "FAIBLE"  },
-          { country: "France",    value: 84,  risk: "FAIBLE"  },
-          { country: "Italie",    value: 168, risk: "MODÉRÉ"  },
-          { country: "Espagne",   value: 71,  risk: "FAIBLE"  },
-          { country: "Grèce",     value: 112, risk: "MODÉRÉ"  },
-          { country: "Turquie",   value: 384, risk: "ÉLEVÉ"   },
-          { country: "Brésil",    value: 220, risk: "ÉLEVÉ"   },
-          { country: "Chine",     value: 95,  risk: "MODÉRÉ"  },
-          { country: "Japon",     value: 44,  risk: "FAIBLE"  }
-        ],
-        sectors: Array.isArray(sectors) ? sectors : [],
-        derived: {
-          goldSilverRatio: (goldV && silverV && silverV !== 0) ? goldV / silverV : null,
-          vixRegime: vixObs?.value == null ? null
-            : vixObs.value >= 30 ? "élevé"
-            : vixObs.value >= 20 ? "modéré" : "faible",
-          curveState: spread2s10s == null ? null
-            : spread2s10s > 0 ? "positive" : "inversée"
-        }
+      inflation : {
+        cpiYoY: computeYoY(cpiAll), cpiIndex: toNum(cpiLatest?.value),
+        coreCpi: computeYoY(coreCpiAll), pceCore: computeYoY(pceCoreAll),
+        date: cpiLatest?.date || null
+      },
+      labor     : { unemploymentRate: toNum(unemployment?.value), date: unemployment?.date },
+      fed       : { upperBound: toNum(fedUpper?.value), date: fedUpper?.date },
+      fx        : { eurusd: eurUsd },
+      crypto    : { btcusd: btcUsd, btcDominance: btcDom, ethusd: ethUsd?.value ?? null },
+      commodities,
+      credit,
+      sentiment,
+      delinquency,
+      cds: [
+        { country: "USA",       value: 62,  risk: "FAIBLE"  },
+        { country: "Allemagne", value: 28,  risk: "FAIBLE"  },
+        { country: "France",    value: 84,  risk: "FAIBLE"  },
+        { country: "Italie",    value: 168, risk: "MODÉRÉ"  },
+        { country: "Espagne",   value: 71,  risk: "FAIBLE"  },
+        { country: "Grèce",     value: 112, risk: "MODÉRÉ"  },
+        { country: "Turquie",   value: 384, risk: "ÉLEVÉ"   },
+        { country: "Brésil",    value: 220, risk: "ÉLEVÉ"   },
+        { country: "Chine",     value: 95,  risk: "MODÉRÉ"  },
+        { country: "Japon",     value: 44,  risk: "FAIBLE"  }
+      ],
+      sectors: Array.isArray(sectors) ? sectors : [],
+      sectorUT: ut,
+      derived: {
+        goldSilverRatio: (() => {
+          const g = commodities?.gold?.value, s = commodities?.silver?.value;
+          return (g && s && s > 0) ? g / s : null;
+        })(),
+        vixRegime: (() => {
+          const v = toNum(vixObs?.value);
+          return v == null ? null : v >= 30 ? "ÉLEVÉ 🔴" : v >= 20 ? "MODÉRÉ 🟡" : "FAIBLE 🟢";
+        })(),
+        curveState: spread2s10s == null ? null : spread2s10s > 0 ? "positive ✅" : "inversée 🔴"
       }
     };
 
-    payload.data.aiSummary = buildAiSummary(payload.data);
-    res.json(payload);
+    // Résumé local (sans IA) pour l'affichage immédiat
+    data.localSummary = buildLocalSummary(data);
+
+    res.json({
+      updatedAt: new Date().toISOString(),
+      sources  : { fred: "FRED St. Louis", market: "Coinbase · Frankfurter · Yahoo Finance · Alternative.me" },
+      data
+    });
   } catch (err) {
     console.error("DASHBOARD ERROR:", err);
-    res.status(500).json({ error: "dashboard_fetch_failed", message: err.message });
+    res.status(500).json({ error: "dashboard_failed", message: err.message });
   }
 });
 
-/* ─────────────────────────────────────────────
-   ROUTE POST /api/ai  — Anthropic Claude
-───────────────────────────────────────────── */
+// ── ROUTE : GET /api/sectors?ut=1D ────────────────────────────────
+// Endpoint dédié pour changer l'UT des secteurs sans tout recharger
+app.get("/api/sectors", async (req, res) => {
+  try {
+    const ut = req.query.ut || "1M";
+    if (!UT_CONFIG[ut]) return res.status(400).json({ error: "UT invalide" });
+    const sectors = await safe(() => fetchAllSectors(ut), []);
+    res.json({ ut, sectors, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ROUTE : POST /api/ai ──────────────────────────────────────────
+// Mode ultra-économe : Haiku, prompt court, max 220 tokens output
 app.post("/api/ai", async (req, res) => {
-  const question  = String(req.body?.question  || "").trim();
+  const question = String(req.body?.question || "").trim().slice(0, 300); // limite la question
   const dashboard = req.body?.dashboard || null;
 
-  if (!question)
-    return res.status(400).json({ error: "missing_question", message: "Question vide." });
-
-  if (!ANTHROPIC_KEY)
-    return res.status(500).json({
-      error: "missing_key",
-      message: "Variable d'environnement ANTHROPIC_KEY manquante sur le serveur."
-    });
-
-  // Résumé compact des données pour le contexte
-  const d = dashboard?.data || {};
-  const ctx = {
-    vix:     d.vix?.value,
-    dxy:     d.dxyProxy?.value,
-    spread:  d.yields?.spread2s10s,
-    us10y:   d.yields?.us10y,
-    cpi:     d.inflation?.cpiYoY,
-    coreCpi: d.inflation?.coreCpi,
-    unrate:  d.labor?.unemploymentRate,
-    fedRate: d.fed?.upperBound,
-    btc:     d.crypto?.btcusd?.value,
-    eth:     d.crypto?.ethusd,
-    btcDom:  d.crypto?.btcDominance,
-    gold:    d.commodities?.gold?.value,
-    silver:  d.commodities?.silver?.value,
-    wti:     d.commodities?.oil?.value,
-    brent:   d.commodities?.brent?.value,
-    copper:  d.commodities?.copper?.value,
-    natgas:  d.commodities?.natgas?.value,
-    creditHY: d.credit?.hy,
-    creditIG: d.credit?.ig,
-    fg:      d.sentiment?.value,
-    fgLabel: d.sentiment?.label,
-    delinquency: d.delinquency,
-    sectors: d.sectors?.slice(0, 6)
-  };
-
-  const systemPrompt = `Tu es un analyste macro senior d'un terminal financier type Bloomberg.
-Réponds en français, style dense et factuel, 120 à 220 mots maximum.
-N'émets pas de conseil financier personnalisé.
-Appuie-toi sur les données JSON ci-dessous (snapshot temps réel) et sur tes connaissances macro.
-
-DONNÉES MARCHÉ (snapshot ${dashboard?.updatedAt || new Date().toISOString()}):
-${JSON.stringify(ctx, null, 2)}`;
+  if (!question) return res.status(400).json({ error: "Question vide." });
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-6",
-        max_tokens: 400,
-        system: systemPrompt,
-        messages: [{ role: "user", content: question }]
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok)
-      return res.status(500).json({
-        error: "anthropic_error",
-        message: data?.error?.message || "Erreur API Anthropic"
-      });
-
-    const text = data.content?.[0]?.text || "Pas de réponse.";
+    const text = await callClaudeEco(question, dashboard?.data, 220);
     res.json({ text });
   } catch (err) {
-    res.status(500).json({ error: "ai_route_failed", message: err.message });
+    // Fallback : résumé local si IA indisponible
+    const fallback = dashboard?.data ? buildLocalSummary(dashboard.data) : "IA indisponible.";
+    res.json({ text: `[Fallback local] ${fallback}`, error: err.message });
   }
 });
 
-/* ─────────────────────────────────────────────
-   HEALTH CHECK
-───────────────────────────────────────────── */
-app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+// ── ROUTE : POST /api/ai/summary ──────────────────────────────────
+// Résumé d'ouverture — légèrement plus long (350 tokens), appelé 1 fois au démarrage
+app.post("/api/ai/summary", async (req, res) => {
+  const dashboard = req.body?.dashboard || null;
+  if (!dashboard?.data) return res.json({ text: buildLocalSummary({}) });
 
-app.get("*", (_req, res) =>
-  res.sendFile(path.join(__dirname, "public", "index.html"))
-);
+  try {
+    const text = await callClaudeEco(
+      "Synthèse marché global à l'ouverture : quels sont les 3-4 points macro les plus importants à surveiller aujourd'hui ? Signaux d'alerte, opportunités, tendances.",
+      dashboard.data,
+      320
+    );
+    res.json({ text });
+  } catch (err) {
+    res.json({ text: buildLocalSummary(dashboard.data) });
+  }
+});
 
-app.listen(PORT, () => console.log(`◆ TERMINAL MACRO — port ${PORT}`));
+// ── HEALTH ────────────────────────────────────────────────────────
+app.get("/health", (_req, res) => res.json({ ok: true, ts: new Date().toISOString(), cache: CACHE.size }));
+
+app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+
+app.listen(PORT, () => console.log(`◆ TERMINAL MACRO v3.0 — port ${PORT}`));
