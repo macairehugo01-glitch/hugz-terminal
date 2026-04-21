@@ -3,597 +3,833 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>◆ Terminal Macro Stable</title>
+  <title>◆ Terminal Macro Live</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    :root{
-      --bg:#030b1a;
-      --line:#1b3152;
-      --text:#dce7f6;
-      --muted:#5e749c;
-      --orange:#f0a500;
-      --green:#22e36f;
-      --red:#ff5c5c;
-      --yellow:#f3b53b;
-      --blue:#8cb5ff;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #030b1a;
+      --bg2:    #03101f;
+      --bg3:    #08101f;
+      --line:   #1b3152;
+      --line2:  #0f2040;
+      --text:   #dce7f6;
+      --muted:  #5e749c;
+      --orange: #f0a500;
+      --green:  #22e36f;
+      --red:    #ff5c5c;
+      --yellow: #f3b53b;
+      --blue:   #8cb5ff;
     }
     html, body {
       background: var(--bg);
       color: var(--text);
       font-family: Consolas, Monaco, "Courier New", monospace;
-      width: 100%;
+      font-size: 12px;
       min-height: 100%;
       overflow-x: hidden;
     }
-    .terminal { min-height: 100vh; background: var(--bg); font-size: 12px; }
+
+    /* ── TOPBAR ── */
     .topbar {
-      height: 34px; border-bottom: 1px solid var(--line);
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 0 8px; background: #03101f;
+      height: 34px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+      background: var(--bg2);
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-    .top-left, .top-right { display:flex; align-items:center; gap:14px; min-width:0; }
-    .logo { color: var(--orange); letter-spacing: 2px; font-weight: 700; }
-    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display:inline-block; margin-right:5px; }
-    .muted { color: var(--muted); } .green { color: var(--green); } .red { color: var(--red); } .yellow { color: var(--yellow); } .blue { color: var(--blue); }
+    .top-left, .top-right { display: flex; align-items: center; gap: 14px; }
+    .logo { color: var(--orange); letter-spacing: 2px; font-weight: 700; font-size: 13px; }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green); display: inline-block; margin-right: 4px;
+      animation: blink 2s ease infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
     .refresh-btn {
-      border:1px solid var(--line); background:transparent; color:var(--text);
-      padding:4px 8px; font-size:11px; cursor:pointer; font-family:inherit;
+      border: 1px solid var(--line); background: transparent;
+      color: var(--text); padding: 3px 9px; font-size: 11px;
+      cursor: pointer; font-family: inherit; transition: border-color .2s;
     }
-    .ticker {
-      height:27px; display:flex; align-items:center; gap:18px; overflow-x:auto; white-space:nowrap;
-      border-bottom:1px solid var(--line); background:#020918; padding:0 6px; scrollbar-width:none;
-    }
-    .ticker::-webkit-scrollbar { display:none; }
-    .ticker-item { display:inline-flex; gap:5px; align-items:center; flex-shrink:0; }
-    .ticker-sym { color:#9cc0ff; } .ticker-val { color:#fff; font-weight:700; }
+    .refresh-btn:hover { border-color: var(--orange); color: var(--orange); }
 
-    .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px; background:var(--line); }
-    .panel { background:var(--bg); padding:8px; min-height:170px; }
+    /* ── TICKER ── */
+    .ticker-wrap {
+      border-bottom: 1px solid var(--line);
+      background: #020918;
+      overflow: hidden;
+      height: 27px;
+      display: flex;
+      align-items: center;
+    }
+    .ticker-track {
+      display: flex;
+      gap: 0;
+      white-space: nowrap;
+      animation: scroll 50s linear infinite;
+    }
+    .ticker-track:hover { animation-play-state: paused; }
+    @keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+    .t-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 18px;
+      border-right: 1px solid var(--line2);
+      flex-shrink: 0;
+    }
+    .t-sym { color: #9cc0ff; font-size: 10px; }
+    .t-val { color: #fff; font-weight: 700; font-size: 11px; }
+    .t-chg { font-size: 10px; }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+    }
+    .panel {
+      background: var(--bg);
+      padding: 10px;
+      min-height: 190px;
+    }
     .panel-title {
-      display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;
-      font-size:10px; letter-spacing:1.7px; text-transform:uppercase; color:var(--orange);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 10px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--orange);
     }
-    .panel-tag { color:var(--muted); font-size:9px; }
-    .two-big { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
-    .big { text-align:center; padding-top:4px; }
-    .big-label { color:var(--muted); font-size:8px; margin-bottom:8px; text-transform:uppercase; }
-    .big-value { font-size:21px; line-height:1; font-weight:700; color:#fff; }
-    .big-sub { margin-top:6px; font-size:10px; color:#8ca4ca; }
+    .panel-tag { color: var(--muted); font-size: 9px; letter-spacing: 1px; }
 
+    /* ── TWO-BIG ── */
+    .two-big { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .big { text-align: center; }
+    .big-label { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .big-value { font-size: 22px; line-height: 1.1; font-weight: 700; color: #fff; }
+    .big-sub { margin-top: 4px; font-size: 10px; color: #8ca4ca; }
+
+    /* ── METRIC ROWS ── */
     .metric-row {
-      display:flex; justify-content:space-between; align-items:center; gap:10px;
-      padding:4px 0; border-bottom:1px solid rgba(27,49,82,0.42); font-size:12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line2);
+      gap: 8px;
     }
-    .metric-row:last-child { border-bottom:none; }
-    .label { color:#9ab1d2; } .value { color:#fff; font-weight:700; }
+    .metric-row:last-child { border-bottom: none; }
+    .label { color: #9ab1d2; }
+    .value { color: #fff; font-weight: 700; }
 
-    .status-badge {
-      display:inline-block; padding:1px 6px; border:1px solid var(--line);
-      font-size:10px; color:#c5d7f3;
+    /* ── STATUS BADGE ── */
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border: 1px solid var(--line);
+      font-size: 9px;
     }
-    .note { color:var(--muted); font-size:10px; margin-top:7px; }
+    .note { color: var(--muted); font-size: 10px; margin-top: 8px; }
 
-    .sparkline-wrap { height:54px; margin:6px 0 8px; }
-    .curve-svg { width:100%; height:92px; display:block; margin-bottom:4px; }
+    /* ── SPARKLINE ── */
+    .sparkline-wrap { height: 52px; margin: 6px 0 8px; }
 
-    .fg-wrap { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:8px; }
-    .fg-meta { font-size:11px; line-height:1.8; min-width:140px; }
+    /* ── YIELD CURVE ── */
+    .curve-svg { width: 100%; height: 90px; display: block; margin-bottom: 6px; }
 
-    .gauge-row { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:11px; }
-    .gauge-label { width:92px; color:#9ab1d2; flex-shrink:0; }
-    .gauge-bar { flex:1; height:4px; background:#08101f; }
-    .gauge-fill { height:100%; }
-    .gauge-val { width:55px; text-align:right; font-weight:700; flex-shrink:0; }
+    /* ── GAUGES ── */
+    .gauge-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 0; font-size: 11px;
+    }
+    .gauge-label { width: 96px; color: #9ab1d2; flex-shrink: 0; font-size: 10px; }
+    .gauge-bar { flex: 1; height: 5px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .gauge-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
+    .gauge-val { width: 50px; text-align: right; font-weight: 700; flex-shrink: 0; }
 
+    /* ── SECTORS ── */
     .sector-row {
-      display:flex; align-items:center; gap:8px; padding:4px 0;
-      border-bottom:1px solid rgba(27,49,82,0.42); font-size:11px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line2);
+      font-size: 11px;
     }
-    .sector-row:last-child { border-bottom:none; }
-    .sector-name { width:72px; color:#9ab1d2; flex-shrink:0; }
-    .sector-bar { flex:1; height:3px; background:#08101f; }
-    .sector-fill { height:100%; }
-    .sector-val { width:48px; text-align:right; font-weight:700; font-size:11px; flex-shrink:0; }
+    .sector-row:last-child { border-bottom: none; }
+    .sector-name { width: 76px; color: #9ab1d2; flex-shrink: 0; font-size: 10px; }
+    .sector-bar { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .sector-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
+    .sector-val { width: 46px; text-align: right; font-weight: 700; flex-shrink: 0; font-size: 11px; }
 
+    /* ── CDS ── */
     .cds-row {
-      display:flex; justify-content:space-between; align-items:center; gap:8px;
-      padding:4px 0; border-bottom:1px solid rgba(27,49,82,0.42); font-size:11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line2);
+      font-size: 11px;
     }
-    .cds-row:last-child { border-bottom:none; }
-    .cds-country { color:#9ab1d2; }
-    .cds-risk { font-size:9px; padding:1px 5px; border-radius:2px; border:1px solid var(--line); }
-    .risk-low { color:var(--green); } .risk-med { color:var(--yellow); } .risk-high { color:var(--red); }
+    .cds-row:last-child { border-bottom: none; }
+    .cds-country { color: #9ab1d2; }
+    .cds-risk { font-size: 9px; padding: 1px 5px; border: 1px solid var(--line); }
+    .risk-low { color: var(--green); } .risk-med { color: var(--yellow); } .risk-high { color: var(--red); }
 
+    /* ── FEAR & GREED PANEL ── */
+    .fg-wrap { display: flex; align-items: flex-start; gap: 16px; margin-top: 6px; }
+    .fg-meta { flex: 1; }
+
+    /* ── AI PANEL ── */
     .ai-box {
-      background:#08101f; border-left:2px solid var(--orange); padding:8px;
-      font-size:12px; line-height:1.6; color:#d5dded; min-height:100px; white-space:pre-wrap;
+      background: var(--bg3);
+      border-left: 2px solid var(--orange);
+      padding: 8px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #d5dded;
+      min-height: 90px;
+      white-space: pre-wrap;
     }
-    .ai-actions { margin-top:10px; display:flex; gap:8px; align-items:center; }
+    .ai-actions { margin-top: 8px; display: flex; gap: 6px; }
     .ai-input {
-      flex:1; background:#040d1a; border:1px solid var(--line); color:#fff;
-      padding:7px 8px; font-family:inherit; font-size:12px; outline:none;
+      flex: 1;
+      background: #040d1a;
+      border: 1px solid var(--line);
+      color: #fff;
+      padding: 6px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
     }
+    .ai-input:focus { border-color: var(--orange); }
     .ai-send {
-      background:transparent; border:1px solid var(--line); color:#fff;
-      padding:7px 10px; cursor:pointer; font-family:inherit; font-size:12px;
+      background: transparent;
+      border: 1px solid var(--orange);
+      color: var(--orange);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: background .2s;
+    }
+    .ai-send:hover { background: rgba(240,165,0,.12); }
+
+    /* ── QUICK BUTTONS ── */
+    .quick-btns { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .qbtn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      padding: 3px 7px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color .2s, color .2s;
+    }
+    .qbtn:hover { border-color: var(--orange); color: var(--orange); }
+
+    /* ── FOOTER ── */
+    .footer {
+      border-top: 1px solid var(--line);
+      padding: 6px 10px;
+      font-size: 10px;
+      color: var(--muted);
+      background: var(--bg2);
     }
 
-    .footer { border-top:1px solid var(--line); padding:7px 8px; font-size:11px; color:var(--muted); }
+    /* ── COLORS ── */
+    .green  { color: var(--green);  }
+    .red    { color: var(--red);    }
+    .yellow { color: var(--yellow); }
+    .blue   { color: var(--blue);   }
+    .muted  { color: var(--muted);  }
 
-    @media (max-width:1100px) {
-      .grid { grid-template-columns:1fr; }
-      .two-big { grid-template-columns:1fr; }
-      .topbar { height:auto; padding:8px; gap:8px; align-items:flex-start; flex-direction:column; }
-      .fg-wrap { flex-direction:column; gap:8px; }
+    /* ── LOADING STATE ── */
+    .skeleton { color: var(--muted); animation: pulse .8s ease infinite; }
+    @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+    @media (max-width: 1000px) {
+      .grid { grid-template-columns: 1fr; }
+      .two-big { grid-template-columns: 1fr; }
+      .fg-wrap { flex-direction: column; }
+      .topbar { height: auto; flex-direction: column; padding: 8px; gap: 6px; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
-  <div class="terminal">
-    <div class="topbar">
-      <div class="top-left">
-        <div class="logo">◆ TERMINAL</div>
-        <div><span class="live-dot"></span><span class="green">LIVE</span></div>
-        <div id="clock" class="blue">--:--:-- NY</div>
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="top-left">
+    <span class="logo">◆ TERMINAL</span>
+    <span><span class="live-dot"></span><span class="green">LIVE</span></span>
+    <span id="clock" class="blue">--:--:-- NY</span>
+  </div>
+  <div class="top-right">
+    <span class="muted" style="font-size:10px">FRED · COINBASE · YAHOO · ALT.ME</span>
+    <button class="refresh-btn" onclick="loadDashboard()">⟳ ACTUALISER</button>
+  </div>
+</div>
+
+<!-- ── TICKER ── -->
+<div class="ticker-wrap">
+  <div class="ticker-track" id="ticker-track">
+    <!-- first half (duplicated below for infinite scroll) -->
+    <div class="t-item"><span class="t-sym">BTC/USD</span><span class="t-val" id="tk-btc">--</span></div>
+    <div class="t-item"><span class="t-sym">ETH/USD</span><span class="t-val" id="tk-eth">--</span></div>
+    <div class="t-item"><span class="t-sym">EUR/USD</span><span class="t-val" id="tk-eurusd">--</span></div>
+    <div class="t-item"><span class="t-sym">DXY</span><span class="t-val" id="tk-dxy">--</span></div>
+    <div class="t-item"><span class="t-sym">VIX</span><span class="t-val" id="tk-vix">--</span></div>
+    <div class="t-item"><span class="t-sym">US10Y</span><span class="t-val" id="tk-us10y">--</span></div>
+    <div class="t-item"><span class="t-sym">2s10s</span><span class="t-val" id="tk-spread">--</span></div>
+    <div class="t-item"><span class="t-sym">CPI</span><span class="t-val" id="tk-cpi">--</span></div>
+    <div class="t-item"><span class="t-sym">UNRATE</span><span class="t-val" id="tk-unrate">--</span></div>
+    <div class="t-item"><span class="t-sym">GOLD</span><span class="t-val" id="tk-gold">--</span></div>
+    <div class="t-item"><span class="t-sym">WTI</span><span class="t-val" id="tk-wti">--</span></div>
+    <div class="t-item"><span class="t-sym">BRENT</span><span class="t-val" id="tk-brent">--</span></div>
+    <!-- duplicate for seamless loop -->
+    <div class="t-item"><span class="t-sym">BTC/USD</span><span class="t-val" id="tk-btc2">--</span></div>
+    <div class="t-item"><span class="t-sym">ETH/USD</span><span class="t-val" id="tk-eth2">--</span></div>
+    <div class="t-item"><span class="t-sym">EUR/USD</span><span class="t-val" id="tk-eurusd2">--</span></div>
+    <div class="t-item"><span class="t-sym">DXY</span><span class="t-val" id="tk-dxy2">--</span></div>
+    <div class="t-item"><span class="t-sym">VIX</span><span class="t-val" id="tk-vix2">--</span></div>
+    <div class="t-item"><span class="t-sym">US10Y</span><span class="t-val" id="tk-us10y2">--</span></div>
+    <div class="t-item"><span class="t-sym">2s10s</span><span class="t-val" id="tk-spread2">--</span></div>
+    <div class="t-item"><span class="t-sym">CPI</span><span class="t-val" id="tk-cpi2">--</span></div>
+    <div class="t-item"><span class="t-sym">UNRATE</span><span class="t-val" id="tk-unrate2">--</span></div>
+    <div class="t-item"><span class="t-sym">GOLD</span><span class="t-val" id="tk-gold2">--</span></div>
+    <div class="t-item"><span class="t-sym">WTI</span><span class="t-val" id="tk-wti2">--</span></div>
+    <div class="t-item"><span class="t-sym">BRENT</span><span class="t-val" id="tk-brent2">--</span></div>
+  </div>
+</div>
+
+<!-- ── MAIN GRID ── -->
+<div class="grid">
+
+  <!-- 1 — RISQUE -->
+  <div class="panel">
+    <div class="panel-title"><span>INDICATEURS DE RISQUE</span><span class="panel-tag">LIVE</span></div>
+    <div class="two-big">
+      <div class="big">
+        <div class="big-label">DXY PROXY</div>
+        <div class="big-value" id="dxy-val">--</div>
+        <div class="big-sub" id="dxy-date">--</div>
       </div>
-      <div class="top-right">
-        <div class="muted">SOURCES: FRED / COINBASE / FRANKFURTER / ALTERNATIVE.ME</div>
-        <button class="refresh-btn" onclick="loadDashboard()">⟳ ACTUALISER</button>
-      </div>
-    </div>
-
-    <div class="ticker">
-      <div class="ticker-item"><span class="ticker-sym">BTC/USD</span><span class="ticker-val" id="ticker-btc">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">EUR/USD</span><span class="ticker-val" id="ticker-eurusd">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">DXY</span><span class="ticker-val" id="ticker-dxy">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">VIX</span><span class="ticker-val" id="ticker-vix">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">US10Y</span><span class="ticker-val" id="ticker-us10y">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">2s10s</span><span class="ticker-val" id="ticker-spread">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">CPI YOY</span><span class="ticker-val" id="ticker-cpi">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">UNRATE</span><span class="ticker-val" id="ticker-unrate">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">GOLD</span><span class="ticker-val" id="ticker-gold">--</span></div>
-      <div class="ticker-item"><span class="ticker-sym">WTI</span><span class="ticker-val" id="ticker-oil">--</span></div>
-    </div>
-
-    <div class="grid">
-      <div class="panel">
-        <div class="panel-title"><span>INDICATEURS DE RISQUE</span><span class="panel-tag">LIVE</span></div>
-        <div class="two-big">
-          <div class="big">
-            <div class="big-label">DXY PROXY</div>
-            <div class="big-value" id="dxy-val">--</div>
-            <div class="big-sub" id="dxy-date">--</div>
-          </div>
-          <div class="big">
-            <div class="big-label">VIX</div>
-            <div class="big-value" id="vix-val">--</div>
-            <div class="big-sub" id="vix-date">--</div>
-          </div>
-        </div>
-        <div class="sparkline-wrap">
-          <svg viewBox="0 0 260 54" style="width:100%;height:54px">
-            <polyline fill="none" stroke="#ff5c5c" stroke-width="1.4"
-              points="0,34 20,32 40,35 60,36 80,34 100,39 120,37 140,41 160,39 180,43 200,42 220,45 240,43 260,46"/>
-            <text x="0" y="52" fill="#5e749c" font-size="8">30j DXY</text>
-            <text x="216" y="52" fill="#ff5c5c" font-size="8">risk</text>
-          </svg>
-        </div>
-        <div class="note">Régime volatilité : <span id="vix-regime" class="status-badge">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>OR & ACTIFS REFUGES</span><span class="panel-tag">LIVE</span></div>
-        <div class="two-big">
-          <div class="big">
-            <div class="big-label">GOLD</div>
-            <div class="big-value yellow" id="gold-big-val">--</div>
-            <div class="big-sub" id="gold-big-chg">--</div>
-          </div>
-          <div class="big">
-            <div class="big-label">BTC/USD</div>
-            <div class="big-value green" id="btcusd-val">--</div>
-            <div class="big-sub" id="btcusd-date">--</div>
-          </div>
-        </div>
-        <div class="metric-row"><span class="label">Gold/Silver Ratio</span><span class="value" id="gold-silver-ratio">--</span></div>
-        <div class="metric-row"><span class="label">Silver</span><span class="value" id="silver-val">--</span></div>
-        <div class="metric-row"><span class="label">BTC Dominance</span><span class="value" id="btc-dom">--</span></div>
-        <div class="metric-row"><span class="label">ETH/USD</span><span class="value" id="ethusd-val">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>COURBE DES TAUX US</span><span class="panel-tag">TREASURY</span></div>
-        <svg class="curve-svg" viewBox="0 0 220 92">
-          <line x1="0" y1="76" x2="220" y2="76" stroke="#10233d" stroke-width="0.7"/>
-          <line x1="0" y1="56" x2="220" y2="56" stroke="#10233d" stroke-width="0.7"/>
-          <line x1="0" y1="36" x2="220" y2="36" stroke="#10233d" stroke-width="0.7"/>
-          <polyline fill="none" stroke="#2d4768" stroke-width="1.1" stroke-dasharray="3,2"
-            points="8,70 30,62 55,50 80,44 105,38 140,36 175,35 210,34"/>
-          <polyline fill="none" stroke="#22e36f" stroke-width="1.7"
-            points="8,60 30,64 55,65 80,63 105,57 140,52 175,48 210,46"/>
-        </svg>
-        <div class="metric-row"><span class="label">1 mois</span><span class="value" id="us1m-val">--</span></div>
-        <div class="metric-row"><span class="label">3 mois</span><span class="value" id="us3m-val">--</span></div>
-        <div class="metric-row"><span class="label">2 ans</span><span class="value" id="us2y-val">--</span></div>
-        <div class="metric-row"><span class="label">10 ans</span><span class="value" id="us10y-val">--</span></div>
-        <div class="metric-row"><span class="label">30 ans</span><span class="value" id="us30y-val">--</span></div>
-        <div class="metric-row"><span class="label">2s10s</span><span class="value" id="spread-val">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>INFLATION & CRÉDIT</span><span class="panel-tag">USA</span></div>
-        <div class="two-big">
-          <div class="big">
-            <div class="big-label">CPI</div>
-            <div class="big-value yellow" id="cpi-val">--</div>
-            <div class="big-sub" id="cpi-date">--</div>
-          </div>
-          <div class="big">
-            <div class="big-label">CORE CPI</div>
-            <div class="big-value yellow" id="core-cpi-val">--</div>
-            <div class="big-sub">hors vol.</div>
-          </div>
-        </div>
-        <div class="metric-row"><span class="label">PCE Core</span><span class="value" id="pce-core-val">--</span></div>
-        <div class="metric-row"><span class="label">Spread HY</span><span class="value" id="hy-val">--</span></div>
-        <div class="metric-row"><span class="label">Spread IG</span><span class="value" id="ig-val">--</span></div>
-        <div class="metric-row"><span class="label">HY / IG Ratio</span><span class="value" id="credit-ratio">--</span></div>
-        <div class="metric-row"><span class="label">Taux Fed</span><span class="value" id="fed-val">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>DÉLINQUANCE & SANTÉ CRÉDIT</span><span class="panel-tag">FRED</span></div>
-        <div class="gauge-row"><span class="gauge-label">Cartes crédit</span><div class="gauge-bar"><div class="gauge-fill" id="g-credit" style="background:#ff5c5c;width:0%"></div></div><span class="gauge-val" id="g-credit-v">--</span></div>
-        <div class="gauge-row"><span class="gauge-label">Auto loans</span><div class="gauge-bar"><div class="gauge-fill" id="g-auto" style="background:#f3b53b;width:0%"></div></div><span class="gauge-val" id="g-auto-v">--</span></div>
-        <div class="gauge-row"><span class="gauge-label">Immobilier</span><div class="gauge-bar"><div class="gauge-fill" id="g-real" style="background:#22e36f;width:0%"></div></div><span class="gauge-val" id="g-real-v">--</span></div>
-        <div class="gauge-row"><span class="gauge-label">Student loans</span><div class="gauge-bar"><div class="gauge-fill" id="g-student" style="background:#ff5c5c;width:0%"></div></div><span class="gauge-val" id="g-student-v">--</span></div>
-        <div class="gauge-row"><span class="gauge-label">Commercial RE</span><div class="gauge-bar"><div class="gauge-fill" id="g-cre" style="background:#f3b53b;width:0%"></div></div><span class="gauge-val" id="g-cre-v">--</span></div>
-        <div class="metric-row"><span class="label">Chômage</span><span class="value" id="unrate-val">--</span></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>SENTIMENT & COMMODITÉS</span><span class="panel-tag">AUTO</span></div>
-        <div class="fg-wrap">
-          <svg viewBox="0 0 100 60" style="width:120px;height:72px">
-            <path d="M10,55 A40,40 0 0,1 90,55" fill="none" stroke="#10233d" stroke-width="8"/>
-            <path d="M10,55 A40,40 0 0,1 90,55" fill="none" stroke="url(#gradfg)" stroke-width="8"/>
-            <defs>
-              <linearGradient id="gradfg" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#ff5c5c"/>
-                <stop offset="50%" stop-color="#f3b53b"/>
-                <stop offset="100%" stop-color="#22e36f"/>
-              </linearGradient>
-            </defs>
-            <line id="fg-needle" x1="50" y1="55" x2="28" y2="28" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-            <circle cx="50" cy="55" r="3" fill="#fff"/>
-            <text x="50" y="44" text-anchor="middle" fill="#f3b53b" font-size="12" font-weight="700" id="fg-val">--</text>
-            <text x="50" y="54" text-anchor="middle" fill="#f3b53b" font-size="6" id="fg-label">--</text>
-          </svg>
-
-          <div class="fg-meta">
-            <div class="metric-row"><span class="label">WTI</span><span class="value" id="oil-val">--</span></div>
-            <div class="metric-row"><span class="label">Brent</span><span class="value" id="brent-val">--</span></div>
-            <div class="metric-row"><span class="label">Cuivre</span><span class="value" id="copper-val">--</span></div>
-            <div class="metric-row"><span class="label">Nat. Gas</span><span class="value" id="natgas-val">--</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>CDS SOUVERAINS 5A</span><span class="panel-tag">RISQUE PAYS</span></div>
-        <div id="cds-wrap"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>PERFORMANCES SECTEURS S&P</span><span class="panel-tag">1 MOIS</span></div>
-        <div id="sectors-wrap"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title"><span>ANALYSE IA</span><span class="panel-tag">AUTO</span></div>
-        <div class="ai-box" id="ai-summary">Chargement...</div>
-        <div class="ai-actions">
-          <input id="ai-input" class="ai-input" placeholder="Analysez..." />
-          <button id="ai-send" class="ai-send">Envoyer ↗</button>
-        </div>
+      <div class="big">
+        <div class="big-label">VIX</div>
+        <div class="big-value" id="vix-val">--</div>
+        <div class="big-sub" id="vix-date">--</div>
       </div>
     </div>
-
-    <div class="footer" id="footer-status">Chargement...</div>
+    <div class="sparkline-wrap">
+      <svg viewBox="0 0 260 52" style="width:100%;height:52px">
+        <polyline fill="none" stroke="#ff5c5c" stroke-width="1.3"
+          points="0,34 22,32 44,35 66,37 88,34 110,39 132,37 154,41 176,39 198,43 220,41 242,45 260,47"/>
+        <text x="0" y="50" fill="#5e749c" font-size="8">30j DXY tendance</text>
+        <text x="210" y="50" fill="#ff5c5c" font-size="8">–risk</text>
+      </svg>
+    </div>
+    <div class="note">Volatilité : <span id="vix-regime" class="badge muted">--</span></div>
   </div>
 
-  <script>
-    const REFRESH_MS = 5 * 60 * 1000;
-    let latestDashboard = null;
+  <!-- 2 — OR & REFUGES -->
+  <div class="panel">
+    <div class="panel-title"><span>OR & ACTIFS REFUGES</span><span class="panel-tag">FRED · YAHOO</span></div>
+    <div class="two-big">
+      <div class="big">
+        <div class="big-label">GOLD (XAU)</div>
+        <div class="big-value yellow" id="gold-big">--</div>
+        <div class="big-sub" id="gold-date">USD/oz</div>
+      </div>
+      <div class="big">
+        <div class="big-label">BTC/USD</div>
+        <div class="big-value green" id="btc-big">--</div>
+        <div class="big-sub" id="btc-time">--</div>
+      </div>
+    </div>
+    <div class="metric-row"><span class="label">Gold/Silver Ratio</span><span class="value" id="gold-silver-ratio">--</span></div>
+    <div class="metric-row"><span class="label">Silver (XAG)</span><span class="value" id="silver-val">--</span></div>
+    <div class="metric-row"><span class="label">BTC Dominance</span><span class="value" id="btc-dom">--</span></div>
+    <div class="metric-row"><span class="label">ETH/USD</span><span class="value" id="eth-val">--</span></div>
+  </div>
 
-    function setText(id, value) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
+  <!-- 3 — TAUX -->
+  <div class="panel">
+    <div class="panel-title"><span>COURBE DES TAUX US</span><span class="panel-tag">TREASURY · FRED</span></div>
+    <svg class="curve-svg" viewBox="0 0 220 90">
+      <line x1="0" y1="75" x2="220" y2="75" stroke="#10233d" stroke-width=".7"/>
+      <line x1="0" y1="55" x2="220" y2="55" stroke="#10233d" stroke-width=".7"/>
+      <line x1="0" y1="35" x2="220" y2="35" stroke="#10233d" stroke-width=".7"/>
+      <!-- normale (pointillés) -->
+      <polyline fill="none" stroke="#2d4768" stroke-width="1" stroke-dasharray="3,2"
+        points="8,70 30,62 55,50 80,44 105,38 140,36 175,35 210,34"/>
+      <!-- actuelle -->
+      <polyline fill="none" stroke="#22e36f" stroke-width="1.7"
+        id="yield-curve"
+        points="8,60 30,64 55,65 80,63 105,57 140,52 175,48 210,46"/>
+      <text x="2"   y="88" fill="#5e749c" font-size="7">1M</text>
+      <text x="26"  y="88" fill="#5e749c" font-size="7">3M</text>
+      <text x="51"  y="88" fill="#5e749c" font-size="7">6M</text>
+      <text x="76"  y="88" fill="#5e749c" font-size="7">1A</text>
+      <text x="101" y="88" fill="#5e749c" font-size="7">2A</text>
+      <text x="136" y="88" fill="#5e749c" font-size="7">5A</text>
+      <text x="170" y="88" fill="#5e749c" font-size="7">10A</text>
+      <text x="204" y="88" fill="#5e749c" font-size="7">30A</text>
+    </svg>
+    <div class="metric-row"><span class="label">1 mois</span><span class="value" id="us1m-val">--</span></div>
+    <div class="metric-row"><span class="label">3 mois</span><span class="value" id="us3m-val">--</span></div>
+    <div class="metric-row"><span class="label">2 ans</span><span class="value" id="us2y-val">--</span></div>
+    <div class="metric-row"><span class="label">10 ans</span><span class="value" id="us10y-val">--</span></div>
+    <div class="metric-row"><span class="label">30 ans</span><span class="value" id="us30y-val">--</span></div>
+    <div class="metric-row">
+      <span class="label">Spread 2s10s</span>
+      <span class="value" id="spread-val">--</span>
+    </div>
+  </div>
+
+  <!-- 4 — INFLATION & CRÉDIT -->
+  <div class="panel">
+    <div class="panel-title"><span>INFLATION & CRÉDIT</span><span class="panel-tag">USA · FRED</span></div>
+    <div class="two-big">
+      <div class="big">
+        <div class="big-label">CPI (YoY)</div>
+        <div class="big-value yellow" id="cpi-val">--</div>
+        <div class="big-sub" id="cpi-date">--</div>
+      </div>
+      <div class="big">
+        <div class="big-label">CORE CPI</div>
+        <div class="big-value yellow" id="core-cpi-val">--</div>
+        <div class="big-sub">hors alim. énergie</div>
+      </div>
+    </div>
+    <div class="metric-row"><span class="label">PCE Core</span><span class="value" id="pce-core-val">--</span></div>
+    <div class="metric-row"><span class="label">Spread HY (OAS)</span><span class="value" id="hy-val">--</span></div>
+    <div class="metric-row"><span class="label">Spread IG (OAS)</span><span class="value" id="ig-val">--</span></div>
+    <div class="metric-row"><span class="label">Ratio HY/IG</span><span class="value" id="credit-ratio">--</span></div>
+    <div class="metric-row"><span class="label">Fed Funds Rate</span><span class="value" id="fed-val">--</span></div>
+  </div>
+
+  <!-- 5 — DÉLINQUANCE -->
+  <div class="panel">
+    <div class="panel-title"><span>DÉLINQUANCE & SANTÉ CRÉDIT</span><span class="panel-tag">FRED</span></div>
+    <div id="delinquency-gauges">
+      <div class="gauge-row">
+        <span class="gauge-label">Cartes crédit</span>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-cc"  style="background:var(--red);width:0%"></div></div>
+        <span class="gauge-val red"    id="gv-cc">--</span>
+      </div>
+      <div class="gauge-row">
+        <span class="gauge-label">Auto loans</span>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-auto" style="background:var(--yellow);width:0%"></div></div>
+        <span class="gauge-val yellow" id="gv-auto">--</span>
+      </div>
+      <div class="gauge-row">
+        <span class="gauge-label">Immobilier</span>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-re"   style="background:var(--green);width:0%"></div></div>
+        <span class="gauge-val green"  id="gv-re">--</span>
+      </div>
+      <div class="gauge-row">
+        <span class="gauge-label">Loans (real est.)</span>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-sl"   style="background:var(--red);width:0%"></div></div>
+        <span class="gauge-val red"    id="gv-sl">--</span>
+      </div>
+      <div class="gauge-row">
+        <span class="gauge-label">Consumer loans</span>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-cre"  style="background:var(--yellow);width:0%"></div></div>
+        <span class="gauge-val yellow" id="gv-cre">--</span>
+      </div>
+    </div>
+    <div class="metric-row" style="margin-top:6px">
+      <span class="label">Chômage (UNRATE)</span>
+      <span class="value" id="unrate-val">--</span>
+    </div>
+    <div class="note" id="delinquency-date" style="margin-top:4px"></div>
+  </div>
+
+  <!-- 6 — SENTIMENT & COMMODITÉS -->
+  <div class="panel">
+    <div class="panel-title"><span>SENTIMENT & COMMODITÉS</span><span class="panel-tag">ALT.ME · FRED · YAHOO</span></div>
+    <div class="fg-wrap">
+      <div>
+        <svg viewBox="0 0 100 60" style="width:120px;height:72px;flex-shrink:0">
+          <path d="M10,55 A40,40 0 0,1 90,55" fill="none" stroke="#0c1e36" stroke-width="10"/>
+          <path d="M10,55 A40,40 0 0,1 90,55" fill="none" stroke="url(#gfg)" stroke-width="10"/>
+          <defs>
+            <linearGradient id="gfg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#ff5c5c"/>
+              <stop offset="50%"  stop-color="#f3b53b"/>
+              <stop offset="100%" stop-color="#22e36f"/>
+            </linearGradient>
+          </defs>
+          <line id="fg-needle" x1="50" y1="55" x2="22" y2="28"
+            stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="50" cy="55" r="3.5" fill="#fff"/>
+          <text id="fg-num"   x="50" y="44" text-anchor="middle" fill="#f3b53b" font-size="13" font-weight="700">--</text>
+          <text id="fg-label" x="50" y="53" text-anchor="middle" fill="#f3b53b" font-size="6">--</text>
+        </svg>
+      </div>
+      <div class="fg-meta">
+        <div class="metric-row"><span class="label">WTI ($/bbl)</span><span class="value" id="wti-val">--</span></div>
+        <div class="metric-row"><span class="label">Brent ($/bbl)</span><span class="value" id="brent-val">--</span></div>
+        <div class="metric-row"><span class="label">Cuivre ($/lb)</span><span class="value" id="copper-val">--</span></div>
+        <div class="metric-row"><span class="label">Nat. Gas ($/MMBtu)</span><span class="value" id="natgas-val">--</span></div>
+        <div class="metric-row"><span class="label">Silver ($/oz)</span><span class="value" id="silver-val2">--</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 — CDS -->
+  <div class="panel">
+    <div class="panel-title"><span>CDS SOUVERAINS 5A</span><span class="panel-tag">RISQUE PAYS</span></div>
+    <div id="cds-wrap"></div>
+  </div>
+
+  <!-- 8 — SECTEURS -->
+  <div class="panel">
+    <div class="panel-title"><span>SECTEURS S&P 500</span><span class="panel-tag">1 MOIS · ETFs XL*</span></div>
+    <div id="sectors-wrap">
+      <div class="note skeleton">Chargement données Yahoo Finance...</div>
+    </div>
+  </div>
+
+  <!-- 9 — IA -->
+  <div class="panel">
+    <div class="panel-title"><span>ANALYSE IA</span><span class="panel-tag">ANTHROPIC CLAUDE</span></div>
+    <div class="ai-box" id="ai-summary">Chargement de l'analyse...</div>
+    <div class="ai-actions">
+      <input id="ai-input" class="ai-input" placeholder="Analysez un actif, un risque, une corrélation..." />
+      <button id="ai-send" class="ai-send">Envoyer ↗</button>
+    </div>
+    <div class="quick-btns">
+      <button class="qbtn" onclick="quickAsk('Analysez la courbe des taux US et ses implications macro 2026')">Taux ↗</button>
+      <button class="qbtn" onclick="quickAsk('Risque de récession USA en 2026 selon ces indicateurs ?')">Récession ↗</button>
+      <button class="qbtn" onclick="quickAsk('DXY bas : impact sur or, émergents et matières premières')">DXY ↗</button>
+      <button class="qbtn" onclick="quickAsk('Spreads crédit HY et IG : signaux de stress financier ?')">Crédit ↗</button>
+      <button class="qbtn" onclick="quickAsk('Bitcoin et sentiment Fear & Greed dans ce contexte macro')">BTC ↗</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer" id="footer-status">Chargement...</div>
+
+<script>
+/* ──────────────────────────────
+   UTILS
+────────────────────────────── */
+let dashboardData = null;
+
+function $(id) { return document.getElementById(id); }
+
+function set(id, val) {
+  const el = $(id);
+  if (el) el.textContent = val;
+}
+
+function fmt(v, d = 2) {
+  if (v == null || Number.isNaN(+v)) return "--";
+  return (+v).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+function fmtPct(v, d = 2) {
+  if (v == null || Number.isNaN(+v)) return "--";
+  return fmt(v, d) + "%";
+}
+
+function fmtSigned(v, d = 2) {
+  if (v == null || Number.isNaN(+v)) return "--";
+  return (v > 0 ? "+" : "") + fmt(v, d) + "%";
+}
+
+function fmtPb(v) {
+  if (v == null || Number.isNaN(+v)) return "--";
+  return (v > 0 ? "+" : "") + fmt(v, 0) + " pb";
+}
+
+/* ──────────────────────────────
+   CLOCK
+────────────────────────────── */
+function updateClock() {
+  const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const h = String(ny.getHours()).padStart(2, "0");
+  const m = String(ny.getMinutes()).padStart(2, "0");
+  const s = String(ny.getSeconds()).padStart(2, "0");
+  set("clock", `${h}:${m}:${s} NY`);
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+/* ──────────────────────────────
+   FEAR & GREED NEEDLE
+────────────────────────────── */
+function moveFGNeedle(score) {
+  const needle = $("fg-needle");
+  if (!needle || score == null) return;
+  // 0 → angle -175°, 100 → angle -5° (arc de 170°)
+  const angle = -175 + (score / 100) * 170;
+  const rad = angle * Math.PI / 180;
+  const x2 = 50 + Math.cos(rad) * 30;
+  const y2 = 55 + Math.sin(rad) * 30;
+  needle.setAttribute("x2", x2.toFixed(2));
+  needle.setAttribute("y2", y2.toFixed(2));
+}
+
+/* ──────────────────────────────
+   YIELD CURVE (dynamique)
+   On mappe les taux sur une échelle Y (haut = taux élevé)
+────────────────────────────── */
+function updateYieldCurve(yields) {
+  const curve = $("yield-curve");
+  if (!curve) return;
+  const { us1m, us3m, us2y, us10y, us30y } = yields;
+  const vals = [us1m, us3m, us2y, us10y, us30y];
+  if (vals.some(v => v == null)) return;
+
+  const min = Math.min(...vals) - 0.2;
+  const max = Math.max(...vals) + 0.2;
+  const range = max - min || 1;
+
+  // xs : 1M=8, 3M=30, 6M=55(interp), 1A=80, 2A=105, 5A=140, 10A=175, 30A=210
+  // on a 5 points : 1M, 3M, 2A, 10A, 30A
+  const xs = [8, 30, 105, 175, 210];
+  const toY = v => 75 - ((v - min) / range) * 60; // 75=bas, 15=haut
+
+  const pts = vals.map((v, i) => `${xs[i]},${toY(v).toFixed(1)}`).join(" ");
+  curve.setAttribute("points", pts);
+}
+
+/* ──────────────────────────────
+   GAUGE
+────────────────────────────── */
+function setGauge(fillId, valId, value, max, fmt2 = v => fmtPct(v, 2)) {
+  const fill = $(fillId);
+  if (fill && value != null) {
+    const pct = Math.max(4, Math.min(100, (value / max) * 100));
+    fill.style.width = pct + "%";
+  }
+  set(valId, value != null ? fmt2(value) : "--");
+}
+
+/* ──────────────────────────────
+   SECTORS
+────────────────────────────── */
+function renderSectors(sectors) {
+  const wrap = $("sectors-wrap");
+  if (!wrap) return;
+  if (!Array.isArray(sectors) || sectors.length === 0) {
+    wrap.innerHTML = `<div class="note">Données Yahoo Finance non disponibles.</div>`;
+    return;
+  }
+  const maxAbs = Math.max(...sectors.map(s => Math.abs(s.value || 0)), 1);
+  wrap.innerHTML = sectors.map(s => {
+    const v = s.value || 0;
+    const pct = Math.max(5, (Math.abs(v) / maxAbs) * 100);
+    const color = v >= 0 ? "var(--green)" : "var(--red)";
+    const cls   = v >= 0 ? "green" : "red";
+    const sign  = v >= 0 ? "+" : "";
+    return `<div class="sector-row">
+      <div class="sector-name">${s.name}</div>
+      <div class="sector-bar"><div class="sector-fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>
+      <div class="sector-val ${cls}">${sign}${fmt(v, 1)}%</div>
+    </div>`;
+  }).join("");
+}
+
+/* ──────────────────────────────
+   CDS
+────────────────────────────── */
+function renderCDS(cds) {
+  const wrap = $("cds-wrap");
+  if (!wrap || !Array.isArray(cds)) return;
+  wrap.innerHTML = cds.map(item => {
+    const cls = item.risk === "ÉLEVÉ" ? "risk-high" : item.risk === "MODÉRÉ" ? "risk-med" : "risk-low";
+    return `<div class="cds-row">
+      <span class="cds-country">${item.country}</span>
+      <span class="value">${fmt(item.value, 0)} pb</span>
+      <span class="cds-risk ${cls}">${item.risk}</span>
+    </div>`;
+  }).join("");
+}
+
+/* ──────────────────────────────
+   TICKER helpers
+────────────────────────────── */
+function setTicker(ids, val) {
+  ids.forEach(id => set(id, val));
+}
+
+/* ──────────────────────────────
+   LOAD DASHBOARD
+────────────────────────────── */
+async function loadDashboard() {
+  set("footer-status", "⟳ Chargement des données...");
+  try {
+    const res  = await fetch("/api/dashboard");
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || "Erreur API");
+
+    dashboardData = json;
+    const d = json.data;
+
+    /* — RISQUE — */
+    const dxy = d.dxyProxy?.value, vix = d.vix?.value;
+    set("dxy-val",   fmt(dxy, 2));
+    set("dxy-date",  d.dxyProxy?.date || "--");
+    set("vix-val",   fmt(vix, 2));
+    set("vix-date",  d.vix?.date || "--");
+    set("vix-regime", d.derived?.vixRegime || "--");
+
+    /* — OR / CRYPTO — */
+    const gold = d.commodities?.gold?.value;
+    const silver = d.commodities?.silver?.value;
+    const btc = d.crypto?.btcusd?.value;
+    const eth = d.crypto?.ethusd;
+    const btcDom = d.crypto?.btcDominance;
+
+    set("gold-big", gold != null ? `$${fmt(gold, 0)}` : "--");
+    set("gold-date", d.commodities?.gold?.date || "USD/oz");
+    set("btc-big", btc != null ? `$${fmt(btc, 0)}` : "--");
+    set("btc-time", d.crypto?.btcusd?.lastRefreshed
+      ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR") : "--");
+
+    const ratio = (gold && silver && silver !== 0) ? gold / silver : null;
+    set("gold-silver-ratio", ratio != null ? `${fmt(ratio, 1)}x` : "--");
+    set("silver-val", silver != null ? `$${fmt(silver, 2)}` : "--");
+    set("silver-val2", silver != null ? `$${fmt(silver, 2)}` : "--");
+    set("btc-dom", btcDom != null ? fmtPct(btcDom, 1) : "--");
+    set("eth-val", eth != null ? `$${fmt(eth, 0)}` : "--");
+
+    /* — TAUX — */
+    const { us1m, us3m, us2y, us10y, us30y, spread2s10s } = d.yields || {};
+    set("us1m-val",   fmtPct(us1m));
+    set("us3m-val",   fmtPct(us3m));
+    set("us2y-val",   fmtPct(us2y));
+    set("us10y-val",  fmtPct(us10y));
+    set("us30y-val",  fmtPct(us30y));
+    const spreadEl = $("spread-val");
+    if (spreadEl) {
+      spreadEl.textContent = fmtPb(spread2s10s);
+      spreadEl.className = "value " + (spread2s10s > 0 ? "green" : "red");
     }
+    updateYieldCurve(d.yields || {});
 
-    function formatNumber(value, digits = 2) {
-      if (value === null || value === undefined || Number.isNaN(value)) return "--";
-      return Number(value).toLocaleString("fr-FR", {
-        minimumFractionDigits: digits,
-        maximumFractionDigits: digits
-      });
-    }
+    /* — INFLATION — */
+    set("cpi-val",      fmtPct(d.inflation?.cpiYoY));
+    set("cpi-date",     d.inflation?.date || "--");
+    set("core-cpi-val", fmtPct(d.inflation?.coreCpi));
+    set("pce-core-val", fmtPct(d.inflation?.pceCore));
 
-    function formatPct(value, digits = 2) {
-      if (value === null || value === undefined || Number.isNaN(value)) return "--";
-      return `${formatNumber(value, digits)}%`;
-    }
+    /* — CRÉDIT — */
+    set("hy-val",       fmtPct(d.credit?.hy));
+    set("ig-val",       fmtPct(d.credit?.ig));
+    set("credit-ratio", d.credit?.ratio != null ? `${fmt(d.credit.ratio, 2)}x` : "--");
+    set("fed-val",      fmtPct(d.fed?.upperBound));
 
-    function formatSignedPct(value, digits = 2) {
-      if (value === null || value === undefined || Number.isNaN(value)) return "--";
-      const sign = value > 0 ? "+" : "";
-      return `${sign}${formatNumber(value, digits)}%`;
-    }
+    /* — DÉLINQUANCE — */
+    const dl = d.delinquency || {};
+    setGauge("g-cc",   "gv-cc",   dl.creditCards,  4.5);
+    setGauge("g-auto", "gv-auto", dl.autoLoans,    3.0);
+    setGauge("g-re",   "gv-re",   dl.realEstate,   3.0);
+    setGauge("g-sl",   "gv-sl",   dl.studentLoans, 12.0);
+    setGauge("g-cre",  "gv-cre",  dl.commercialRe, 4.0);
+    set("unrate-val", fmtPct(d.labor?.unemploymentRate));
 
-    function formatPb(value) {
-      if (value === null || value === undefined || Number.isNaN(value)) return "--";
-      return `${formatNumber(value, 0)} pb`;
-    }
+    /* — SENTIMENT — */
+    const fg = d.sentiment?.value;
+    set("fg-num",   fg != null ? Math.round(fg) : "--");
+    set("fg-label", d.sentiment?.label || "--");
+    moveFGNeedle(fg);
 
-    function updateClock() {
-      const now = new Date();
-      const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const h = String(ny.getHours()).padStart(2, "0");
-      const m = String(ny.getMinutes()).padStart(2, "0");
-      const s = String(ny.getSeconds()).padStart(2, "0");
-      setText("clock", `${h}:${m}:${s} NY`);
-    }
+    /* — COMMODITÉS — */
+    const c = d.commodities || {};
+    set("wti-val",    c.oil?.value    != null ? `$${fmt(c.oil.value, 2)}`    : "--");
+    set("brent-val",  c.brent?.value  != null ? `$${fmt(c.brent.value, 2)}`  : "--");
+    set("copper-val", c.copper?.value != null ? `$${fmt(c.copper.value, 3)}` : "--");
+    set("natgas-val", c.natgas?.value != null ? `$${fmt(c.natgas.value, 2)}` : "--");
 
-    function renderSectors(sectors) {
-      const wrap = document.getElementById("sectors-wrap");
-      if (!wrap) return;
+    /* — CDS & SECTEURS — */
+    renderCDS(d.cds || []);
+    renderSectors(d.sectors || []);
 
-      if (!Array.isArray(sectors) || sectors.length === 0) {
-        wrap.innerHTML = `<div class="note">Pas de données secteurs.</div>`;
-        return;
-      }
+    /* — IA SUMMARY — */
+    set("ai-summary", d.aiSummary || "Analyse indisponible.");
 
-      const maxAbs = Math.max(...sectors.map(s => Math.abs(s.value)), 1);
+    /* — TICKER — */
+    setTicker(["tk-btc",    "tk-btc2"],    btc    != null ? `$${fmt(btc, 0)}`      : "--");
+    setTicker(["tk-eth",    "tk-eth2"],    eth    != null ? `$${fmt(eth, 0)}`      : "--");
+    setTicker(["tk-eurusd", "tk-eurusd2"], d.fx?.eurusd?.value != null ? fmt(d.fx.eurusd.value, 4) : "--");
+    setTicker(["tk-dxy",    "tk-dxy2"],    fmt(dxy, 2));
+    setTicker(["tk-vix",    "tk-vix2"],    fmt(vix, 2));
+    setTicker(["tk-us10y",  "tk-us10y2"],  fmtPct(us10y));
+    setTicker(["tk-spread", "tk-spread2"], fmtPb(spread2s10s));
+    setTicker(["tk-cpi",    "tk-cpi2"],    fmtPct(d.inflation?.cpiYoY));
+    setTicker(["tk-unrate", "tk-unrate2"], fmtPct(d.labor?.unemploymentRate));
+    setTicker(["tk-gold",   "tk-gold2"],   gold != null ? `$${fmt(gold, 0)}`  : "--");
+    setTicker(["tk-wti",    "tk-wti2"],    c.oil?.value != null ? `$${fmt(c.oil.value, 2)}` : "--");
+    setTicker(["tk-brent",  "tk-brent2"],  c.brent?.value != null ? `$${fmt(c.brent.value, 2)}` : "--");
 
-      wrap.innerHTML = sectors.map(s => {
-        const width = Math.max(8, (Math.abs(s.value) / maxAbs) * 100);
-        const color = s.value >= 0 ? "var(--green)" : "var(--red)";
-        const cls = s.value >= 0 ? "green" : "red";
-        const sign = s.value >= 0 ? "+" : "";
-        return `
-          <div class="sector-row">
-            <div class="sector-name">${s.name}</div>
-            <div class="sector-bar">
-              <div class="sector-fill" style="width:${width}%;background:${color}"></div>
-            </div>
-            <div class="sector-val ${cls}">${sign}${formatNumber(s.value, 1)}%</div>
-          </div>
-        `;
-      }).join("");
-    }
+    /* — FOOTER — */
+    set("footer-status",
+      `✓ Mis à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} — Sources : ${json.sources?.fred} / ${json.sources?.market}`);
 
-    function renderCDS(cds) {
-      const wrap = document.getElementById("cds-wrap");
-      if (!wrap) return;
+  } catch (err) {
+    set("footer-status", `⚠ Erreur : ${err.message}`);
+    console.error("Dashboard error:", err);
+  }
+}
 
-      if (!Array.isArray(cds) || cds.length === 0) {
-        wrap.innerHTML = `<div class="note">Pas de données CDS.</div>`;
-        return;
-      }
+/* ──────────────────────────────
+   IA — CALL
+────────────────────────────── */
+async function askAI(question) {
+  const output = $("ai-summary");
+  if (!output) return;
+  output.textContent = "⟳ Analyse en cours...";
 
-      wrap.innerHTML = cds.map(item => {
-        const cls = item.risk === "ÉLEVÉ" ? "risk-high" : item.risk === "MODÉRÉ" ? "risk-med" : "risk-low";
-        return `
-          <div class="cds-row">
-            <span class="cds-country">${item.country}</span>
-            <span class="value">${formatNumber(item.value, 0)} pb</span>
-            <span class="cds-risk ${cls}">${item.risk}</span>
-          </div>
-        `;
-      }).join("");
-    }
-
-    function setGauge(id, value, max) {
-      const el = document.getElementById(id);
-      if (!el || value === null || value === undefined) return;
-      const pct = Math.max(0, Math.min(100, (value / max) * 100));
-      el.style.width = `${pct}%`;
-    }
-
-    function updateFearGreedNeedle(score) {
-      const needle = document.getElementById("fg-needle");
-      if (!needle || score === null || score === undefined) return;
-
-      const minDeg = -125;
-      const maxDeg = -55;
-      const deg = minDeg + ((score / 100) * (maxDeg - minDeg));
-      const rad = deg * Math.PI / 180;
-      const x = 50 + Math.cos(rad) * 30;
-      const y = 55 + Math.sin(rad) * 30;
-      needle.setAttribute("x2", x.toFixed(1));
-      needle.setAttribute("y2", y.toFixed(1));
-    }
-
-    async function askAI() {
-      const input = document.getElementById("ai-input");
-      const output = document.getElementById("ai-summary");
-      const question = input.value.trim();
-
-      if (!question) return;
-
-      output.textContent = "Analyse en cours...";
-
-      try {
-        const res = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question,
-            dashboard: latestDashboard
-          })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Erreur IA");
-        }
-
-        output.textContent = data.text || "Pas de réponse.";
-      } catch (err) {
-        output.textContent = `Erreur IA : ${err.message}`;
-      }
-    }
-
-    async function loadDashboard() {
-      try {
-        setText("footer-status", "Chargement des données...");
-        const res = await fetch("/api/dashboard");
-        const json = await res.json();
-
-        if (!res.ok) {
-          throw new Error(json.message || "Erreur API");
-        }
-
-        latestDashboard = json;
-
-        const d = json.data;
-
-        const dxy = d.dxyProxy?.value ?? null;
-        const vix = d.vix?.value ?? null;
-        const us1m = d.yields?.us1m ?? null;
-        const us3m = d.yields?.us3m ?? null;
-        const us2y = d.yields?.us2y ?? null;
-        const us10y = d.yields?.us10y ?? null;
-        const us30y = d.yields?.us30y ?? null;
-        const spread = d.yields?.spread2s10s ?? null;
-        const cpi = d.inflation?.cpiYoY ?? null;
-        const coreCpi = d.inflation?.coreCpi ?? null;
-        const pceCore = d.inflation?.pceCore ?? null;
-        const unrate = d.labor?.unemploymentRate ?? null;
-        const fed = d.fed?.upperBound ?? null;
-        const eurusd = d.fx?.eurusd?.value ?? null;
-        const btc = d.crypto?.btcusd?.value ?? null;
-        const btcDom = d.crypto?.btcDominance ?? null;
-        const ethusd = d.crypto?.ethusd ?? null;
-
-        const gold = d.commodities?.gold?.value ?? null;
-        const goldChg = d.commodities?.gold?.changePct ?? null;
-        const silver = d.commodities?.silver?.value ?? null;
-        const oil = d.commodities?.oil?.value ?? null;
-        const brent = d.commodities?.brent?.value ?? null;
-        const copper = d.commodities?.copper?.value ?? null;
-        const natgas = d.commodities?.natgas?.value ?? null;
-
-        const hy = d.credit?.hy ?? null;
-        const ig = d.credit?.ig ?? null;
-        const ratio = d.credit?.ratio ?? null;
-
-        const fg = d.sentiment?.value ?? null;
-        const fgLabel = d.sentiment?.label ?? "--";
-
-        setText("dxy-val", formatNumber(dxy, 2));
-        setText("dxy-date", d.dxyProxy?.date || "--");
-        setText("vix-val", formatNumber(vix, 2));
-        setText("vix-date", d.vix?.date || "--");
-        setText("vix-regime", d.derived?.vixRegime || "--");
-
-        setText("gold-big-val", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
-        setText("gold-big-chg", goldChg !== null ? formatSignedPct(goldChg, 2) : "--");
-
-        setText("btcusd-val", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
-        setText(
-          "btcusd-date",
-          d.crypto?.btcusd?.lastRefreshed
-            ? new Date(d.crypto.btcusd.lastRefreshed).toLocaleTimeString("fr-FR")
-            : "--"
-        );
-
-        setText(
-          "gold-silver-ratio",
-          typeof d.derived?.goldSilverRatio === "number"
-            ? `${formatNumber(d.derived.goldSilverRatio, 1)}x`
-            : "--"
-        );
-
-        setText("silver-val", silver !== null ? `$${formatNumber(silver, 2)}` : "--");
-        setText("btc-dom", btcDom !== null ? formatPct(btcDom, 1) : "--");
-        setText("ethusd-val", ethusd !== null ? `$${formatNumber(ethusd, 0)}` : "--");
-
-        setText("us1m-val", formatPct(us1m, 2));
-        setText("us3m-val", formatPct(us3m, 2));
-        setText("us2y-val", formatPct(us2y, 2));
-        setText("us10y-val", formatPct(us10y, 2));
-        setText("us30y-val", formatPct(us30y, 2));
-        setText("spread-val", formatPb(spread));
-
-        setText("cpi-val", formatPct(cpi, 2));
-        setText("cpi-date", d.inflation?.date || "--");
-        setText("core-cpi-val", formatPct(coreCpi, 2));
-        setText("pce-core-val", formatPct(pceCore, 2));
-        setText("hy-val", formatPct(hy, 2));
-        setText("ig-val", formatPct(ig, 2));
-        setText("credit-ratio", ratio !== null ? formatNumber(ratio, 2) : "--");
-        setText("fed-val", formatPct(fed, 2));
-
-        setText("unrate-val", formatPct(unrate, 2));
-
-        setText("fg-val", fg !== null ? formatNumber(fg, 0) : "--");
-        setText("fg-label", fgLabel);
-        updateFearGreedNeedle(fg);
-
-        setText("oil-val", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
-        setText("brent-val", brent !== null ? `$${formatNumber(brent, 2)}` : "--");
-        setText("copper-val", copper !== null ? `$${formatNumber(copper, 0)}` : "--");
-        setText("natgas-val", natgas !== null ? `$${formatNumber(natgas, 2)}` : "--");
-
-        setText("ticker-btc", btc !== null ? `$${formatNumber(btc, 0)}` : "--");
-        setText("ticker-eurusd", formatNumber(eurusd, 4));
-        setText("ticker-dxy", formatNumber(dxy, 2));
-        setText("ticker-vix", formatNumber(vix, 2));
-        setText("ticker-us10y", formatPct(us10y, 2));
-        setText("ticker-spread", formatPb(spread));
-        setText("ticker-cpi", formatPct(cpi, 2));
-        setText("ticker-unrate", formatPct(unrate, 2));
-        setText("ticker-gold", gold !== null ? `$${formatNumber(gold, 0)}` : "--");
-        setText("ticker-oil", oil !== null ? `$${formatNumber(oil, 2)}` : "--");
-
-        setGauge("g-credit", d.delinquency?.creditCards, 4.0);
-        setGauge("g-auto", d.delinquency?.autoLoans, 3.0);
-        setGauge("g-real", d.delinquency?.realEstate, 2.0);
-        setGauge("g-student", d.delinquency?.studentLoans, 18.0);
-        setGauge("g-cre", d.delinquency?.commercialRe, 4.0);
-
-        setText("g-credit-v", formatPct(d.delinquency?.creditCards, 2));
-        setText("g-auto-v", formatPct(d.delinquency?.autoLoans, 2));
-        setText("g-real-v", formatPct(d.delinquency?.realEstate, 2));
-        setText("g-student-v", formatPct(d.delinquency?.studentLoans, 1));
-        setText("g-cre-v", formatPct(d.delinquency?.commercialRe, 2));
-
-        renderCDS(d.cds || []);
-        renderSectors(d.sectors || []);
-        setText("ai-summary", d.aiSummary || "Pas de résumé disponible.");
-
-        setText(
-          "footer-status",
-          `Dernière mise à jour : ${new Date(json.updatedAt).toLocaleString("fr-FR")} | Sources : ${json.sources?.fred || "N/A"} / ${json.sources?.market || "N/A"}`
-        );
-      } catch (err) {
-        setText("footer-status", `Erreur : ${err.message}`);
-      }
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("ai-send").addEventListener("click", askAI);
-      document.getElementById("ai-input").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") askAI();
-      });
+  try {
+    const res = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, dashboard: dashboardData })
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Erreur IA");
+    output.textContent = data.text || "Pas de réponse.";
+  } catch (err) {
+    output.textContent = `⚠ ${err.message}`;
+  }
+}
 
-    updateClock();
-    setInterval(updateClock, 1000);
-    loadDashboard();
-    setInterval(loadDashboard, REFRESH_MS);
-  </script>
+function quickAsk(q) {
+  $("ai-input").value = q;
+  askAI(q);
+}
+
+/* ──────────────────────────────
+   EVENTS
+────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  $("ai-send").addEventListener("click", () => {
+    const q = $("ai-input").value.trim();
+    if (q) askAI(q);
+  });
+  $("ai-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") { const q = e.target.value.trim(); if (q) askAI(q); }
+  });
+});
+
+/* ──────────────────────────────
+   INIT + AUTO REFRESH (5 min)
+────────────────────────────── */
+loadDashboard();
+setInterval(loadDashboard, 5 * 60 * 1000);
+</script>
 </body>
 </html>
