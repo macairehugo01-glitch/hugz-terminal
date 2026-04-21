@@ -17,172 +17,141 @@
     }
     html,body{background:var(--bg);color:var(--text);font-family:Consolas,Monaco,"Courier New",monospace;font-size:12px;overflow-x:hidden;min-height:100%}
 
-    /* ── MORNING BRIEFING MODAL ── */
+    /* ── MORNING MODAL ── */
     #morning-overlay{
-      position:fixed;inset:0;z-index:1000;
-      background:rgba(2,8,18,.95);
-      display:flex;align-items:center;justify-content:center;
-      animation:fadeIn .4s ease;
+      position:fixed;inset:0;z-index:1000;background:rgba(2,8,18,.96);
+      display:flex;align-items:center;justify-content:center;animation:fadeIn .3s ease;
     }
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
     #morning-card{
-      width:min(700px,95vw);
-      background:var(--bg2);
-      border:1px solid var(--orange);
-      padding:0;
-      box-shadow:0 0 60px rgba(240,165,0,.15);
+      width:min(720px,96vw);background:var(--bg2);
+      border:1px solid var(--orange);box-shadow:0 0 60px rgba(240,165,0,.15);
     }
-    .morning-head{
-      background:linear-gradient(90deg,#0a1a0a,#0a1428);
-      border-bottom:1px solid var(--orange);
-      padding:14px 18px;
-      display:flex;justify-content:space-between;align-items:center;
+    .m-head{
+      background:#060f1e;border-bottom:1px solid var(--orange);
+      padding:13px 18px;display:flex;justify-content:space-between;align-items:center;
     }
-    .morning-title{color:var(--orange);font-size:13px;letter-spacing:2px}
-    .morning-date{color:var(--muted);font-size:10px}
-    .morning-body{padding:18px;max-height:70vh;overflow-y:auto}
-    .morning-section{margin-bottom:16px}
-    .morning-section-title{
-      color:var(--yellow);font-size:9px;letter-spacing:1.5px;
-      text-transform:uppercase;margin-bottom:8px;
-      border-bottom:1px solid var(--line3);padding-bottom:4px;
+    .m-title{color:var(--orange);font-size:13px;letter-spacing:2px;font-weight:700}
+    .m-date{color:var(--muted);font-size:10px;margin-top:2px}
+    .m-body{padding:16px 18px;max-height:75vh;overflow-y:auto}
+    .m-section{margin-bottom:14px}
+    .m-section-title{
+      color:var(--yellow);font-size:9px;letter-spacing:1.8px;text-transform:uppercase;
+      margin-bottom:8px;border-bottom:1px solid var(--line3);padding-bottom:3px;
     }
-    .morning-text{
-      color:#c8d8ee;font-size:12px;line-height:1.7;white-space:pre-wrap;
+    .m-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px;margin-bottom:12px}
+    .m-kpi{background:var(--bg4);border:1px solid var(--line);padding:7px 10px}
+    .m-kpi-label{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:1px}
+    .m-kpi-val{font-size:17px;font-weight:700;margin-top:3px}
+    .m-kpi-sub{font-size:9px;color:var(--muted);margin-top:1px}
+    .m-text{color:#c5d5ec;font-size:11.5px;line-height:1.75;white-space:pre-wrap}
+
+    /* Risk badge dans le modal */
+    .risk-badge{
+      display:inline-block;padding:5px 14px;font-size:13px;font-weight:700;
+      letter-spacing:1px;border:1px solid;margin-bottom:10px;
     }
-    .morning-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px}
-    .morning-kpi{
-      background:var(--bg4);border:1px solid var(--line);
-      padding:8px 10px;
+    .risk-on{color:var(--green);border-color:var(--green2);background:rgba(34,227,111,.08)}
+    .risk-off{color:var(--red);border-color:var(--red2);background:rgba(255,92,92,.08)}
+    .risk-mid{color:var(--yellow);border-color:#a07020;background:rgba(243,181,59,.08)}
+
+    .risk-score-bar{
+      display:flex;align-items:center;gap:8px;margin-bottom:10px;
     }
-    .kpi-label{color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase}
-    .kpi-val{font-size:16px;font-weight:700;margin-top:4px}
-    .kpi-sub{font-size:9px;color:var(--muted);margin-top:2px}
-    .morning-close{
-      background:transparent;border:1px solid var(--orange);
-      color:var(--orange);padding:8px 24px;font-family:inherit;
-      font-size:12px;cursor:pointer;width:100%;margin-top:4px;
-      letter-spacing:1px;transition:background .2s;
+    .rsb-track{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+    .rsb-fill{height:100%;border-radius:3px;transition:width .6s ease}
+    .rsb-label{width:60px;font-size:10px;text-align:right;color:var(--muted)}
+
+    .risk-detail-row{
+      display:flex;justify-content:space-between;font-size:10px;
+      padding:3px 0;border-bottom:1px solid var(--line3);color:#9ab1d2;
     }
-    .morning-close:hover{background:rgba(240,165,0,.1)}
-    .morning-footer{padding:14px 18px;border-top:1px solid var(--line)}
-    .alert-badge{
-      display:inline-block;padding:2px 7px;font-size:10px;
-      border:1px solid;margin:2px 3px;
+    .risk-detail-row:last-child{border-bottom:none}
+    .rdr-signal{font-weight:700}
+
+    .alert-tag{
+      display:inline-block;padding:2px 7px;font-size:10px;border:1px solid;margin:2px 3px;
     }
-    .alert-red{border-color:var(--red);color:var(--red);background:rgba(255,92,92,.08)}
-    .alert-yellow{border-color:var(--yellow);color:var(--yellow);background:rgba(243,181,59,.08)}
-    .alert-green{border-color:var(--green);color:var(--green);background:rgba(34,227,111,.08)}
+    .at-red{color:var(--red);border-color:var(--red2);background:rgba(255,92,92,.07)}
+    .at-yellow{color:var(--yellow);border-color:#a07020;background:rgba(243,181,59,.07)}
+    .at-green{color:var(--green);border-color:var(--green2);background:rgba(34,227,111,.07)}
+    .at-blue{color:var(--blue);border-color:#2a5080;background:rgba(140,181,255,.07)}
+
+    .m-footer{padding:12px 18px;border-top:1px solid var(--line)}
+    .m-close-btn{
+      background:transparent;border:1px solid var(--orange);color:var(--orange);
+      padding:8px 0;font-family:inherit;font-size:12px;cursor:pointer;
+      width:100%;letter-spacing:1px;transition:background .2s;
+    }
+    .m-close-btn:hover{background:rgba(240,165,0,.1)}
 
     /* ── TOPBAR ── */
     .topbar{
       height:34px;border-bottom:1px solid var(--line);
       display:flex;justify-content:space-between;align-items:center;
-      padding:0 10px;background:var(--bg2);
-      position:sticky;top:0;z-index:100;
+      padding:0 10px;background:var(--bg2);position:sticky;top:0;z-index:100;
     }
     .top-left,.top-right{display:flex;align-items:center;gap:12px}
     .logo{color:var(--orange);letter-spacing:2px;font-weight:700;font-size:14px}
     .live-dot{
       width:7px;height:7px;border-radius:50%;background:var(--green);
-      display:inline-block;margin-right:4px;
-      animation:pulse 2s ease infinite;
+      display:inline-block;margin-right:4px;animation:pulse 2s ease infinite;
     }
     @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
     .btn{
-      border:1px solid var(--line);background:transparent;
-      color:var(--text);padding:3px 8px;font-size:10px;
-      cursor:pointer;font-family:inherit;letter-spacing:.5px;
+      border:1px solid var(--line);background:transparent;color:var(--text);
+      padding:3px 8px;font-size:10px;cursor:pointer;font-family:inherit;
       transition:border-color .2s,color .2s;
     }
     .btn:hover{border-color:var(--orange);color:var(--orange)}
-    .btn-orange{border-color:var(--orange2);color:var(--orange)}
-    .status-dot{
-      width:5px;height:5px;border-radius:50%;
-      display:inline-block;margin-right:4px;
-    }
+    .btn-o{border-color:var(--orange2);color:var(--orange)}
 
     /* ── TICKER ── */
-    .ticker-wrap{
-      border-bottom:1px solid var(--line);background:#020918;
-      overflow:hidden;height:26px;display:flex;align-items:center;
-    }
-    .ticker-track{
-      display:flex;white-space:nowrap;
-      animation:scroll 60s linear infinite;
-    }
+    .ticker-wrap{border-bottom:1px solid var(--line);background:#020918;overflow:hidden;height:26px;display:flex;align-items:center}
+    .ticker-track{display:flex;white-space:nowrap;animation:scroll 60s linear infinite}
     .ticker-track:hover{animation-play-state:paused}
     @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-    .t-item{
-      display:inline-flex;align-items:center;gap:4px;
-      padding:0 16px;border-right:1px solid var(--line2);flex-shrink:0;
-    }
+    .t-item{display:inline-flex;align-items:center;gap:4px;padding:0 16px;border-right:1px solid var(--line2);flex-shrink:0}
     .t-sym{color:#7aaae0;font-size:10px}
     .t-val{color:#fff;font-weight:700;font-size:11px}
-    .t-up{color:var(--green);font-size:9px}
-    .t-dn{color:var(--red);font-size:9px}
 
     /* ── ALERT BAR ── */
     .alert-bar{
-      background:#04091a;border-bottom:1px solid var(--line);
+      background:#020a18;border-bottom:1px solid var(--line);
       padding:4px 10px;display:flex;align-items:center;gap:8px;
       font-size:10px;overflow-x:auto;white-space:nowrap;min-height:26px;
+      scrollbar-width:none;
     }
-    .alert-bar-label{color:var(--orange);letter-spacing:1px;flex-shrink:0}
-    .alert-item{
-      padding:1px 8px;border:1px solid;
-      display:inline-block;flex-shrink:0;
-    }
-    .al-red{border-color:var(--red2);color:var(--red);background:rgba(255,92,92,.06)}
-    .al-yellow{border-color:#a07010;color:var(--yellow);background:rgba(243,181,59,.06)}
-    .al-green{border-color:var(--green2);color:var(--green);background:rgba(34,227,111,.06)}
-    .al-blue{border-color:#2a5080;color:var(--blue);background:rgba(140,181,255,.06)}
+    .alert-bar::-webkit-scrollbar{display:none}
+    .alert-bar-label{color:var(--orange);letter-spacing:1px;flex-shrink:0;font-size:10px}
 
     /* ── GRID ── */
-    .grid{
-      display:grid;
-      grid-template-columns:1fr 1fr 1fr;
-      gap:1px;background:var(--line);
-    }
-    .panel{background:var(--bg);padding:10px;min-height:190px;position:relative}
+    .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--line)}
+    .panel{background:var(--bg);padding:10px;min-height:180px}
     .panel-title{
       display:flex;justify-content:space-between;align-items:center;
-      margin-bottom:9px;font-size:10px;letter-spacing:1.8px;
-      text-transform:uppercase;color:var(--orange);
+      margin-bottom:9px;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--orange);
     }
     .panel-tag{color:var(--muted);font-size:9px;letter-spacing:.5px}
 
-    /* ── TWO BIG ── */
+    /* ── METRIC ── */
     .two-big{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .three-big{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
     .big{text-align:center}
     .big-label{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
     .big-value{font-size:22px;line-height:1.1;font-weight:700;color:#fff}
     .big-sub{margin-top:3px;font-size:10px;color:#8ca4ca}
-    .three-big{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
-    .small-kpi{
-      background:var(--bg4);padding:6px 8px;text-align:center;
-      border:1px solid var(--line3);
-    }
+    .small-kpi{background:var(--bg4);padding:6px 8px;text-align:center;border:1px solid var(--line3)}
     .sk-label{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
     .sk-val{font-size:15px;font-weight:700}
-
-    /* ── METRIC ROWS ── */
-    .mrow{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:3.5px 0;border-bottom:1px solid var(--line3);gap:6px;
-    }
+    .mrow{display:flex;justify-content:space-between;align-items:center;padding:3.5px 0;border-bottom:1px solid var(--line3);gap:6px}
     .mrow:last-child{border-bottom:none}
     .label{color:#9ab1d2;font-size:11px}
     .value{color:#fff;font-weight:700;font-size:11px}
 
     /* ── COLORS ── */
-    .green{color:var(--green)} .red{color:var(--red)}
-    .yellow{color:var(--yellow)} .blue{color:var(--blue)}
-    .orange{color:var(--orange)} .purple{color:var(--purple)}
-    .muted{color:var(--muted)}
-
-    /* ── SPARKLINE ── */
-    .spark{width:100%;height:48px;display:block;margin:6px 0}
+    .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}
+    .blue{color:var(--blue)}.orange{color:var(--orange)}.muted{color:var(--muted)}
 
     /* ── YIELD CURVE ── */
     .curve-svg{width:100%;height:88px;display:block;margin-bottom:5px}
@@ -194,34 +163,40 @@
     .gauge-fill{height:100%;border-radius:2px;transition:width .7s ease}
     .gauge-val{width:48px;text-align:right;font-weight:700;flex-shrink:0;font-size:11px}
 
-    /* ── SECTOR PANEL ── */
-    .sector-ut-bar{
-      display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;
+    /* ── RISK PANEL ── */
+    .risk-meter{
+      display:flex;flex-direction:column;gap:4px;margin-bottom:10px;
     }
+    .risk-main{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:8px 10px;border:1px solid;margin-bottom:6px;
+    }
+    .risk-label-big{font-size:13px;font-weight:700;letter-spacing:1px}
+    .risk-score-num{font-size:22px;font-weight:700}
+    .risk-track{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:8px}
+    .risk-bar-fill{height:100%;border-radius:4px;transition:width .8s ease}
+    .risk-detail{display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid var(--line3);color:#8ca4ca}
+    .risk-detail:last-child{border-bottom:none}
+    .rds{font-weight:700}
+    .risk-ro{color:var(--green)}.risk-rof{color:var(--red)}.risk-neu{color:var(--yellow)}
+
+    /* ── SECTEURS ── */
+    .ut-bar{display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap}
     .ut-btn{
-      background:transparent;border:1px solid var(--line);
-      color:var(--muted);padding:2px 7px;font-size:10px;
-      cursor:pointer;font-family:inherit;letter-spacing:.5px;
-      transition:all .2s;
+      background:transparent;border:1px solid var(--line);color:var(--muted);
+      padding:2px 7px;font-size:10px;cursor:pointer;font-family:inherit;transition:all .2s;
     }
     .ut-btn:hover{border-color:var(--orange);color:var(--orange)}
     .ut-btn.active{border-color:var(--orange);color:var(--orange);background:rgba(240,165,0,.1)}
-    .sector-row{
-      display:flex;align-items:center;gap:8px;padding:3px 0;
-      border-bottom:1px solid var(--line3);
-    }
+    .sector-row{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--line3)}
     .sector-row:last-child{border-bottom:none}
-    .sector-name{width:78px;color:#9ab1d2;flex-shrink:0;font-size:10px}
+    .sector-name{width:82px;color:#9ab1d2;flex-shrink:0;font-size:10px}
     .sector-bar{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
     .sector-fill{height:100%;border-radius:2px;transition:width .6s ease}
-    .sector-val{width:48px;text-align:right;font-weight:700;flex-shrink:0;font-size:11px}
-    .sector-loading{color:var(--muted);font-size:10px;padding:10px 0}
+    .sector-val{width:50px;text-align:right;font-weight:700;flex-shrink:0;font-size:11px}
 
     /* ── CDS ── */
-    .cds-row{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:3.5px 0;border-bottom:1px solid var(--line3);font-size:11px;
-    }
+    .cds-row{display:flex;justify-content:space-between;align-items:center;padding:3.5px 0;border-bottom:1px solid var(--line3);font-size:11px}
     .cds-row:last-child{border-bottom:none}
     .cds-country{color:#9ab1d2}
     .cds-risk{font-size:9px;padding:1px 5px;border:1px solid}
@@ -236,149 +211,140 @@
     /* ── AI PANEL ── */
     .ai-box{
       background:var(--bg4);border-left:2px solid var(--orange);
-      padding:8px 10px;font-size:11.5px;line-height:1.7;color:#c8d8ee;
+      padding:8px 10px;font-size:11.5px;line-height:1.72;color:#c5d5ec;
       min-height:80px;white-space:pre-wrap;
     }
     .ai-actions{margin-top:7px;display:flex;gap:5px}
     .ai-input{
-      flex:1;background:#040d1a;border:1px solid var(--line);
-      color:#fff;padding:6px 8px;font-family:inherit;font-size:11px;outline:none;
+      flex:1;background:#040d1a;border:1px solid var(--line);color:#fff;
+      padding:6px 8px;font-family:inherit;font-size:11px;outline:none;
     }
     .ai-input:focus{border-color:var(--orange)}
     .ai-send{
-      background:transparent;border:1px solid var(--orange);
-      color:var(--orange);padding:6px 12px;cursor:pointer;
-      font-family:inherit;font-size:11px;transition:background .2s;white-space:nowrap;
+      background:transparent;border:1px solid var(--orange);color:var(--orange);
+      padding:6px 12px;cursor:pointer;font-family:inherit;font-size:11px;
+      transition:background .2s;white-space:nowrap;
     }
     .ai-send:hover{background:rgba(240,165,0,.12)}
     .ai-send:disabled{opacity:.4;cursor:not-allowed}
     .quick-btns{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
     .qbtn{
       background:transparent;border:1px solid var(--line);color:var(--muted);
-      padding:2px 6px;font-size:9px;cursor:pointer;font-family:inherit;
-      transition:all .2s;letter-spacing:.3px;
+      padding:2px 6px;font-size:9px;cursor:pointer;font-family:inherit;transition:all .2s;
     }
     .qbtn:hover{border-color:var(--orange);color:var(--orange)}
-
-    /* ── TOKEN COUNTER ── */
-    .token-info{
-      font-size:9px;color:var(--muted2);text-align:right;
-      margin-top:4px;letter-spacing:.3px;
-    }
+    .qbtn.risk-btn{border-color:var(--green2);color:var(--green)}
+    .qbtn.risk-btn:hover{background:rgba(34,227,111,.1)}
+    .token-info{font-size:9px;color:var(--muted2);text-align:right;margin-top:4px}
 
     /* ── FOOTER ── */
-    .footer{
-      border-top:1px solid var(--line);padding:5px 10px;
-      font-size:10px;color:var(--muted);background:var(--bg2);
-      display:flex;justify-content:space-between;align-items:center;
-    }
+    .footer{border-top:1px solid var(--line);padding:5px 10px;font-size:10px;color:var(--muted);background:var(--bg2);display:flex;justify-content:space-between}
 
-    /* ── LOADING / SKELETON ── */
+    /* ── UTILS ── */
     .skel{color:var(--muted);animation:blink .9s ease infinite}
     @keyframes blink{0%,100%{opacity:.5}50%{opacity:1}}
-    .spinner{
-      display:inline-block;width:10px;height:10px;
-      border:1.5px solid var(--line);border-top-color:var(--orange);
-      border-radius:50%;animation:spin .8s linear infinite;
-      margin-right:5px;
-    }
+    .spinner{display:inline-block;width:10px;height:10px;border:1.5px solid var(--line);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;margin-right:5px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* ── LAST UPDATE ── */
-    .last-update{font-size:9px;color:var(--muted2)}
+    /* ── SRC TAG ── */
+    .src-tag{font-size:8px;color:var(--muted2);letter-spacing:.3px}
 
-    /* ── RESPONSIVE ── */
-    @media(max-width:1100px){
-      .grid{grid-template-columns:1fr 1fr}
-    }
+    @media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}}
     @media(max-width:700px){
       .grid{grid-template-columns:1fr}
-      .two-big{grid-template-columns:1fr}
-      .three-big{grid-template-columns:1fr 1fr}
+      .two-big,.three-big{grid-template-columns:1fr 1fr}
       .topbar{height:auto;flex-direction:column;padding:8px;gap:6px;align-items:flex-start}
-      #morning-card{width:95vw}
     }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MORNING BRIEFING MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════
+     MORNING BRIEFING
+════════════════════════════════════════════ -->
 <div id="morning-overlay">
   <div id="morning-card">
-    <div class="morning-head">
+    <div class="m-head">
       <div>
-        <div class="morning-title">◆ BRIEFING D'OUVERTURE</div>
-        <div class="morning-date" id="morning-date">--</div>
+        <div class="m-title">◆ BRIEFING D'OUVERTURE</div>
+        <div class="m-date" id="m-date">--</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
         <span class="live-dot"></span>
         <span class="green" style="font-size:11px">DONNÉES LIVE</span>
       </div>
     </div>
-    <div class="morning-body">
 
-      <!-- KPIs clés -->
-      <div class="morning-section">
-        <div class="morning-section-title">📊 Marchés en un coup d'œil</div>
-        <div class="morning-grid" id="morning-kpis">
-          <div class="morning-kpi"><div class="kpi-label">VIX</div><div class="kpi-val skel" id="mk-vix">--</div><div class="kpi-sub" id="mk-vix-s">volatilité</div></div>
-          <div class="morning-kpi"><div class="kpi-label">DXY</div><div class="kpi-val skel" id="mk-dxy">--</div><div class="kpi-sub">dollar index</div></div>
-          <div class="morning-kpi"><div class="kpi-label">Or</div><div class="kpi-val yellow skel" id="mk-gold">--</div><div class="kpi-sub">USD/oz</div></div>
-          <div class="morning-kpi"><div class="kpi-label">BTC</div><div class="kpi-val green skel" id="mk-btc">--</div><div class="kpi-sub">USD</div></div>
-          <div class="morning-kpi"><div class="kpi-label">US10Y</div><div class="kpi-val skel" id="mk-10y">--</div><div class="kpi-sub">rendement</div></div>
-          <div class="morning-kpi"><div class="kpi-label">2s10s</div><div class="kpi-val skel" id="mk-spread">--</div><div class="kpi-sub">spread courbe</div></div>
+    <div class="m-body">
+
+      <!-- KPIs -->
+      <div class="m-section">
+        <div class="m-section-title">📊 Marchés en un coup d'œil</div>
+        <div class="m-kpi-grid">
+          <div class="m-kpi"><div class="m-kpi-label">VIX</div><div class="m-kpi-val skel" id="mk-vix">--</div><div class="m-kpi-sub" id="mk-vix-s">volatilité</div></div>
+          <div class="m-kpi"><div class="m-kpi-label">DXY</div><div class="m-kpi-val skel" id="mk-dxy">--</div><div class="m-kpi-sub">dollar index</div></div>
+          <div class="m-kpi"><div class="m-kpi-label">Or (XAU)</div><div class="m-kpi-val yellow skel" id="mk-gold">--</div><div class="m-kpi-sub">USD/oz · Yahoo GC=F</div></div>
+          <div class="m-kpi"><div class="m-kpi-label">BTC</div><div class="m-kpi-val green skel" id="mk-btc">--</div><div class="m-kpi-sub">Coinbase spot</div></div>
+          <div class="m-kpi"><div class="m-kpi-label">US10Y</div><div class="m-kpi-val skel" id="mk-10y">--</div><div class="m-kpi-sub">rendement</div></div>
+          <div class="m-kpi"><div class="m-kpi-label">2s10s</div><div class="m-kpi-val skel" id="mk-spread">--</div><div class="m-kpi-sub">spread courbe</div></div>
         </div>
       </div>
 
-      <!-- Alertes -->
-      <div class="morning-section" id="morning-alerts-section" style="display:none">
-        <div class="morning-section-title">🚨 Points d'attention</div>
-        <div id="morning-alerts"></div>
+      <!-- RISK-ON/OFF -->
+      <div class="m-section" id="m-risk-section" style="display:none">
+        <div class="m-section-title">⚡ Régime de marché — Risk-ON / Risk-OFF</div>
+        <div class="risk-badge" id="m-risk-badge" style="display:none">--</div>
+        <div class="risk-score-bar">
+          <span style="font-size:10px;color:var(--red);flex-shrink:0">RISK-OFF</span>
+          <div class="rsb-track"><div class="rsb-fill" id="m-risk-fill" style="width:0%;background:var(--green)"></div></div>
+          <span style="font-size:10px;color:var(--green);flex-shrink:0">RISK-ON</span>
+          <span class="rsb-label" id="m-risk-score">--/100</span>
+        </div>
+        <div id="m-risk-details"></div>
       </div>
 
-      <!-- Analyse IA -->
-      <div class="morning-section">
-        <div class="morning-section-title">🤖 Analyse IA — Anthropic Claude</div>
-        <div class="morning-text" id="morning-ai">
-          <span class="spinner"></span> Analyse des marchés en cours...
-        </div>
+      <!-- ALERTES -->
+      <div class="m-section" id="m-alerts-section" style="display:none">
+        <div class="m-section-title">🚨 Points d'attention</div>
+        <div id="m-alerts"></div>
+      </div>
+
+      <!-- IA -->
+      <div class="m-section">
+        <div class="m-section-title">🤖 Analyse IA — Claude Haiku</div>
+        <div class="m-text" id="m-ai-text"><span class="spinner"></span>Analyse en cours...</div>
       </div>
 
     </div>
-    <div class="morning-footer">
-      <button class="morning-close" onclick="closeMorning()">
-        ACCÉDER AU TERMINAL COMPLET →
-      </button>
+    <div class="m-footer">
+      <button class="m-close-btn" onclick="closeMorning()">ACCÉDER AU TERMINAL COMPLET →</button>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ════════════════════════════════════════════
      TOPBAR
-════════════════════════════════════════════════════════════ -->
+════════════════════════════════════════════ -->
 <div class="topbar">
   <div class="top-left">
     <span class="logo">◆ TERMINAL</span>
     <span><span class="live-dot"></span><span class="green" style="font-size:11px">LIVE</span></span>
     <span id="clock" class="blue" style="font-size:11px">--:--:-- NY</span>
-    <span id="session-status" style="font-size:10px;color:var(--muted)">--</span>
+    <span id="session-badge" style="font-size:10px;color:var(--muted)">--</span>
   </div>
   <div class="top-right">
-    <span class="muted" style="font-size:9px">FRED·COINBASE·YAHOO·ALT.ME</span>
-    <button class="btn btn-orange" onclick="showMorning()">☀ BRIEFING</button>
-    <button class="btn" onclick="loadDashboard()">⟳ ACTUALISER</button>
-    <span class="last-update" id="last-update">--</span>
+    <span class="muted" style="font-size:9px">YAHOO·FRED·COINBASE·ALT.ME</span>
+    <button class="btn btn-o" onclick="showMorning()">☀ BRIEFING</button>
+    <button class="btn" onclick="loadDashboard()">⟳ REFRESH</button>
+    <span style="font-size:9px;color:var(--muted2)" id="last-update">--</span>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ════════════════════════════════════════════
      TICKER
-════════════════════════════════════════════════════════════ -->
+════════════════════════════════════════════ -->
 <div class="ticker-wrap">
-  <div class="ticker-track" id="ticker-track">
-    <!-- half 1 -->
+  <div class="ticker-track">
     <div class="t-item"><span class="t-sym">BTC</span><span class="t-val" id="tk-btc">--</span></div>
     <div class="t-item"><span class="t-sym">ETH</span><span class="t-val" id="tk-eth">--</span></div>
     <div class="t-item"><span class="t-sym">EUR/USD</span><span class="t-val" id="tk-eur">--</span></div>
@@ -390,8 +356,8 @@
     <div class="t-item"><span class="t-sym">GOLD</span><span class="t-val" id="tk-gold">--</span></div>
     <div class="t-item"><span class="t-sym">WTI</span><span class="t-val" id="tk-wti">--</span></div>
     <div class="t-item"><span class="t-sym">BRENT</span><span class="t-val" id="tk-brent">--</span></div>
-    <div class="t-item"><span class="t-sym">COPPER</span><span class="t-val" id="tk-copper">--</span></div>
-    <!-- half 2 (dupliqué pour loop infinie) -->
+    <div class="t-item"><span class="t-sym">COPPER</span><span class="t-val" id="tk-cu">--</span></div>
+    <!-- duplicate -->
     <div class="t-item"><span class="t-sym">BTC</span><span class="t-val" id="tk-btc2">--</span></div>
     <div class="t-item"><span class="t-sym">ETH</span><span class="t-val" id="tk-eth2">--</span></div>
     <div class="t-item"><span class="t-sym">EUR/USD</span><span class="t-val" id="tk-eur2">--</span></div>
@@ -403,21 +369,21 @@
     <div class="t-item"><span class="t-sym">GOLD</span><span class="t-val" id="tk-gold2">--</span></div>
     <div class="t-item"><span class="t-sym">WTI</span><span class="t-val" id="tk-wti2">--</span></div>
     <div class="t-item"><span class="t-sym">BRENT</span><span class="t-val" id="tk-brent2">--</span></div>
-    <div class="t-item"><span class="t-sym">COPPER</span><span class="t-val" id="tk-copper2">--</span></div>
+    <div class="t-item"><span class="t-sym">COPPER</span><span class="t-val" id="tk-cu2">--</span></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ════════════════════════════════════════════
      ALERT BAR
-════════════════════════════════════════════════════════════ -->
+════════════════════════════════════════════ -->
 <div class="alert-bar">
-  <span class="alert-bar-label">⚡ ALERTES</span>
-  <span id="alert-items" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+  <span class="alert-bar-label">⚡</span>
+  <span id="alert-items"></span>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MAIN GRID
-════════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════
+     GRID
+════════════════════════════════════════════ -->
 <div class="grid">
 
   <!-- ① RISQUE -->
@@ -435,38 +401,25 @@
         <div class="big-sub" id="vix-date">--</div>
       </div>
     </div>
-    <svg class="spark" viewBox="0 0 260 48">
-      <polyline fill="none" stroke="var(--red)" stroke-width="1.3" opacity=".7"
-        points="0,34 22,32 44,35 66,37 88,33 110,39 132,36 154,41 176,38 198,43 220,40 242,45 260,47"/>
-      <text x="0" y="46" fill="var(--muted2)" font-size="8">30j DXY tendance</text>
-    </svg>
-    <div class="mrow">
-      <span class="label">Régime volatilité</span>
-      <span id="vix-regime" class="value">--</span>
-    </div>
-    <div class="mrow">
-      <span class="label">MOVE (oblig.)</span>
-      <span class="value muted">indice fixe</span>
-    </div>
-    <div class="mrow">
-      <span class="label">EUR/USD</span>
-      <span class="value" id="eurusd-val">--</span>
-    </div>
+    <div class="mrow"><span class="label">Régime volatilité</span><span class="value" id="vix-regime">--</span></div>
+    <div class="mrow"><span class="label">EUR/USD</span><span class="value" id="eurusd-val">--</span></div>
+    <div class="mrow"><span class="label">Fear & Greed</span><span class="value" id="fg-inline">--</span></div>
+    <div class="mrow"><span class="label">Tendance DXY</span><span class="value muted" style="font-size:9px">–3% sur 30j (proxy)</span></div>
   </div>
 
   <!-- ② OR & REFUGES -->
   <div class="panel">
-    <div class="panel-title"><span>OR & ACTIFS REFUGES</span><span class="panel-tag">FRED · YAHOO</span></div>
+    <div class="panel-title"><span>OR & ACTIFS REFUGES</span><span class="panel-tag">YAHOO GC=F · COINBASE</span></div>
     <div class="two-big">
       <div class="big">
-        <div class="big-label">GOLD (XAU)</div>
+        <div class="big-label">GOLD (XAU/USD)</div>
         <div class="big-value yellow" id="gold-big">--</div>
-        <div class="big-sub">USD/oz</div>
+        <div class="big-sub" id="gold-src">Yahoo GC=F</div>
       </div>
       <div class="big">
         <div class="big-label">BTC/USD</div>
         <div class="big-value green" id="btc-big">--</div>
-        <div class="big-sub" id="btc-ts">--</div>
+        <div class="big-sub" id="btc-ts">Coinbase</div>
       </div>
     </div>
     <div class="mrow"><span class="label">Gold/Silver Ratio</span><span class="value" id="gsr">--</span></div>
@@ -475,21 +428,17 @@
     <div class="mrow"><span class="label">ETH/USD</span><span class="value" id="eth-val">--</span></div>
   </div>
 
-  <!-- ③ COURBE DES TAUX -->
+  <!-- ③ TAUX -->
   <div class="panel">
-    <div class="panel-title"><span>COURBE DES TAUX US</span><span class="panel-tag">TREASURY · FRED</span></div>
+    <div class="panel-title"><span>COURBE DES TAUX US</span><span class="panel-tag">FRED · TREASURY</span></div>
     <svg class="curve-svg" viewBox="0 0 220 88">
-      <!-- Grid -->
       <line x1="0" y1="72" x2="220" y2="72" stroke="var(--line3)" stroke-width=".8"/>
       <line x1="0" y1="52" x2="220" y2="52" stroke="var(--line3)" stroke-width=".8"/>
       <line x1="0" y1="32" x2="220" y2="32" stroke="var(--line3)" stroke-width=".8"/>
-      <!-- Normale (tirets) -->
       <polyline fill="none" stroke="var(--muted2)" stroke-width="1" stroke-dasharray="3,2"
         points="8,68 30,60 55,48 80,42 105,36 140,34 175,33 210,32"/>
-      <!-- Actuelle (dynamique) -->
       <polyline fill="none" stroke="var(--green)" stroke-width="2" id="yield-poly"
         points="8,58 30,62 55,63 80,61 105,55 140,50 175,46 210,44"/>
-      <!-- Labels X -->
       <text x="2"   y="86" fill="var(--muted2)" font-size="7">1M</text>
       <text x="26"  y="86" fill="var(--muted2)" font-size="7">3M</text>
       <text x="51"  y="86" fill="var(--muted2)" font-size="7">6M</text>
@@ -498,49 +447,64 @@
       <text x="136" y="86" fill="var(--muted2)" font-size="7">5A</text>
       <text x="170" y="86" fill="var(--muted2)" font-size="7">10A</text>
       <text x="204" y="86" fill="var(--muted2)" font-size="7">30A</text>
-      <!-- Label normale -->
-      <text x="150" y="28" fill="var(--muted2)" font-size="6">normale</text>
     </svg>
-    <div class="mrow"><span class="label">1 mois</span><span class="value" id="us1m">--</span></div>
-    <div class="mrow"><span class="label">3 mois</span><span class="value" id="us3m">--</span></div>
-    <div class="mrow"><span class="label">2 ans</span><span class="value" id="us2y">--</span></div>
-    <div class="mrow"><span class="label">10 ans</span><span class="value" id="us10y">--</span></div>
-    <div class="mrow"><span class="label">30 ans</span><span class="value" id="us30y">--</span></div>
+    <div class="mrow"><span class="label">1M</span><span class="value" id="us1m">--</span></div>
+    <div class="mrow"><span class="label">2A</span><span class="value" id="us2y">--</span></div>
+    <div class="mrow"><span class="label">10A</span><span class="value" id="us10y">--</span></div>
+    <div class="mrow"><span class="label">30A</span><span class="value" id="us30y">--</span></div>
     <div class="mrow">
       <span class="label">Spread 2s10s</span>
       <span class="value" id="spread-val">--</span>
     </div>
+    <div class="mrow"><span class="label">État courbe</span><span class="value" id="curve-state">--</span></div>
   </div>
 
-  <!-- ④ INFLATION & CRÉDIT -->
+  <!-- ④ RISK-ON / RISK-OFF — panneau dédié -->
   <div class="panel">
-    <div class="panel-title"><span>INFLATION & CRÉDIT</span><span class="panel-tag">USA · FRED</span></div>
+    <div class="panel-title"><span>RÉGIME RISK-ON / RISK-OFF</span><span class="panel-tag">COMPOSITE 8 SIGNAUX</span></div>
+    <div class="risk-meter">
+      <div class="risk-main" id="risk-main-box" style="border-color:var(--muted2)">
+        <div>
+          <div class="risk-label-big" id="risk-regime-label">CALCUL...</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px">Score composite 8 indicateurs</div>
+        </div>
+        <div class="risk-score-num" id="risk-score-num">--</div>
+      </div>
+      <!-- Barre score 0-100 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:9px;color:var(--red);flex-shrink:0">OFF</span>
+        <div class="risk-track" style="flex:1">
+          <div class="risk-bar-fill" id="risk-bar" style="width:0%"></div>
+        </div>
+        <span style="font-size:9px;color:var(--green);flex-shrink:0">ON</span>
+      </div>
+    </div>
+    <div id="risk-details-wrap" style="font-size:10px"></div>
+    <div style="margin-top:8px">
+      <button class="qbtn risk-btn" style="font-size:10px;padding:3px 10px" onclick="askRiskDetail()">
+        ◆ Analyse détaillée IA ↗
+      </button>
+    </div>
+  </div>
+
+  <!-- ⑤ INFLATION & CRÉDIT -->
+  <div class="panel">
+    <div class="panel-title"><span>INFLATION & CRÉDIT</span><span class="panel-tag">FRED · USA</span></div>
     <div class="three-big">
-      <div class="small-kpi">
-        <div class="sk-label">CPI YoY</div>
-        <div class="sk-val yellow" id="cpi-val">--</div>
-      </div>
-      <div class="small-kpi">
-        <div class="sk-label">Core CPI</div>
-        <div class="sk-val yellow" id="core-cpi">--</div>
-      </div>
-      <div class="small-kpi">
-        <div class="sk-label">PCE Core</div>
-        <div class="sk-val yellow" id="pce-core">--</div>
-      </div>
+      <div class="small-kpi"><div class="sk-label">CPI YoY</div><div class="sk-val yellow" id="cpi-val">--</div></div>
+      <div class="small-kpi"><div class="sk-label">Core CPI</div><div class="sk-val yellow" id="core-cpi">--</div></div>
+      <div class="small-kpi"><div class="sk-label">PCE Core</div><div class="sk-val yellow" id="pce-core">--</div></div>
     </div>
     <div class="mrow"><span class="label">Spread HY (OAS)</span><span class="value" id="hy-val">--</span></div>
     <div class="mrow"><span class="label">Spread IG (OAS)</span><span class="value" id="ig-val">--</span></div>
     <div class="mrow"><span class="label">Ratio HY/IG</span><span class="value" id="credit-ratio">--</span></div>
     <div class="mrow"><span class="label">Fed Funds Rate</span><span class="value" id="fed-val">--</span></div>
-    <div class="mrow" style="margin-top:2px">
-      <span class="label" style="font-size:9px;color:var(--muted2)" id="cpi-date">--</span>
-    </div>
+    <div class="mrow"><span class="label src-tag">Source</span><span class="src-tag muted" id="cpi-date">--</span></div>
   </div>
 
-  <!-- ⑤ DÉLINQUANCE -->
+  <!-- ⑥ DÉLINQUANCE -->
   <div class="panel">
-    <div class="panel-title"><span>DÉLINQUANCE & SANTÉ CRÉDIT</span><span class="panel-tag">FRED</span></div>
+    <div class="panel-title"><span>DÉLINQUANCE BANCAIRE</span><span class="panel-tag">FRED · SÉRIES RÉELLES</span></div>
     <div class="gauge-row">
       <span class="gauge-label">Cartes crédit</span>
       <div class="gauge-bar"><div class="gauge-fill" id="g-cc"   style="background:var(--red);width:0%"></div></div>
@@ -552,7 +516,7 @@
       <span class="gauge-val yellow" id="gv-auto">--</span>
     </div>
     <div class="gauge-row">
-      <span class="gauge-label">Immobilier</span>
+      <span class="gauge-label">Immobilier rés.</span>
       <div class="gauge-bar"><div class="gauge-fill" id="g-re"   style="background:var(--green);width:0%"></div></div>
       <span class="gauge-val green"  id="gv-re">--</span>
     </div>
@@ -573,25 +537,24 @@
     <div style="font-size:9px;color:var(--muted2);margin-top:4px" id="delin-date"></div>
   </div>
 
-  <!-- ⑥ SENTIMENT & COMMODITÉS -->
+  <!-- ⑦ SENTIMENT & COMMODITÉS -->
   <div class="panel">
-    <div class="panel-title"><span>SENTIMENT & COMMODITÉS</span><span class="panel-tag">ALT.ME · FRED · YAHOO</span></div>
+    <div class="panel-title"><span>SENTIMENT & COMMODITÉS</span><span class="panel-tag">ALT.ME · YAHOO</span></div>
     <div class="fg-wrap">
       <div>
-        <svg viewBox="0 0 100 62" style="width:118px;height:74px;flex-shrink:0">
+        <svg viewBox="0 0 100 62" style="width:116px;height:72px;flex-shrink:0">
           <path d="M10,56 A40,40 0 0,1 90,56" fill="none" stroke="#0b1e38" stroke-width="11"/>
-          <path d="M10,56 A40,40 0 0,1 90,56" fill="none" stroke="url(#gfg2)" stroke-width="11"/>
+          <path d="M10,56 A40,40 0 0,1 90,56" fill="none" stroke="url(#gfg3)" stroke-width="11"/>
           <defs>
-            <linearGradient id="gfg2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id="gfg3" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%"   stop-color="#ff5c5c"/>
-              <stop offset="25%"  stop-color="#f3b53b"/>
-              <stop offset="50%"  stop-color="#f3e03b"/>
-              <stop offset="75%"  stop-color="#8ce36f"/>
+              <stop offset="35%"  stop-color="#f3b53b"/>
+              <stop offset="65%"  stop-color="#a3e36f"/>
               <stop offset="100%" stop-color="#22e36f"/>
             </linearGradient>
           </defs>
           <line id="fg-needle" x1="50" y1="56" x2="22" y2="30"
-            stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
           <circle cx="50" cy="56" r="4" fill="#fff"/>
           <text id="fg-num"   x="50" y="44" text-anchor="middle" fill="var(--yellow)" font-size="13" font-weight="700">--</text>
           <text id="fg-label" x="50" y="53" text-anchor="middle" fill="var(--yellow)" font-size="5.5">--</text>
@@ -607,207 +570,193 @@
     </div>
   </div>
 
-  <!-- ⑦ CDS -->
+  <!-- ⑧ CDS -->
   <div class="panel">
     <div class="panel-title"><span>CDS SOUVERAINS 5A</span><span class="panel-tag">RISQUE PAYS</span></div>
     <div id="cds-wrap"></div>
   </div>
 
-  <!-- ⑧ SECTEURS S&P — MULTI-TIMEFRAME -->
+  <!-- ⑨ SECTEURS S&P MULTI-UT -->
   <div class="panel">
-    <div class="panel-title"><span>SECTEURS S&P 500</span><span class="panel-tag" id="sector-tag">1 MOIS · ETFs XL*</span></div>
-    <!-- Boutons UT -->
-    <div class="sector-ut-bar">
-      <button class="ut-btn" onclick="changeSectorUT('1D')">1J</button>
-      <button class="ut-btn" onclick="changeSectorUT('1W')">1S</button>
-      <button class="ut-btn active" onclick="changeSectorUT('1M')">1M</button>
-      <button class="ut-btn" onclick="changeSectorUT('3M')">3M</button>
-      <button class="ut-btn" onclick="changeSectorUT('6M')">6M</button>
-      <button class="ut-btn" onclick="changeSectorUT('1Y')">1A</button>
-      <button class="ut-btn" onclick="changeSectorUT('YTD')">YTD</button>
+    <div class="panel-title"><span>SECTEURS S&P 500</span><span class="panel-tag" id="sector-tag">1 MOIS</span></div>
+    <div class="ut-bar">
+      <button class="ut-btn" data-ut="1D" onclick="changeUT('1D')">1J</button>
+      <button class="ut-btn" data-ut="1W" onclick="changeUT('1W')">1S</button>
+      <button class="ut-btn active" data-ut="1M" onclick="changeUT('1M')">1M</button>
+      <button class="ut-btn" data-ut="3M" onclick="changeUT('3M')">3M</button>
+      <button class="ut-btn" data-ut="6M" onclick="changeUT('6M')">6M</button>
+      <button class="ut-btn" data-ut="1Y" onclick="changeUT('1Y')">1A</button>
+      <button class="ut-btn" data-ut="YTD" onclick="changeUT('YTD')">YTD</button>
     </div>
-    <div id="sectors-wrap">
-      <div class="sector-loading skel">Chargement Yahoo Finance...</div>
-    </div>
+    <div id="sectors-wrap"><div class="skel" style="font-size:10px;color:var(--muted);padding:8px 0">Chargement Yahoo Finance...</div></div>
   </div>
 
-  <!-- ⑨ IA ANALYSE -->
+  <!-- ⑩ IA ANALYSE -->
   <div class="panel">
     <div class="panel-title"><span>ANALYSE IA</span><span class="panel-tag">ANTHROPIC CLAUDE HAIKU</span></div>
-    <div class="ai-box" id="ai-summary">Chargement...</div>
+    <div class="ai-box" id="ai-summary">Initialisation...</div>
     <div class="ai-actions">
-      <input id="ai-input" class="ai-input" placeholder="Question sur les marchés..." maxlength="280"/>
+      <input id="ai-input" class="ai-input" placeholder="Votre question sur les marchés..." maxlength="280"/>
       <button id="ai-send" class="ai-send" onclick="sendAI()">↗ Analyser</button>
     </div>
     <div class="quick-btns">
-      <button class="qbtn" onclick="quickAsk('Taux US et implications macro 2026')">Taux ↗</button>
-      <button class="qbtn" onclick="quickAsk('Risque récession USA selon ces données')">Récession ↗</button>
-      <button class="qbtn" onclick="quickAsk('DXY bas : impacts sur or et émergents')">DXY ↗</button>
-      <button class="qbtn" onclick="quickAsk('Spreads HY/IG : signaux de stress crédit')">Crédit ↗</button>
-      <button class="qbtn" onclick="quickAsk('BTC dans ce contexte macro et sentiment')">BTC ↗</button>
-      <button class="qbtn" onclick="quickAsk('Délinquance : risque systémique bancaire ?')">Délinquance ↗</button>
+      <button class="qbtn risk-btn" onclick="sendRiskOnOff()">⚡ Risk-ON ou Risk-OFF ? ↗</button>
+      <button class="qbtn" onclick="qa('Taux US et implications macro 2026')">Taux ↗</button>
+      <button class="qbtn" onclick="qa('Risque récession USA selon ces données')">Récession ↗</button>
+      <button class="qbtn" onclick="qa('DXY bas : impacts or et marchés émergents')">DXY ↗</button>
+      <button class="qbtn" onclick="qa('Spreads HY/IG : signaux de stress crédit ?')">Crédit ↗</button>
+      <button class="qbtn" onclick="qa('Délinquance : risque systémique bancaire ?')">Délinquance ↗</button>
     </div>
-    <div class="token-info" id="token-info">Haiku ~$0.001/analyse · économie max</div>
+    <div class="token-info" id="token-info">Haiku ~$0.001/analyse · économie maximale</div>
   </div>
 
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FOOTER
-════════════════════════════════════════════════════════════ -->
 <div class="footer">
   <span id="footer-status">Initialisation...</span>
-  <span id="footer-right" class="muted">Auto-refresh 5 min</span>
+  <span style="font-size:9px;color:var(--muted2)">Auto-refresh 5 min · or via Yahoo GC=F</span>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JAVASCRIPT
-════════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════
+     JS
+════════════════════════════════════════════ -->
 <script>
 "use strict";
-/* ─────────────────────────────────────────────────
-   STATE
-───────────────────────────────────────────────── */
-let dashboardData  = null;
-let currentUT      = "1M";
-let aiCallCount    = 0;
-let morningShown   = false;
-const SESSION_KEY  = "macro_morning_shown_" + new Date().toDateString();
+let dashData   = null;
+let currentUT  = "1M";
+let aiCalls    = 0;
+const DAY_KEY  = "macro_session_" + new Date().toDateString();
+const UT_LABEL = { "1D":"1 Jour","1W":"1 Semaine","1M":"1 Mois","3M":"3 Mois","6M":"6 Mois","1Y":"1 An","YTD":"YTD" };
 
-/* ─────────────────────────────────────────────────
-   UTILS
-───────────────────────────────────────────────── */
+// ── UTILS ──────────────────────────────────
 const $ = id => document.getElementById(id);
-function set(id, v) { const e = $(id); if (e) e.textContent = v ?? "--"; }
-function cls(id, c) { const e = $(id); if (e) e.className = e.className.replace(/\b(green|red|yellow|orange|blue|purple)\b/g, "") + " " + c; }
+function set(id, v) { const e = $(id); if (e) e.textContent = (v ?? "--"); }
+function fmt(v, d=2) { if (v==null||isNaN(+v)) return "--"; return (+v).toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmtPct(v,d=2){ return v==null?"--":fmt(v,d)+"%"; }
+function fmtPb(v)     { return v==null?"--":(v>0?"+":"")+fmt(v,0)+" pb"; }
+function fmtUSD(v,d=0){ return v==null?"--":"$"+fmt(v,d); }
+function setTick(ids,val){ ids.forEach(id=>set(id,val)); }
 
-function fmt(v, d = 2) {
-  if (v == null || isNaN(+v)) return "--";
-  return (+v).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
-}
-function fmtPct(v, d = 2)    { return v == null ? "--" : fmt(v, d) + "%"; }
-function fmtSgn(v, d = 1)    { return v == null ? "--" : (v > 0 ? "+" : "") + fmt(v, d) + "%"; }
-function fmtPb(v)             { return v == null ? "--" : (v > 0 ? "+" : "") + fmt(v, 0) + " pb"; }
-function fmtUSD(v, d = 0)    { return v == null ? "--" : "$" + fmt(v, d); }
-
-/* ─────────────────────────────────────────────────
-   CLOCK + SESSION STATUS
-───────────────────────────────────────────────── */
+// ── CLOCK ──────────────────────────────────
 function updateClock() {
-  const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const h  = String(ny.getHours()).padStart(2, "0");
-  const m  = String(ny.getMinutes()).padStart(2, "0");
-  const s  = String(ny.getSeconds()).padStart(2, "0");
-  set("clock", `${h}:${m}:${s} NY`);
-
-  // Session US : 09:30–16:00 NY
-  const minutes = ny.getHours() * 60 + ny.getMinutes();
-  const day = ny.getDay();
-  let status = "", color = "var(--muted)";
-  if (day === 0 || day === 6) { status = "WEEKEND"; }
-  else if (minutes >= 570 && minutes < 960) { status = "● NYSE OUVERT"; color = "var(--green)"; }
-  else if (minutes >= 540 && minutes < 570) { status = "◐ PRÉ-MARCHÉ"; color = "var(--yellow)"; }
-  else if (minutes >= 960 && minutes < 1020){ status = "◐ APRÈS-MARCHÉ"; color = "var(--yellow)"; }
-  else { status = "○ NYSE FERMÉ"; }
-  const el = $("session-status");
-  if (el) { el.textContent = status; el.style.color = color; }
+  const ny = new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));
+  set("clock", String(ny.getHours()).padStart(2,"0")+":"+String(ny.getMinutes()).padStart(2,"0")+":"+String(ny.getSeconds()).padStart(2,"0")+" NY");
+  const min = ny.getHours()*60+ny.getMinutes(), day = ny.getDay();
+  const el = $("session-badge");
+  if (!el) return;
+  if (day===0||day===6){el.textContent="WEEKEND";el.style.color="var(--muted)"}
+  else if(min>=570&&min<960){el.textContent="● NYSE OUVERT";el.style.color="var(--green)"}
+  else if(min>=540&&min<570){el.textContent="◐ PRÉ-MARCHÉ";el.style.color="var(--yellow)"}
+  else if(min>=960&&min<1020){el.textContent="◐ APRÈS-MARCHÉ";el.style.color="var(--yellow)"}
+  else{el.textContent="○ NYSE FERMÉ";el.style.color="var(--muted)"}
 }
-updateClock();
-setInterval(updateClock, 1000);
+updateClock(); setInterval(updateClock,1000);
 
-/* ─────────────────────────────────────────────────
-   FEAR & GREED NEEDLE
-───────────────────────────────────────────────── */
+// ── FEAR & GREED NEEDLE ────────────────────
 function moveFGNeedle(score) {
-  const n = $("fg-needle");
-  if (!n || score == null) return;
-  const angle = -170 + (score / 100) * 160;
-  const rad = angle * Math.PI / 180;
-  n.setAttribute("x2", (50 + Math.cos(rad) * 30).toFixed(1));
-  n.setAttribute("y2", (56 + Math.sin(rad) * 30).toFixed(1));
+  const n=$("fg-needle"); if(!n||score==null)return;
+  const angle=-170+(score/100)*160, rad=angle*Math.PI/180;
+  n.setAttribute("x2",(50+Math.cos(rad)*30).toFixed(1));
+  n.setAttribute("y2",(56+Math.sin(rad)*30).toFixed(1));
 }
 
-/* ─────────────────────────────────────────────────
-   YIELD CURVE DYNAMIQUE
-───────────────────────────────────────────────── */
-function updateYieldCurve(yields) {
-  const poly = $("yield-poly");
-  if (!poly) return;
-  const { us1m, us3m, us2y, us10y, us30y } = yields;
-  const vals = [us1m, us3m, us2y, us10y, us30y];
-  if (vals.some(v => v == null)) return;
-  const min = Math.min(...vals) - 0.3;
-  const max = Math.max(...vals) + 0.3;
-  const range = max - min || 1;
-  const xs  = [8, 30, 105, 175, 210];
-  const toY = v => 70 - ((v - min) / range) * 56;
-  poly.setAttribute("points", vals.map((v, i) => `${xs[i]},${toY(v).toFixed(1)}`).join(" "));
-  // Couleur selon état courbe
-  const spread = (us10y - us2y) * 100;
-  poly.setAttribute("stroke", spread >= 0 ? "var(--green)" : "var(--red)");
+// ── YIELD CURVE ────────────────────────────
+function updateYieldCurve(y) {
+  const poly=$("yield-poly"); if(!poly)return;
+  const vals=[y.us1m,y.us3m,y.us2y,y.us10y,y.us30y];
+  if(vals.some(v=>v==null))return;
+  const mn=Math.min(...vals)-0.3, mx=Math.max(...vals)+0.3, rng=mx-mn||1;
+  const xs=[8,30,105,175,210];
+  const toY=v=>70-((v-mn)/rng)*56;
+  poly.setAttribute("points",vals.map((v,i)=>`${xs[i]},${toY(v).toFixed(1)}`).join(" "));
+  poly.setAttribute("stroke",(y.spread2s10s>=0?"var(--green)":"var(--red)"));
 }
 
-/* ─────────────────────────────────────────────────
-   GAUGE
-───────────────────────────────────────────────── */
-function setGauge(fillId, valId, value, max) {
-  const fill = $(fillId);
-  if (fill && value != null)
-    fill.style.width = Math.max(4, Math.min(100, (value / max) * 100)) + "%";
-  set(valId, value != null ? fmtPct(value) : "--");
+// ── GAUGE ──────────────────────────────────
+function setGauge(fid,vid,val,max){
+  const f=$(fid); if(f&&val!=null) f.style.width=Math.max(4,Math.min(100,(val/max)*100))+"%";
+  set(vid,val!=null?fmtPct(val):"--");
 }
 
-/* ─────────────────────────────────────────────────
-   ALERT BAR
-───────────────────────────────────────────────── */
+// ── RISK-ON/OFF DISPLAY ────────────────────
+function renderRiskPanel(risk) {
+  if (!risk) return;
+  const { score, regime, details } = risk;
+
+  // Couleur du régime
+  let color = score >= 65 ? "var(--green)" : score >= 50 ? "var(--yellow)" : score >= 35 ? "var(--orange)" : "var(--red)";
+  let borderColor = color;
+
+  const box = $("risk-main-box");
+  if (box) box.style.borderColor = borderColor;
+
+  const lbl = $("risk-regime-label");
+  if (lbl) { lbl.textContent = regime; lbl.style.color = color; }
+
+  const num = $("risk-score-num");
+  if (num) { num.textContent = score+"/100"; num.style.color = color; }
+
+  const bar = $("risk-bar");
+  if (bar) {
+    bar.style.width = score + "%";
+    bar.style.background = score >= 65 ? "var(--green)" : score >= 50 ? "var(--yellow)" : score >= 35 ? "var(--orange)" : "var(--red)";
+  }
+
+  const wrap = $("risk-details-wrap");
+  if (wrap && Array.isArray(details)) {
+    wrap.innerHTML = details.map(d => {
+      const isOn  = d.includes("Risk-ON");
+      const isOff = d.includes("Risk-OFF");
+      const cls   = isOn ? "risk-ro" : isOff ? "risk-rof" : "risk-neu";
+      const parts = d.split("→");
+      return `<div class="risk-detail">
+        <span>${parts[0] || d}</span>
+        <span class="rds ${cls}">${parts[1]?.trim() || ""}</span>
+      </div>`;
+    }).join("");
+  }
+}
+
+// ── ALERTS ─────────────────────────────────
 function buildAlerts(d) {
-  const alerts = [];
-  const vix  = d.vix?.value;
-  const sp   = d.yields?.spread2s10s;
-  const dxy  = d.dxyProxy?.value;
-  const cpi  = d.inflation?.cpiYoY;
-  const gold = d.commodities?.gold?.value;
-  const hy   = d.credit?.hy;
-  const cc   = d.delinquency?.creditCards;
-  const fg   = d.sentiment?.value;
+  const alerts=[];
+  const vix=d.vix?.value, sp=d.yields?.spread2s10s, gold=d.commodities?.gold?.value;
+  const hy=d.credit?.hy, fg=d.sentiment?.value, cpi=d.inflation?.cpiYoY;
+  const dxy=d.dxyProxy?.value, risk=d.riskAnalysis;
 
-  if (vix != null && vix >= 30)    alerts.push({ cls: "al-red",    text: `VIX ${vix.toFixed(1)} — STRESS ÉLEVÉ` });
-  else if (vix != null && vix < 15) alerts.push({ cls: "al-green",  text: `VIX ${vix.toFixed(1)} — marché calme` });
-  if (sp != null && sp < 0)        alerts.push({ cls: "al-red",    text: `Courbe INVERSÉE ${fmtPb(sp)}` });
-  else if (sp != null && sp > 40)  alerts.push({ cls: "al-green",  text: `Courbe +${sp.toFixed(0)}pb` });
-  if (dxy != null && dxy < 100)    alerts.push({ cls: "al-yellow", text: `DXY ${dxy.toFixed(2)} — dollar faible` });
-  if (gold != null && gold > 3000) alerts.push({ cls: "al-yellow", text: `OR ATH $${Math.round(gold)}` });
-  if (hy != null && hy > 5)        alerts.push({ cls: "al-red",    text: `HY spread ${hy.toFixed(2)}% — tension crédit` });
-  if (cc != null && cc > 3.5)      alerts.push({ cls: "al-yellow", text: `Délinquance CC ${cc.toFixed(2)}%` });
-  if (fg != null && fg < 25)       alerts.push({ cls: "al-red",    text: `F&G PEUR EXTRÊME ${Math.round(fg)}` });
-  if (fg != null && fg > 75)       alerts.push({ cls: "al-green",  text: `F&G EUPHORIE ${Math.round(fg)}` });
-  if (cpi != null && cpi > 3.5)    alerts.push({ cls: "al-yellow", text: `CPI élevé ${cpi.toFixed(2)}%` });
+  if (risk) {
+    const cls = risk.score>=65?"at-green":risk.score>=35?"at-yellow":"at-red";
+    alerts.push({cls, text:`${risk.emoji} ${risk.regime} (${risk.score}/100)`});
+  }
+  if(vix!=null&&vix>=30)   alerts.push({cls:"at-red",    text:`VIX ${vix.toFixed(1)} — STRESS`});
+  if(sp!=null&&sp<0)       alerts.push({cls:"at-red",    text:`Courbe INVERSÉE ${fmtPb(sp)}`});
+  if(sp!=null&&sp>40)      alerts.push({cls:"at-green",  text:`Courbe +${sp.toFixed(0)}pb`});
+  if(dxy!=null&&dxy<100)   alerts.push({cls:"at-yellow", text:`DXY ${dxy.toFixed(2)} — dollar faible`});
+  if(gold!=null&&gold>3200)alerts.push({cls:"at-yellow", text:`Or $${Math.round(gold)} — niveaux élevés`});
+  if(hy!=null&&hy>5.5)     alerts.push({cls:"at-red",    text:`HY ${hy.toFixed(2)}% — tension crédit`});
+  if(fg!=null&&fg<25)      alerts.push({cls:"at-red",    text:`F&G ${Math.round(fg)} — PEUR EXTRÊME`});
+  if(fg!=null&&fg>75)      alerts.push({cls:"at-green",  text:`F&G ${Math.round(fg)} — EUPHORIE`});
+  if(cpi!=null&&cpi>3.5)   alerts.push({cls:"at-yellow", text:`CPI ${cpi.toFixed(2)}% — inflation élevée`});
+  if(alerts.length===0)    alerts.push({cls:"at-blue",   text:"Aucune alerte détectée"});
 
-  if (alerts.length === 0) alerts.push({ cls: "al-blue", text: "Aucune alerte détectée" });
-
-  const wrap = $("alert-items");
-  if (wrap) wrap.innerHTML = alerts.map(a => `<span class="alert-item ${a.cls}">${a.text}</span>`).join("");
-
+  const el=$("alert-items");
+  if(el) el.innerHTML=alerts.map(a=>`<span class="alert-tag ${a.cls}">${a.text}</span>`).join("");
   return alerts;
 }
 
-/* ─────────────────────────────────────────────────
-   SECTORS
-───────────────────────────────────────────────── */
+// ── SECTORS ────────────────────────────────
 function renderSectors(sectors) {
-  const wrap = $("sectors-wrap");
-  if (!wrap) return;
-  if (!Array.isArray(sectors) || sectors.length === 0) {
-    wrap.innerHTML = `<div class="sector-loading muted">Données Yahoo Finance indisponibles momentanément.</div>`;
+  const wrap=$("sectors-wrap"); if(!wrap)return;
+  if(!Array.isArray(sectors)||sectors.length===0){
+    wrap.innerHTML=`<div style="font-size:10px;color:var(--muted);padding:8px 0">Yahoo Finance indisponible momentanément.</div>`;
     return;
   }
-  const maxAbs = Math.max(...sectors.map(s => Math.abs(s.value ?? 0)), 0.5);
-  wrap.innerHTML = sectors.map(s => {
-    const v   = s.value;
-    const pct = v == null ? 0 : Math.max(4, (Math.abs(v) / maxAbs) * 100);
-    const clr = v == null ? "var(--muted)" : v >= 0 ? "var(--green)" : "var(--red)";
-    const cls = v == null ? "muted" : v >= 0 ? "green" : "red";
-    const lbl = v == null ? "--" : (v >= 0 ? "+" : "") + fmt(v, 2) + "%";
+  const maxAbs=Math.max(...sectors.map(s=>Math.abs(s.value??0)),0.5);
+  wrap.innerHTML=sectors.map(s=>{
+    const v=s.value, pct=v==null?0:Math.max(4,(Math.abs(v)/maxAbs)*100);
+    const clr=v==null?"var(--muted)":v>=0?"var(--green)":"var(--red)";
+    const cls=v==null?"muted":v>=0?"green":"red";
+    const lbl=v==null?"--":(v>=0?"+":"")+fmt(v,2)+"%";
     return `<div class="sector-row">
       <div class="sector-name">${s.name}</div>
       <div class="sector-bar"><div class="sector-fill" style="width:${pct.toFixed(1)}%;background:${clr}"></div></div>
@@ -816,307 +765,276 @@ function renderSectors(sectors) {
   }).join("");
 }
 
-async function changeSectorUT(ut) {
-  currentUT = ut;
-  // Update active button
-  document.querySelectorAll(".ut-btn").forEach(b => {
-    b.classList.toggle("active", b.textContent.trim() === { "1D":"1J","1W":"1S","1M":"1M","3M":"3M","6M":"6M","1Y":"1A","YTD":"YTD" }[ut]);
-  });
-  const labels = { "1D":"1 Jour","1W":"1 Semaine","1M":"1 Mois","3M":"3 Mois","6M":"6 Mois","1Y":"1 An","YTD":"YTD" };
-  set("sector-tag", (labels[ut] || ut) + " · ETFs XL*");
-
-  const wrap = $("sectors-wrap");
-  if (wrap) wrap.innerHTML = `<div class="sector-loading skel">Chargement ${labels[ut]}...</div>`;
-
+async function changeUT(ut) {
+  currentUT=ut;
+  document.querySelectorAll(".ut-btn").forEach(b=>b.classList.toggle("active",b.dataset.ut===ut));
+  set("sector-tag",(UT_LABEL[ut]||ut)+" · ETFs XL*");
+  const wrap=$("sectors-wrap");
+  if(wrap) wrap.innerHTML=`<div class="skel" style="font-size:10px;color:var(--muted);padding:6px 0">Chargement ${UT_LABEL[ut]||ut}...</div>`;
   try {
-    const res  = await fetch(`/api/sectors?ut=${ut}`);
-    const data = await res.json();
-    renderSectors(data.sectors || []);
-  } catch {
-    if (wrap) wrap.innerHTML = `<div class="sector-loading red">Erreur chargement secteurs.</div>`;
-  }
+    const r=await fetch(`/api/sectors?ut=${ut}`);
+    const data=await r.json();
+    renderSectors(data.sectors||[]);
+  } catch { if(wrap) wrap.innerHTML=`<div style="color:var(--red);font-size:10px">Erreur chargement secteurs.</div>`; }
 }
 
-/* ─────────────────────────────────────────────────
-   CDS
-───────────────────────────────────────────────── */
-function renderCDS(cds) {
-  const wrap = $("cds-wrap");
-  if (!wrap || !Array.isArray(cds)) return;
-  wrap.innerHTML = cds.map(item => {
-    const cls = item.risk === "ÉLEVÉ" ? "risk-high" : item.risk === "MODÉRÉ" ? "risk-med" : "risk-low";
-    return `<div class="cds-row">
-      <span class="cds-country">${item.country}</span>
-      <span class="value">${fmt(item.value, 0)} pb</span>
-      <span class="cds-risk ${cls}">${item.risk}</span>
-    </div>`;
+// ── CDS ────────────────────────────────────
+function renderCDS(cds){
+  const w=$("cds-wrap"); if(!w||!Array.isArray(cds))return;
+  w.innerHTML=cds.map(c=>{
+    const cl=c.risk==="ÉLEVÉ"?"risk-high":c.risk==="MODÉRÉ"?"risk-med":"risk-low";
+    return `<div class="cds-row"><span class="cds-country">${c.country}</span><span class="value">${fmt(c.value,0)} pb</span><span class="cds-risk ${cl}">${c.risk}</span></div>`;
   }).join("");
 }
 
-/* ─────────────────────────────────────────────────
-   TICKER helper
-───────────────────────────────────────────────── */
-function setTick(ids, val) { ids.forEach(id => set(id, val)); }
-
-/* ─────────────────────────────────────────────────
-   LOAD DASHBOARD
-───────────────────────────────────────────────── */
-async function loadDashboard() {
-  set("footer-status", "⟳ Chargement...");
+// ── LOAD DASHBOARD ─────────────────────────
+async function loadDashboard(){
+  set("footer-status","⟳ Chargement...");
   try {
-    const res  = await fetch(`/api/dashboard?ut=${currentUT}`);
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || "Erreur API");
+    const res=await fetch(`/api/dashboard?ut=${currentUT}`);
+    const json=await res.json();
+    if(!res.ok) throw new Error(json.message||"Erreur API");
+    dashData=json;
+    const d=json.data;
 
-    dashboardData = json;
-    const d = json.data;
+    // Risque
+    set("dxy-val",  fmt(d.dxyProxy?.value,2));
+    set("dxy-date", d.dxyProxy?.date||"--");
+    set("vix-val",  fmt(d.vix?.value,2));
+    set("vix-date", d.vix?.date||"--");
+    set("vix-regime", d.derived?.vixRegime||"--");
+    set("eurusd-val", fmt(d.fx?.eurusd?.value,4));
+    const fg=d.sentiment?.value;
+    set("fg-inline", fg!=null?`${Math.round(fg)} — ${d.sentiment?.label||""}` : "--");
 
-    /* RISQUE */
-    set("dxy-val",  fmt(d.dxyProxy?.value, 2));
-    set("dxy-date", d.dxyProxy?.date || "--");
-    set("vix-val",  fmt(d.vix?.value, 2));
-    set("vix-date", d.vix?.date || "--");
-    const vr = $("vix-regime");
-    if (vr) { vr.textContent = d.derived?.vixRegime || "--"; }
-    set("eurusd-val", fmt(d.fx?.eurusd?.value, 4));
+    // Or & Refuges — affichage avec source
+    const gold=d.commodities?.gold?.value;
+    const silv=d.commodities?.silver?.value;
+    const btc =d.crypto?.btcusd?.value;
+    const eth =d.crypto?.ethusd;
+    const btcD=d.crypto?.btcDominance;
 
-    /* OR / CRYPTO */
-    const gold = d.commodities?.gold?.value;
-    const silv = d.commodities?.silver?.value;
-    const btc  = d.crypto?.btcusd?.value;
-    const eth  = d.crypto?.ethusd;
-    const btcD = d.crypto?.btcDominance;
+    // Vérification sanity affichage
+    const goldDisplay = (gold!=null && gold>500 && gold<5000) ? fmtUSD(gold,0) : gold!=null ? `$${Math.round(gold)} ⚠` : "--";
+    set("gold-big",  goldDisplay);
+    set("gold-src",  d.commodities?.gold?.src || "Yahoo GC=F");
+    set("btc-big",   btc?fmtUSD(btc,0):"--");
+    set("btc-ts",    d.crypto?.btcusd?.ts ? new Date(d.crypto.btcusd.ts).toLocaleTimeString("fr-FR") : "Coinbase");
+    const ratio=(gold&&silv&&silv>0)?gold/silv:null;
+    set("gsr",       ratio?fmt(ratio,1)+"x":"--");
+    set("silver-val",silv?fmtUSD(silv,2):"--");
+    set("silver-val2",silv?fmtUSD(silv,2):"--");
+    set("btc-dom",   btcD?fmtPct(btcD,1):"--");
+    set("eth-val",   eth?fmtUSD(eth,0):"--");
 
-    set("gold-big",  gold ? fmtUSD(gold, 0) : "--");
-    set("btc-big",   btc  ? fmtUSD(btc,  0) : "--");
-    set("btc-ts", d.crypto?.btcusd?.ts
-      ? new Date(d.crypto.btcusd.ts).toLocaleTimeString("fr-FR") : "--");
-    const ratio = (gold && silv && silv > 0) ? gold / silv : null;
-    set("gsr",       ratio ? fmt(ratio, 1) + "x" : "--");
-    set("silver-val", silv ? fmtUSD(silv, 2) : "--");
-    set("silver-val2",silv ? fmtUSD(silv, 2) : "--");
-    set("btc-dom",  btcD  ? fmtPct(btcD, 1) : "--");
-    set("eth-val",  eth   ? fmtUSD(eth,  0)  : "--");
-
-    /* TAUX */
-    const y = d.yields || {};
-    set("us1m",  fmtPct(y.us1m));  set("us3m",  fmtPct(y.us3m));
-    set("us2y",  fmtPct(y.us2y));  set("us10y",  fmtPct(y.us10y));
+    // Taux
+    const y=d.yields||{};
+    set("us1m",  fmtPct(y.us1m));
+    set("us2y",  fmtPct(y.us2y));
+    set("us10y", fmtPct(y.us10y));
     set("us30y", fmtPct(y.us30y));
-    const spEl = $("spread-val");
-    if (spEl) {
-      spEl.textContent = fmtPb(y.spread2s10s);
-      spEl.className   = "value " + (y.spread2s10s >= 0 ? "green" : "red");
-    }
+    const spEl=$("spread-val");
+    if(spEl){spEl.textContent=fmtPb(y.spread2s10s);spEl.className="value "+(y.spread2s10s>=0?"green":"red")}
+    set("curve-state", d.derived?.curveState||"--");
     updateYieldCurve(y);
 
-    /* INFLATION */
+    // Inflation
     set("cpi-val",  fmtPct(d.inflation?.cpiYoY));
     set("core-cpi", fmtPct(d.inflation?.coreCpi));
     set("pce-core", fmtPct(d.inflation?.pceCore));
-    set("cpi-date", "Source FRED · " + (d.inflation?.date || "--"));
+    set("cpi-date", "FRED · "+(d.inflation?.date||"--"));
 
-    /* CRÉDIT */
+    // Crédit
     set("hy-val",       fmtPct(d.credit?.hy));
     set("ig-val",       fmtPct(d.credit?.ig));
-    set("credit-ratio", d.credit?.ratio ? fmt(d.credit.ratio, 2) + "x" : "--");
+    set("credit-ratio", d.credit?.ratio?fmt(d.credit.ratio,2)+"x":"--");
     set("fed-val",      fmtPct(d.fed?.upperBound));
 
-    /* DÉLINQUANCE */
-    const dl = d.delinquency || {};
-    setGauge("g-cc",   "gv-cc",   dl.creditCards,  4.5);
-    setGauge("g-auto", "gv-auto", dl.autoLoans,    3.0);
-    setGauge("g-re",   "gv-re",   dl.realEstate,   3.0);
-    setGauge("g-sl",   "gv-sl",   dl.studentLoans, 12.0);
-    setGauge("g-cre",  "gv-cre",  dl.commercialRe, 4.0);
+    // Délinquance
+    const dl=d.delinquency||{};
+    setGauge("g-cc","gv-cc",dl.creditCards,4.5);
+    setGauge("g-auto","gv-auto",dl.autoLoans,3.0);
+    setGauge("g-re","gv-re",dl.realEstate,3.0);
+    setGauge("g-sl","gv-sl",dl.studentLoans,12.0);
+    setGauge("g-cre","gv-cre",dl.commercialRe,4.0);
     set("unrate-val", fmtPct(d.labor?.unemploymentRate));
-    set("delin-date", dl.date ? "Données FRED · " + dl.date : "Données FRED");
+    set("delin-date", dl.date?"FRED · "+dl.date:"Données trimestrielles FRED");
 
-    /* SENTIMENT */
-    set("fg-num",   d.sentiment?.value != null ? Math.round(d.sentiment.value) : "--");
-    set("fg-label", d.sentiment?.label || "--");
-    moveFGNeedle(d.sentiment?.value);
+    // Sentiment
+    set("fg-num",   fg!=null?Math.round(fg):"--");
+    set("fg-label", d.sentiment?.label||"--");
+    moveFGNeedle(fg);
 
-    /* COMMODITÉS */
-    const c = d.commodities || {};
-    set("wti-val",    c.oil?.value    != null ? fmtUSD(c.oil.value,    2) : "--");
-    set("brent-val",  c.brent?.value  != null ? fmtUSD(c.brent.value,  2) : "--");
-    set("copper-val", c.copper?.value != null ? fmtUSD(c.copper.value, 3) : "--");
-    set("natgas-val", c.natgas?.value != null ? fmtUSD(c.natgas.value, 2) : "--");
+    // Commodités
+    const c=d.commodities||{};
+    set("wti-val",    c.oil?.value!=null?   fmtUSD(c.oil.value,2)  :"--");
+    set("brent-val",  c.brent?.value!=null? fmtUSD(c.brent.value,2):"--");
+    set("copper-val", c.copper?.value!=null?fmtUSD(c.copper.value,3):"--");
+    set("natgas-val", c.natgas?.value!=null?fmtUSD(c.natgas.value,2):"--");
 
-    /* CDS & SECTEURS */
-    renderCDS(d.cds || []);
-    renderSectors(d.sectors || []);
+    // Risk-ON/OFF
+    renderRiskPanel(d.riskAnalysis);
 
-    /* IA — résumé local immédiat */
-    set("ai-summary", d.localSummary || "Données disponibles.");
+    // CDS & Secteurs
+    renderCDS(d.cds||[]);
+    renderSectors(d.sectors||[]);
 
-    /* TICKER */
-    setTick(["tk-btc","tk-btc2"],      btc    ? fmtUSD(btc, 0) : "--");
-    setTick(["tk-eth","tk-eth2"],      eth    ? fmtUSD(eth, 0) : "--");
-    setTick(["tk-eur","tk-eur2"],      fmt(d.fx?.eurusd?.value, 4));
-    setTick(["tk-dxy","tk-dxy2"],      fmt(d.dxyProxy?.value,   2));
-    setTick(["tk-vix","tk-vix2"],      fmt(d.vix?.value,        2));
-    setTick(["tk-10y","tk-10y2"],      fmtPct(y.us10y));
-    setTick(["tk-sp","tk-sp2"],        fmtPb(y.spread2s10s));
-    setTick(["tk-cpi","tk-cpi2"],      fmtPct(d.inflation?.cpiYoY));
-    setTick(["tk-gold","tk-gold2"],    gold ? fmtUSD(gold, 0) : "--");
-    setTick(["tk-wti","tk-wti2"],      c.oil?.value   ? fmtUSD(c.oil.value,   2) : "--");
-    setTick(["tk-brent","tk-brent2"],  c.brent?.value ? fmtUSD(c.brent.value, 2) : "--");
-    setTick(["tk-copper","tk-copper2"],c.copper?.value? fmtUSD(c.copper.value,2) : "--");
+    // IA résumé local immédiat
+    set("ai-summary", d.localSummary||"Données disponibles.");
 
-    /* ALERTES */
+    // Ticker
+    setTick(["tk-btc","tk-btc2"],    btc?fmtUSD(btc,0):"--");
+    setTick(["tk-eth","tk-eth2"],    eth?fmtUSD(eth,0):"--");
+    setTick(["tk-eur","tk-eur2"],    fmt(d.fx?.eurusd?.value,4));
+    setTick(["tk-dxy","tk-dxy2"],    fmt(d.dxyProxy?.value,2));
+    setTick(["tk-vix","tk-vix2"],    fmt(d.vix?.value,2));
+    setTick(["tk-10y","tk-10y2"],    fmtPct(y.us10y));
+    setTick(["tk-sp","tk-sp2"],      fmtPb(y.spread2s10s));
+    setTick(["tk-cpi","tk-cpi2"],    fmtPct(d.inflation?.cpiYoY));
+    setTick(["tk-gold","tk-gold2"],  gold?fmtUSD(gold,0):"--");
+    setTick(["tk-wti","tk-wti2"],    c.oil?.value?fmtUSD(c.oil.value,2):"--");
+    setTick(["tk-brent","tk-brent2"],c.brent?.value?fmtUSD(c.brent.value,2):"--");
+    setTick(["tk-cu","tk-cu2"],      c.copper?.value?fmtUSD(c.copper.value,3):"--");
+
+    // Alertes
     buildAlerts(d);
 
-    /* MORNING BRIEFING (1x par jour à l'ouverture) */
-    if (!sessionStorage.getItem(SESSION_KEY)) {
+    // Morning briefing (1x par jour)
+    if(!sessionStorage.getItem(DAY_KEY)){
       populateMorning(d);
-      // Appel IA pour le morning briefing
       fetchMorningSummary();
     }
 
-    /* FOOTER */
-    const ts = new Date(json.updatedAt).toLocaleTimeString("fr-FR");
-    set("footer-status", `✓ ${ts} — ${json.sources?.fred} · ${json.sources?.market}`);
-    set("last-update", ts);
+    set("footer-status",`✓ ${new Date(json.updatedAt).toLocaleTimeString("fr-FR")} — ${json.sources?.fred} · ${json.sources?.market}`);
+    set("last-update",new Date(json.updatedAt).toLocaleTimeString("fr-FR"));
 
-  } catch (err) {
-    set("footer-status", `⚠ Erreur : ${err.message}`);
-    console.error("Dashboard error:", err);
+  } catch(err){
+    set("footer-status",`⚠ Erreur : ${err.message}`);
+    console.error(err);
   }
 }
 
-/* ─────────────────────────────────────────────────
-   MORNING BRIEFING
-───────────────────────────────────────────────── */
-function populateMorning(d) {
-  const now = new Date();
-  set("morning-date",
-    now.toLocaleDateString("fr-FR", { weekday:"long", year:"numeric", month:"long", day:"numeric" })
-    + " — " + new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}))
-        .toLocaleTimeString("fr-FR") + " NY");
+// ── MORNING ────────────────────────────────
+function populateMorning(d){
+  const now=new Date();
+  set("m-date",
+    now.toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})
+    +" — "+new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"})).toLocaleTimeString("fr-FR")+" NY");
 
-  // KPIs
-  const vix  = d.vix?.value;
-  const dxy  = d.dxyProxy?.value;
-  const gold = d.commodities?.gold?.value;
-  const btc  = d.crypto?.btcusd?.value;
-  const us10y= d.yields?.us10y;
-  const sp   = d.yields?.spread2s10s;
+  const vix=d.vix?.value, gold=d.commodities?.gold?.value;
+  const btc=d.crypto?.btcusd?.value, sp=d.yields?.spread2s10s;
 
-  const vixEl = $("mk-vix");
-  if (vixEl) {
-    vixEl.textContent = fmt(vix, 2);
-    vixEl.className = "kpi-val " + (vix == null ? "" : vix >= 30 ? "red" : vix >= 20 ? "yellow" : "green");
+  const vixEl=$("mk-vix");
+  if(vixEl){vixEl.textContent=fmt(vix,2);vixEl.className="m-kpi-val "+(vix==null?"":(vix>=30?"red":vix>=20?"yellow":"green"));}
+  set("mk-vix-s",vix!=null?(vix>=30?"⚠ stress élevé":vix>=20?"modéré":"calme"):"--");
+  set("mk-dxy",  fmt(d.dxyProxy?.value,2));
+  set("mk-gold", gold?fmtUSD(gold,0):"--");
+  set("mk-btc",  btc?fmtUSD(btc,0):"--");
+  set("mk-10y",  fmtPct(d.yields?.us10y));
+  const spEl=$("mk-spread");
+  if(spEl){spEl.textContent=fmtPb(sp);spEl.className="m-kpi-val "+(sp==null?"":(sp>=0?"green":"red"));}
+
+  // Risk-ON/OFF dans le modal
+  const risk=d.riskAnalysis;
+  if(risk){
+    const rsec=$("m-risk-section"); if(rsec) rsec.style.display="";
+    const badge=$("m-risk-badge");
+    if(badge){
+      badge.textContent=`${risk.emoji} ${risk.regime} — Score ${risk.score}/100`;
+      badge.className="risk-badge "+(risk.score>=65?"risk-on":risk.score>=35?"risk-mid":"risk-off");
+      badge.style.display="inline-block";
+    }
+    const fill=$("m-risk-fill");
+    if(fill){
+      fill.style.width=risk.score+"%";
+      fill.style.background=risk.score>=65?"var(--green)":risk.score>=50?"var(--yellow)":risk.score>=35?"var(--orange)":"var(--red)";
+    }
+    set("m-risk-score",risk.score+"/100");
+    const det=$("m-risk-details");
+    if(det&&Array.isArray(risk.details)){
+      det.innerHTML=risk.details.map(line=>{
+        const isOn=line.includes("Risk-ON");
+        const isOff=line.includes("Risk-OFF");
+        const cls=isOn?"green":isOff?"red":"yellow";
+        const parts=line.split("→");
+        return `<div class="risk-detail-row"><span>${parts[0]||line}</span><span class="rdr-signal ${cls}">${parts[1]?.trim()||""}</span></div>`;
+      }).join("");
+    }
   }
-  set("mk-vix-s", vix != null ? (vix >= 30 ? "⚠ stress élevé" : vix >= 20 ? "modéré" : "calme") : "--");
-  set("mk-dxy",   fmt(dxy, 2));
-  set("mk-gold",  gold ? fmtUSD(gold, 0) : "--");
-  set("mk-btc",   btc  ? fmtUSD(btc,  0) : "--");
-  set("mk-10y",   fmtPct(us10y));
-  const spEl = $("mk-spread");
-  if (spEl) {
-    spEl.textContent = fmtPb(sp);
-    spEl.className = "kpi-val " + (sp == null ? "" : sp >= 0 ? "green" : "red");
-  }
 
-  // Alertes morning
-  const alerts = buildAlerts(d);
-  const sec = $("morning-alerts-section");
-  const alertDiv = $("morning-alerts");
-  if (alertDiv && alerts.length > 0) {
-    alertDiv.innerHTML = alerts
-      .map(a => `<span class="alert-badge ${
-        a.cls.replace("al-red","alert-red").replace("al-yellow","alert-yellow")
-             .replace("al-green","alert-green").replace("al-blue","alert-green")
-      }">${a.text}</span>`)
-      .join(" ");
-    if (sec) sec.style.display = "";
+  // Alertes
+  const alerts=buildAlerts(d);
+  const asec=$("m-alerts-section"), adiv=$("m-alerts");
+  if(adiv&&alerts.length>0){
+    adiv.innerHTML=alerts.map(a=>`<span class="alert-tag ${a.cls.replace("al-","at-")}">${a.text}</span>`).join(" ");
+    if(asec) asec.style.display="";
   }
 }
 
-async function fetchMorningSummary() {
-  if (!dashboardData) return;
-  set("morning-ai", "⟳ Analyse IA en cours...");
+async function fetchMorningSummary(){
+  if(!dashData)return;
+  set("m-ai-text","⟳ Analyse IA en cours...");
   try {
-    const res  = await fetch("/api/ai/summary", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dashboard: dashboardData })
-    });
-    const data = await res.json();
-    set("morning-ai", data.text || "Analyse indisponible.");
-  } catch {
-    set("morning-ai", dashboardData?.data?.localSummary || "Analyse indisponible.");
-  }
+    const r=await fetch("/api/ai/summary",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dashboard:dashData})});
+    const d=await r.json();
+    set("m-ai-text",d.text||"Analyse indisponible.");
+  } catch { set("m-ai-text",dashData?.data?.localSummary||"IA indisponible."); }
 }
 
-function showMorning() {
-  const ov = $("morning-overlay");
-  if (ov) ov.style.display = "flex";
-  if (dashboardData) {
-    populateMorning(dashboardData.data);
-    fetchMorningSummary();
-  }
+function showMorning(){
+  const ov=$("morning-overlay"); if(ov)ov.style.display="flex";
+  if(dashData){populateMorning(dashData.data);fetchMorningSummary();}
+}
+function closeMorning(){
+  const ov=$("morning-overlay"); if(ov)ov.style.display="none";
+  sessionStorage.setItem(DAY_KEY,"1");
 }
 
-function closeMorning() {
-  const ov = $("morning-overlay");
-  if (ov) ov.style.display = "none";
-  sessionStorage.setItem(SESSION_KEY, "1");
-}
-
-/* ─────────────────────────────────────────────────
-   IA — APPELS
-───────────────────────────────────────────────── */
-async function sendAI() {
-  const input = $("ai-input");
-  const q = (input?.value || "").trim();
-  if (!q) return;
-
-  const btn = $("ai-send");
-  if (btn) btn.disabled = true;
-  set("ai-summary", "⟳ Analyse Claude Haiku...");
-  input.value = "";
-
+// ── IA ─────────────────────────────────────
+async function callAI(question, maxTok=230){
+  const btn=$("ai-send"); if(btn)btn.disabled=true;
+  set("ai-summary","⟳ Claude Haiku analyse...");
   try {
-    const res  = await fetch("/api/ai", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, dashboard: dashboardData })
-    });
-    const data = await res.json();
-    set("ai-summary", data.text || "Pas de réponse.");
-    aiCallCount++;
-    set("token-info", `Haiku ~$0.001/analyse · ${aiCallCount} appel${aiCallCount > 1 ? "s" : ""} cette session`);
-  } catch (err) {
-    set("ai-summary", `⚠ Erreur : ${err.message}`);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+    const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question,dashboard:dashData})});
+    const data=await r.json();
+    set("ai-summary",data.text||"Pas de réponse.");
+    aiCalls++;
+    set("token-info",`Haiku ~$0.001/analyse · ${aiCalls} appel${aiCalls>1?"s":""} cette session`);
+  } catch(err){ set("ai-summary",`⚠ ${err.message}`); }
+  finally { if(btn)btn.disabled=false; }
 }
 
-function quickAsk(q) {
-  const input = $("ai-input");
-  if (input) input.value = q;
-  sendAI();
+function sendAI(){ const q=($("ai-input")?.value||"").trim(); if(q){$("ai-input").value="";callAI(q);} }
+function qa(q){ $("ai-input").value=q; callAI(q); }
+
+// Question Risk-ON/OFF dédiée (toujours posée quelle que soit la saisie)
+function sendRiskOnOff(){
+  callAI("Selon tous les indicateurs disponibles (VIX, courbe des taux 2s10s, spreads HY/IG, Fear & Greed, DXY, or, BTC, délinquance et le score risk calculé), le marché est-il en régime RISK-ON ou RISK-OFF ? Justifie indicateur par indicateur, synthétise en une conclusion claire.");
 }
 
-/* ─────────────────────────────────────────────────
-   EVENTS
-───────────────────────────────────────────────── */
-document.addEventListener("DOMContentLoaded", () => {
-  $("ai-input")?.addEventListener("keydown", e => { if (e.key === "Enter") sendAI(); });
-  $("morning-overlay")?.addEventListener("click", e => {
-    if (e.target === $("morning-overlay")) closeMorning();
-  });
+// Analyse détaillée Risk depuis le panneau dédié
+async function askRiskDetail(){
+  set("ai-summary","⟳ Analyse Risk-ON/OFF détaillée...");
+  try {
+    const r=await fetch("/api/ai/risk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dashboard:dashData})});
+    const d=await r.json();
+    set("ai-summary",d.text||"Pas de réponse.");
+    aiCalls++;
+    set("token-info",`Haiku ~$0.001/analyse · ${aiCalls} appels`);
+    // Scroll vers le panneau IA
+    $("ai-summary")?.scrollIntoView({behavior:"smooth",block:"center"});
+  } catch(err){ set("ai-summary",`⚠ ${err.message}`); }
+}
+
+// ── EVENTS ─────────────────────────────────
+document.addEventListener("DOMContentLoaded",()=>{
+  $("ai-input")?.addEventListener("keydown",e=>{if(e.key==="Enter")sendAI();});
+  $("morning-overlay")?.addEventListener("click",e=>{if(e.target===$("morning-overlay"))closeMorning();});
 });
 
-/* ─────────────────────────────────────────────────
-   INIT + AUTO-REFRESH
-───────────────────────────────────────────────── */
+// ── INIT ───────────────────────────────────
 loadDashboard();
-setInterval(loadDashboard, 5 * 60 * 1000);  // 5 min
+setInterval(loadDashboard, 5*60*1000);
 </script>
 </body>
 </html>
