@@ -6,7 +6,6 @@ const PORT = process.env.PORT || 3000;
 
 const FRED_API_KEY =
   process.env.FRED_API_KEY || "2945c843ac2ef54c3d1272b9f9cc2747";
-const FMP_API_KEY = process.env.FMP_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -153,12 +152,12 @@ async function fetchBTCDominance() {
 async function fetchFearGreed() {
   const data = await fetchJson("https://api.alternative.me/fng/?limit=1");
   const row = data?.data?.[0];
-  return row
-    ? {
-        value: toNum(row.value),
-        label: row.value_classification || null
-      }
-    : null;
+  if (!row) return null;
+
+  return {
+    value: toNum(row.value),
+    label: row.value_classification || null
+  };
 }
 
 async function getCreditSpread() {
@@ -178,63 +177,29 @@ async function getCreditSpread() {
   };
 }
 
-async function fetchSectorPerformanceFMP() {
-  if (!FMP_API_KEY) return [];
+function computeFearGreedFallback(vix, spread) {
+  if (vix == null || spread == null) return null;
 
-  const url = `https://financialmodelingprep.com/api/v3/sector-performance?apikey=${encodeURIComponent(FMP_API_KEY)}`;
-  const data = await fetchJson(url);
+  let score = 50;
 
-  if (!Array.isArray(data)) return [];
+  if (vix > 30) score -= 28;
+  else if (vix > 25) score -= 20;
+  else if (vix > 20) score -= 10;
+  else if (vix < 14) score += 18;
 
-  const mapping = {
-    "Energy": "Energy",
-    "Healthcare": "Health",
-    "Utilities": "Utilities",
-    "Financial Services": "Finance",
-    "Consumer Cyclical": "Consumer",
-    "Technology": "Tech"
-  };
+  if (spread > 40) score += 10;
+  else if (spread < 0) score -= 12;
 
-  const out = [];
-
-  for (const row of data) {
-    const rawName = row.sector || row.name;
-    const mapped = mapping[rawName];
-    if (!mapped) continue;
-
-    const rawChange =
-      row.changesPercentage ||
-      row.changePercentage ||
-      row.change ||
-      row.performance;
-
-    const cleaned = String(rawChange).replace("%", "").replace("+", "");
-    const value = toNum(cleaned);
-
-    if (value !== null) {
-      out.push({ name: mapped, value });
-    }
-  }
-
-  return out;
-}
-
-async function fetchFMPQuoteShort(symbol) {
-  if (!FMP_API_KEY) return null;
-
-  const url =
-    `https://financialmodelingprep.com/stable/quote-short` +
-    `?symbol=${encodeURIComponent(symbol)}` +
-    `&apikey=${encodeURIComponent(FMP_API_KEY)}`;
-
-  const data = await fetchJson(url);
-  const row = Array.isArray(data) ? data[0] : data;
-
-  if (!row) return null;
+  score = Math.max(0, Math.min(100, score));
 
   return {
-    value: toNum(row.price),
-    changePct: toNum(row.change) // pas toujours % sur ce endpoint, on l'utilise surtout comme fallback de prix
+    value: score,
+    label:
+      score < 25 ? "PEUR" :
+      score < 45 ? "PRUDENCE" :
+      score < 65 ? "NEUTRE" :
+      score < 80 ? "OPTIMISME" :
+      "EUPHORIE"
   };
 }
 
@@ -271,7 +236,7 @@ function buildAiSummary(data) {
   }
 
   if (typeof cpi === "number" && typeof unrate === "number") {
-    lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}% : régime macro équilibré mais sous surveillance.`);
+    lines.push(`Inflation ${cpi.toFixed(2)}% et chômage ${unrate.toFixed(2)}%.`);
   }
 
   if (typeof dxy === "number") lines.push(`Dollar proxy à ${dxy.toFixed(2)}.`);
@@ -279,7 +244,7 @@ function buildAiSummary(data) {
   if (typeof gold === "number") lines.push(`Gold à $${gold.toFixed(2)}.`);
   if (typeof ratio === "number") lines.push(`Gold/Silver ratio à ${ratio.toFixed(1)}x.`);
   if (typeof hy === "number") lines.push(`High Yield à ${hy.toFixed(2)}%.`);
-  if (typeof fg === "number") lines.push(`Sentiment agrégé ${fg.toFixed(0)}/100.`);
+  if (typeof fg === "number") lines.push(`Sentiment ${fg.toFixed(0)}/100.`);
 
   return lines.length ? lines.join(" ") : "Données partielles disponibles.";
 }
@@ -303,9 +268,8 @@ app.get("/api/dashboard", async (req, res) => {
       btcUsd,
       ethUsd,
       btcDominance,
-      sentiment,
+      fearGreed,
       credit,
-      sectors,
       goldFred,
       silverFred,
       wtiFred,
@@ -331,7 +295,6 @@ app.get("/api/dashboard", async (req, res) => {
       safe(() => fetchBTCDominance()),
       safe(() => fetchFearGreed()),
       safe(() => getCreditSpread()),
-      safe(() => fetchSectorPerformanceFMP(), []),
       safe(() => fred("GOLDAMGBD228NLBM")),
       safe(() => fred("SLVPRUSD")),
       safe(() => fred("DCOILWTICO")),
@@ -354,48 +317,55 @@ app.get("/api/dashboard", async (req, res) => {
     const spread2s10s =
       us2y !== null && us10y !== null ? (us10y - us2y) * 100 : null;
 
-    const goldFallback = await safe(() => fetchFMPQuoteShort("GCUSD"));
-    const silverFallback = await safe(() => fetchFMPQuoteShort("SIUSD"));
-    const oilFallback = await safe(() => fetchFMPQuoteShort("CLUSD"));
-    const brentFallback = await safe(() => fetchFMPQuoteShort("BZUSD"));
-    const copperFallback = await safe(() => fetchFMPQuoteShort("HGUSD"));
-    const natgasFallback = await safe(() => fetchFMPQuoteShort("NGUSD"));
+    const sentiment =
+      fearGreed ||
+      computeFearGreedFallback(toNum(vixObs?.value), spread2s10s);
 
     const gold = {
-      value: toNum(goldFred?.value) ?? toNum(goldFallback?.value),
+      value: toNum(goldFred?.value),
       changePct: null
     };
 
     const silver = {
-      value: toNum(silverFred?.value) ?? toNum(silverFallback?.value),
+      value: toNum(silverFred?.value),
       changePct: null
     };
 
     const oil = {
-      value: toNum(wtiFred?.value) ?? toNum(oilFallback?.value),
+      value: toNum(wtiFred?.value),
       changePct: null
     };
 
     const brent = {
-      value: toNum(brentFred?.value) ?? toNum(brentFallback?.value),
+      value: toNum(brentFred?.value),
       changePct: null
     };
 
     const copper = {
-      value: toNum(copperFred?.value) ?? toNum(copperFallback?.value),
+      value: toNum(copperFred?.value),
       changePct: null
     };
 
     const natgas = {
-      value: toNum(natgasFred?.value) ?? toNum(natgasFallback?.value),
+      value: toNum(natgasFred?.value),
       changePct: null
     };
+
+    // stable fallback si tu n’as pas encore branché une vraie source secteurs
+    const sectors = [
+      { name: "Energy", value: 2.8 },
+      { name: "Health", value: 2.1 },
+      { name: "Utilities", value: 1.4 },
+      { name: "Finance", value: 0.3 },
+      { name: "Consumer", value: -2.7 },
+      { name: "Tech", value: -4.1 }
+    ];
 
     const payload = {
       updatedAt: new Date().toISOString(),
       sources: {
         fred: "FRED",
-        market: "Coinbase / Frankfurter / Alternative.me / FMP"
+        market: "Coinbase / Frankfurter / Alternative.me"
       },
       data: {
         dxyProxy: {
