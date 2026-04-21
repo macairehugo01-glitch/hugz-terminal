@@ -1,10 +1,11 @@
 {
-  "name": "bloomberg-terminal-v7",
-  "version": "1.0.0",
-  "description": "Terminal macro live dense avec IA",
+  "name": "bloomberg-terminal-macro",
+  "version": "2.0.0",
+  "description": "Terminal macro live — FRED · Coinbase · Yahoo Finance · Anthropic",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "engines": {
     "node": ">=18"
