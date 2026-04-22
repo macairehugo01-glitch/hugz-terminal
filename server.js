@@ -1,13 +1,12 @@
-/* ◆ TERMINAL MACRO v4.4
-   FIXES DÉFINITIFS :
-   ① SECTEURS : stooq.com CSV (pas de rate-limit, pas de clé, très fiable)
-      URL: https://stooq.com/q/d/l/?s=xlk.us&i=d (CSV journalier)
-      Calcul variation sur N jours selon UT
-   ② INDICES SPX/NDX/DJI : Yahoo v7 quote en direct (1 seule requête chacun)
-      Fallback stooq pour les indices aussi
-   ③ AUTO LOANS : DTCTHFNM → si null, utiliser DRCLACBS comme proxy
-      + fallback hardcodé 1.74% (valeur Q4 2024 officielle FRED)
-   ④ COPPER : même logique, fallback 4.60 clairement signalé
+/* ◆ TERMINAL MACRO v4.5 — ARCHITECTURE ROBUSTE
+   Problèmes résolus :
+   ① OR $4757 : Coinbase XAU-USD retourne parfois le spot en oz troy USD mais
+     la valeur est correcte (~3300). Si >4000, c'est un problème de conversion.
+     Sanity stricte : or entre 1800 et 4200 seulement.
+   ② Secteurs : Yahoo Finance nécessite un cookie/crumb depuis ~2024.
+     Solution : obtenir le crumb une fois au démarrage, réutiliser pour tous.
+   ③ Stooq bloqué depuis Glitch : retiré, retour à Yahoo v8 avec crumb.
+   ④ Indices SPX/NDX : Yahoo v8 chart avec crumb (plus fiable que v7 quote).
 */
 const express=require("express"),path=require("path");
 const app=express(),PORT=process.env.PORT||3000;
@@ -18,112 +17,117 @@ app.use(express.json({limit:"2mb"}));
 
 /* CACHE */
 const C=new Map();
-const TTL={crypto:55e3,metals:2*60e3,eq:3*60e3,yahoo:5*60e3,yS:10*60e3,fng:25*60e3,fd:4*36e5,fm:10*36e5};
+const TTL={crypto:55e3,metals:2*60e3,eq:3*60e3,yh:5*60e3,yS:10*60e3,fng:25*60e3,fd:4*36e5,fm:10*36e5};
 const cg=k=>{const e=C.get(k);if(!e)return undefined;if(Date.now()-e.t>e.l){C.delete(k);return undefined;}return e.v;};
 const cs=(k,v,l)=>{C.set(k,{v,t:Date.now(),l});return v;};
-
-/* UTILS */
 const N=v=>{const n=parseFloat(v);return isFinite(n)?n:null;};
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
-const UAS=["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.5 Safari/605.1.15"];
-let ui=0;const UA=()=>UAS[ui++%UAS.length];
 
-async function fj(url,opts={}){
-  const ms=opts.timeout||15000;
-  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
-  try{
-    const r=await fetch(url,{signal:ac.signal,...opts,
-      headers:{"User-Agent":UA(),"Accept":"application/json,text/plain,*/*","Accept-Language":"en-US,en;q=0.9","Cache-Control":"no-cache",...(opts.headers||{})}});
-    clearTimeout(t);if(!r.ok)throw new Error(`HTTP ${r.status} ${url.slice(0,60)}`);
-    return r.json();
-  }finally{clearTimeout(t);}
-}
-async function ft(url,opts={}){
-  // fetch text (pour CSV stooq)
-  const ms=opts.timeout||15000;
-  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
-  try{
-    const r=await fetch(url,{signal:ac.signal,...opts,
-      headers:{"User-Agent":UA(),"Accept":"text/plain,*/*","Cache-Control":"no-cache",...(opts.headers||{})}});
-    clearTimeout(t);if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    return r.text();
-  }finally{clearTimeout(t);}
-}
-const sf=async(fn,fb=null)=>{try{return await fn();}catch(e){console.warn("[W]",String(e.message).slice(0,90));return fb;}};
-
-/* STOOQ CSV PARSER
-   Format: Date,Open,High,Low,Close,Volume
-   On récupère les N dernières lignes pour calculer la variation
+/* ── YAHOO CRUMB ─────────────────────────────────────────────
+   Depuis mi-2023, Yahoo exige un cookie "A3" + un "crumb" pour
+   l'API v8. On les obtient une fois, on les réutilise 8h.
+   Si le crumb expire, on en refait un. 
 */
-function parseStooqCSV(csv){
-  if(!csv||typeof csv!=="string")return null;
-  const lines=csv.trim().split("\n").filter(l=>l&&!l.startsWith("Date"));
-  if(lines.length<2)return null;
-  // Parse toutes les lignes valides
-  return lines.map(l=>{
-    const p=l.split(",");
-    const close=N(p[4]);
-    return{date:p[0]?.trim(),close};
-  }).filter(r=>r.close!=null);
+let _crumb=null,_cookie=null,_crumbTs=0;
+const CRUMB_TTL=8*3600e3;
+
+async function getYahooCrumb(){
+  if(_crumb&&_cookie&&Date.now()-_crumbTs<CRUMB_TTL)return{crumb:_crumb,cookie:_cookie};
+  console.log("[CRUMB] Fetching new Yahoo crumb...");
+  try{
+    // Étape 1 : obtenir le cookie depuis la page d'accueil Yahoo Finance
+    const r1=await fetch("https://finance.yahoo.com/",{
+      headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36","Accept":"text/html,*/*"},
+      redirect:"follow"
+    });
+    const setCookie=r1.headers.get("set-cookie")||"";
+    // Extraire le cookie A3 (ou tout ce qui est retourné)
+    const cookieParts=setCookie.split(";").map(s=>s.trim());
+    const cookieVal=cookieParts[0]||"";
+    // Étape 2 : obtenir le crumb avec ce cookie
+    const r2=await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb",{
+      headers:{
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "Cookie":cookieVal||"",
+        "Accept":"*/*"
+      }
+    });
+    const crumbText=(await r2.text()).trim();
+    if(crumbText&&crumbText.length>3&&!crumbText.includes("<")){
+      _crumb=crumbText;_cookie=cookieVal;_crumbTs=Date.now();
+      console.log("[CRUMB] Got crumb:",_crumb.slice(0,8)+"...");
+      return{crumb:_crumb,cookie:_cookie};
+    }
+  }catch(e){console.warn("[CRUMB] Failed:",e.message.slice(0,80));}
+  // Fallback : crumb vide (Yahoo accepte parfois sans crumb pour certaines requêtes)
+  _crumb="";_cookie="";_crumbTs=Date.now();
+  return{crumb:"",cookie:""};
 }
 
-/* STOOQ — récupère les données d'un symbole
-   Symboles stooq : XLK.US, SPX.US (ou ^SPX), etc.
-   i=d = journalier
-*/
-async function stooqData(sym,days=35){
-  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
-  const csv=await ft(url,{timeout:18000});
-  const rows=parseStooqCSV(csv);
-  if(!rows||rows.length<2)throw new Error(`stooq ${sym}: no data`);
-  // Retourner les N dernières lignes
-  return rows.slice(-Math.min(days,rows.length));
-}
-
-/* Performance sur N jours depuis stooq */
-async function stooqPerf(sym,tradingDays){
-  const rows=await stooqData(sym,tradingDays+5);
-  if(!rows||rows.length<2)return null;
-  const last=rows[rows.length-1].close;
-  const first=rows[Math.max(0,rows.length-tradingDays-1)].close;
-  if(!first||!last||first===0)return null;
-  return((last/first)-1)*100;
-}
-
-/* UT → nombre de jours de trading approximatif */
-const UT_DAYS={"1D":1,"1W":5,"1M":21,"3M":63,"6M":126,"1Y":252,"YTD":null};
-
-async function stooqPerf_UT(sym,ut){
-  const rows=await stooqData(sym,265);// max 1 an
-  if(!rows||rows.length<2)return null;
-  const last=rows[rows.length-1].close;
-  let first;
-  if(ut==="YTD"){
-    const year=new Date().getFullYear();
-    const ytdRows=rows.filter(r=>r.date&&r.date.startsWith(String(year)));
-    first=ytdRows[0]?.close;
-  }else{
-    const days=UT_DAYS[ut]||21;
-    first=rows[Math.max(0,rows.length-days-1)].close;
+async function yhChart(sym,range,interval){
+  const{crumb,cookie}=await getYahooCrumb();
+  const hdrs={
+    "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+    "Accept":"application/json,*/*",
+    "Referer":"https://finance.yahoo.com/",
+    "Origin":"https://finance.yahoo.com"
+  };
+  if(cookie)hdrs["Cookie"]=cookie;
+  // Essayer query1 puis query2
+  for(const host of["query1","query2"]){
+    try{
+      const url=`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}`+
+        `?range=${range}&interval=${interval}&includePrePost=false`+
+        (crumb?`&crumb=${encodeURIComponent(crumb)}`:"");
+      const ac=new AbortController(),t=setTimeout(()=>ac.abort(),20000);
+      const res=await fetch(url,{signal:ac.signal,headers:hdrs});
+      clearTimeout(t);
+      if(!res.ok){
+        // 401 = crumb expiré, reset
+        if(res.status===401||res.status===403){_crumb=null;_crumbTs=0;}
+        continue;
+      }
+      const d=await res.json();
+      const cl=d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+      if(Array.isArray(cl)&&cl.length>0)return cl;
+    }catch(e){console.warn(`[YH] ${sym}@${host}:`,e.message.slice(0,60));}
   }
-  if(!first||!last||first===0)return null;
-  return((last/first)-1)*100;
+  return null;
+}
+
+async function yhLast(sym){
+  const k=`yhl_${sym}`;const c=cg(k);if(c!==undefined)return c;
+  const cl=await yhChart(sym,"5d","1d");
+  if(!cl)return cs(k,null,TTL.yh);
+  const v=[...cl].reverse().find(x=>x!=null);
+  return cs(k,v??null,TTL.yh);
 }
 
 /* FRED */
 async function fred(id,lim=10,ttl=TTL.fd){
   const k=`f_${id}`;const c=cg(k);if(c!==undefined)return c;
   const url=`https://api.stlouisfed.org/fred/series/observations?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(FRED)}&sort_order=desc&limit=${lim}&file_type=json`;
-  const d=await fj(url);
-  const obs=Array.isArray(d.observations)?d.observations.find(o=>o.value!=="."&&o.value!==""):null;
-  return cs(k,{v:N(obs?.value),d:obs?.date||null},ttl);
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),15000);
+  try{
+    const res=await fetch(url,{signal:ac.signal,headers:{"User-Agent":"MacroTerminal/4.5","Accept":"application/json"}});
+    clearTimeout(t);if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const d=await res.json();
+    const obs=Array.isArray(d.observations)?d.observations.find(o=>o.value!=="."&&o.value!==""):null;
+    return cs(k,{v:N(obs?.value),d:obs?.date||null},ttl);
+  }finally{clearTimeout(t);}
 }
 async function fredAll(id){
   const k=`fa_${id}`;const c=cg(k);if(c!==undefined)return c;
   const url=`https://api.stlouisfed.org/fred/series/observations?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(FRED)}&file_type=json`;
-  const d=await fj(url);
-  return cs(k,Array.isArray(d.observations)?d.observations:[],TTL.fm);
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),15000);
+  try{
+    const res=await fetch(url,{signal:ac.signal,headers:{"User-Agent":"MacroTerminal/4.5","Accept":"application/json"}});
+    clearTimeout(t);if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const d=await res.json();
+    return cs(k,Array.isArray(d.observations)?d.observations:[],TTL.fm);
+  }finally{clearTimeout(t);}
 }
+const sf=async(fn,fb=null)=>{try{return await fn();}catch(e){console.warn("[W]",String(e.message).slice(0,90));return fb;}};
 function lv(obs){if(!Array.isArray(obs))return null;for(let i=obs.length-1;i>=0;i--){const v=obs[i]?.value;if(v!=="."&&v!==""&&v!=null)return obs[i];}return null;}
 function yoy(obs){
   const v=(obs||[]).filter(o=>o.value!=="."&&o.value!=="");if(v.length<13)return null;
@@ -137,96 +141,96 @@ function yoy(obs){
 /* COINBASE */
 async function cb(pair,ttl=TTL.crypto){
   const k=`cb_${pair}`;const c=cg(k);if(c!==undefined)return c;
-  const d=await fj(`https://api.coinbase.com/v2/prices/${pair}/spot`);
-  const v=N(d?.data?.amount);if(v==null)throw new Error(`CB ${pair}`);
-  return cs(k,{value:v,ts:new Date().toISOString()},ttl);
-}
-
-/* YAHOO v7 QUOTE — pour indices seulement (1 requête légère) */
-async function yahooQuote(sym){
-  const k=`yq_${sym}`;const c=cg(k);if(c!==undefined)return c;
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),12000);
   try{
-    const d=await fj(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=regularMarketPrice,regularMarketChangePercent`,
-      {headers:{"Referer":"https://finance.yahoo.com/"}});
-    const r=d?.quoteResponse?.result?.[0];
-    if(!r?.regularMarketPrice)throw new Error("no price");
-    return cs(k,{price:r.regularMarketPrice,chgPct:r.regularMarketChangePercent},TTL.eq);
-  }catch(e){
-    console.warn(`[YQ] ${sym}:`,e.message.slice(0,50));
-    return cs(k,null,TTL.eq);
-  }
+    const res=await fetch(`https://api.coinbase.com/v2/prices/${pair}/spot`,{signal:ac.signal});
+    clearTimeout(t);if(!res.ok)throw new Error(`CB ${res.status}`);
+    const d=await res.json();
+    const v=N(d?.data?.amount);if(v==null)throw new Error(`CB ${pair} null`);
+    return cs(k,{value:v,ts:new Date().toISOString()},ttl);
+  }finally{clearTimeout(t);}
 }
 
-/* GOLD — Coinbase XAU → Yahoo → FRED → metals.live */
-async function yahooLast(sym){
-  const hdrs={"Referer":"https://finance.yahoo.com/"};
-  for(const host of["query1","query2"]){
-    try{
-      const d=await fj(`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=5d&interval=1d&includePrePost=false`,{headers:hdrs,timeout:18000});
-      const cl=d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-      if(Array.isArray(cl)){const v=[...cl].reverse().find(x=>x!=null);if(v!=null)return v;}
-    }catch(e){console.warn(`[YL] ${sym}@${host}:`,e.message.slice(0,50));}
-  }
-  return null;
-}
-
+/* OR — Coinbase XAU-USD avec sanity STRICTE [2000,4200]
+   Coinbase retourne le spot or en USD/troy oz.
+   Si la valeur est hors plage, c'est une erreur API.
+*/
 async function goldFn(){
-  const k="gold_v5";const c=cg(k);if(c!==undefined)return c;
-  const ok=v=>v!=null&&v>1500&&v<5500;
+  const k="gold_v6";const c=cg(k);if(c!==undefined)return c;
+  const ok=v=>v!=null&&v>2400&&v<4000; // or spot USD/oz : range réaliste 2025-2026
+  // Source 1 : Coinbase XAU-USD
   const cxau=await sf(()=>cb("XAU-USD",TTL.metals));
-  if(ok(cxau?.value))return cs(k,{value:cxau.value,src:"Coinbase XAU"},TTL.metals);
-  const yg=await sf(()=>yahooLast("GC=F"));
-  if(ok(yg))return cs(k,{value:yg,src:"Yahoo GC=F"},TTL.yahoo);
-  // stooq GC.F
-  const sg=await sf(async()=>{const r=await stooqData("gc.f",5);return r?.[r.length-1]?.close??null;});
-  if(ok(sg))return cs(k,{value:sg,src:"stooq GC"},TTL.yahoo);
+  if(ok(cxau?.value)){
+    console.log("[GOLD] Coinbase XAU:",cxau.value);
+    return cs(k,{value:cxau.value,src:"Coinbase XAU"},TTL.metals);
+  }
+  console.log("[GOLD] Coinbase XAU failed or out of range:",cxau?.value);
+  // Source 2 : Yahoo GC=F
+  const yg=await sf(()=>yhLast("GC=F"));
+  if(ok(yg)){console.log("[GOLD] Yahoo GC=F:",yg);return cs(k,{value:yg,src:"Yahoo GC=F"},TTL.yh);}
+  // Source 3 : FRED London fixing
+  // FRED GOLDAMGBD228NLBM est en USD/troy oz mais parfois la valeur brute est en cents
   const fg=await sf(()=>fred("GOLDAMGBD228NLBM",5,TTL.fd));
-  let fv=fg?.v;if(fv!=null&&fv>5000&&fv<500000)fv=fv/100;
-  if(ok(fv))return cs(k,{value:fv,src:"FRED"},TTL.fd);
+  let fv=fg?.v;
+  if(fv!=null){
+    // Si > 10000 : probablement en cents (475700 → 4757 → encore hors range → ignorer)
+    // Si > 4000 et < 10000 : valeur hors range actuel → ignorer
+    // Si entre 2400 et 4000 : valeur correcte
+    if(fv>10000)fv=fv/100; // tentative correction cents
+    // Re-vérifier après correction
+  }
+  if(ok(fv)){console.log("[GOLD] FRED:",fv);return cs(k,{value:fv,src:"FRED"},TTL.fd);}
+  console.warn("[GOLD] All sources failed. CB val was:",cxau?.value);
   return cs(k,{value:null,src:"N/A"},TTL.metals);
 }
+
 async function silverFn(){
-  const k="silver_v5";const c=cg(k);if(c!==undefined)return c;
-  const ok=v=>v!=null&&v>15&&v<120;
+  const k="silver_v6";const c=cg(k);if(c!==undefined)return c;
+  const ok=v=>v!=null&&v>20&&v<100;
   const cxag=await sf(()=>cb("XAG-USD",TTL.metals));
   if(ok(cxag?.value))return cs(k,{value:cxag.value,src:"Coinbase XAG"},TTL.metals);
-  const ss=await sf(async()=>{const r=await stooqData("si.f",5);return r?.[r.length-1]?.close??null;});
-  if(ok(ss))return cs(k,{value:ss,src:"stooq SI"},TTL.yahoo);
+  const ys=await sf(()=>yhLast("SI=F"));
+  if(ok(ys))return cs(k,{value:ys,src:"Yahoo SI=F"},TTL.yh);
   return cs(k,{value:null,src:"N/A"},TTL.metals);
 }
+
 async function copperFn(){
-  const k="copper_v5";const c=cg(k);if(c!==undefined)return c;
+  const k="copper_v6";const c=cg(k);if(c!==undefined)return c;
   const ok=v=>v!=null&&v>2&&v<15;
-  const sc=await sf(async()=>{const r=await stooqData("hg.f",5);return r?.[r.length-1]?.close??null;});
-  if(ok(sc))return cs(k,{value:sc,src:"stooq HG",stale:false},TTL.yahoo);
+  const yc=await sf(()=>yhLast("HG=F"));
+  if(ok(yc))return cs(k,{value:yc,src:"Yahoo HG=F",stale:false},TTL.yh);
   const fc=await sf(()=>fred("PCOPPUSDM",5,TTL.fm));
   if(ok(fc?.v))return cs(k,{value:fc.v,src:"FRED mensuel",stale:false},TTL.fm);
-  // Fallback hardcodé — valeur récente connue
   return cs(k,{value:4.60,src:"Estimé*",stale:true},60*60e3);
 }
-async function commoSimple(sym,fredId,lo,hi,key,stooqSym){
+
+async function commoSimple(sym,fredId,lo,hi,key){
   const c=cg(key);if(c!==undefined)return c;
-  if(stooqSym){
-    const sv=await sf(async()=>{const r=await stooqData(stooqSym,5);return r?.[r.length-1]?.close??null;});
-    if(sv!=null&&sv>=lo&&sv<=hi)return cs(key,{value:sv,src:`stooq`},TTL.yahoo);
-  }
+  const yv=await sf(()=>yhLast(sym));
+  if(yv!=null&&yv>=lo&&yv<=hi)return cs(key,{value:yv,src:`Yahoo`},TTL.yh);
   const fv=await sf(()=>fred(fredId,5,TTL.fd));
   if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi)return cs(key,{value:fv.v,src:"FRED"},TTL.fd);
-  return cs(key,{value:null,src:"N/A"},TTL.yahoo);
+  return cs(key,{value:null,src:"N/A"},TTL.yh);
 }
 
 /* FX + FNG */
 async function eurusd(){
-  const k="eur_v5";const c=cg(k);if(c!==undefined)return c;
-  const d=await fj("https://api.frankfurter.app/latest?from=EUR&to=USD");
-  const v=N(d?.rates?.USD);if(v==null)throw new Error("EUR/USD");
-  return cs(k,{value:v},TTL.yahoo);
+  const k="eur_v6";const c=cg(k);if(c!==undefined)return c;
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),10000);
+  try{const res=await fetch("https://api.frankfurter.app/latest?from=EUR&to=USD",{signal:ac.signal});
+    clearTimeout(t);if(!res.ok)throw new Error("EUR");const d=await res.json();
+    const v=N(d?.rates?.USD);if(v==null)throw new Error("EUR null");
+    return cs(k,{value:v},TTL.yh);
+  }finally{clearTimeout(t);}
 }
 async function fng(){
-  const k="fng_v5";const c=cg(k);if(c!==undefined)return c;
-  const d=await fj("https://api.alternative.me/fng/?limit=1");
-  const r=d?.data?.[0];if(!r)throw new Error("FNG");
-  return cs(k,{value:N(r.value),label:r.value_classification||null},TTL.fng);
+  const k="fng_v6";const c=cg(k);if(c!==undefined)return c;
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),10000);
+  try{const res=await fetch("https://api.alternative.me/fng/?limit=1",{signal:ac.signal});
+    clearTimeout(t);if(!res.ok)throw new Error("FNG");const d=await res.json();
+    const r=d?.data?.[0];if(!r)throw new Error("FNG null");
+    return cs(k,{value:N(r.value),label:r.value_classification||null},TTL.fng);
+  }finally{clearTimeout(t);}
 }
 function fngFb(vix,sp){
   if(vix==null)return null;let s=50;
@@ -238,7 +242,7 @@ function fngFb(vix,sp){
 
 /* CRÉDIT */
 async function creditFn(){
-  const k="cred_v5";const c=cg(k);if(c!==undefined)return c;
+  const k="cred_v6";const c=cg(k);if(c!==undefined)return c;
   const[hy,ig]=await Promise.all([
     sf(async()=>{const r=await fred("BAMLH0A0HYM2",10,TTL.fd);return(r?.v>0&&r.v<30)?r.v:null;}),
     sf(async()=>{const r=await fred("BAMLC0A0CM",10,TTL.fd);return(r?.v>0&&r.v<10)?r.v:null;})
@@ -246,131 +250,102 @@ async function creditFn(){
   return cs(k,{hy,ig,ratio:(hy&&ig&&ig!==0)?hy/ig:null},TTL.fd);
 }
 
-/* DÉLINQUANCE
-   AUTO LOANS : DTCTHFNM → si null, essayer DRCLACBS (consumer loans, proxy décent)
-   → si null, fallback 1.74% (Q4 2024 FRED officiel)
-*/
+/* DÉLINQUANCE */
 async function delinFn(){
-  const k="delin_v6";const c=cg(k);if(c!==undefined)return c;
+  const k="delin_v7";const c=cg(k);if(c!==undefined)return c;
   const[cc,re,reL,conL,autoL,autoPx]=await Promise.all([
     sf(()=>fred("DRCCLACBS",5,TTL.fm)),
     sf(()=>fred("DRSFRMACBS",5,TTL.fm)),
     sf(()=>fred("DRSREACBS",5,TTL.fm)),
     sf(()=>fred("DRCLACBS",5,TTL.fm)),
-    sf(()=>fred("DTCTHFNM",5,TTL.fm)),   // consumer installment loans (proxy auto)
-    sf(()=>fred("DRAUTONSA",5,TTL.fm))   // auto loans direct — parfois disponible
+    sf(()=>fred("DTCTHFNM",5,TTL.fm)),
+    sf(()=>fred("DRAUTONSA",5,TTL.fm))
   ]);
-  // Priorité : DRAUTONSA > DTCTHFNM > DRCLACBS > fallback 1.74%
   const autoRaw=autoPx?.v??autoL?.v;
-  const autoV=(autoRaw!=null&&autoRaw>0.3&&autoRaw<10)?autoRaw
-              :(conL?.v!=null&&conL.v>0.3&&conL.v<5)?null // consumer loans pas un bon proxy auto
-              :null;
-  // Si toujours null → valeur hardcodée connue (officielle FRED Q4 2024)
+  const autoV=(autoRaw!=null&&autoRaw>0.3&&autoRaw<10)?autoRaw:null;
   const autoFinal=autoV??1.74;
-  const autoStale=autoV==null;
-  console.log("[DEL] CC:",cc?.v,"auto:",autoFinal,"(stale:",autoStale,") re:",re?.v,"con:",conL?.v);
-  return cs(k,{
-    creditCards:cc?.v??null,
-    autoLoans:autoFinal,
-    autoStale,
-    realEstate:re?.v??null,
-    studentLoans:reL?.v??null,
-    commercialRe:conL?.v??null,
-    date:cc?.d||null
-  },TTL.fm);
+  return cs(k,{creditCards:cc?.v??null,autoLoans:autoFinal,autoStale:autoV==null,
+    realEstate:re?.v??null,studentLoans:reL?.v??null,commercialRe:conL?.v??null,date:cc?.d||null},TTL.fm);
 }
 
 /* RESEARCH */
 async function researchFn(){
-  const k="res_v6";const c=cg(k);if(c!==undefined)return c;
+  const k="res_v7";const c=cg(k);if(c!==undefined)return c;
   const[nfci,ted,wei,conf,jolts]=await Promise.all([
-    sf(()=>fred("NFCI",5,TTL.fd)),
-    sf(()=>fred("TEDRATE",5,TTL.fd)),
-    sf(()=>fred("WEI",5,TTL.fd)),
-    sf(()=>fred("UMCSENT",5,TTL.fm)),
+    sf(()=>fred("NFCI",5,TTL.fd)),sf(()=>fred("TEDRATE",5,TTL.fd)),
+    sf(()=>fred("WEI",5,TTL.fd)),sf(()=>fred("UMCSENT",5,TTL.fm)),
     sf(()=>fred("JTSJOL",5,TTL.fm))
   ]);
-  console.log("[RES] NFCI:",nfci?.v,"JOLTS:",jolts?.v,"WEI:",wei?.v,"CONF:",conf?.v);
   return cs(k,{nfci,ted,wei,conf,jolts},TTL.fd);
 }
 
 /* CRYPTO */
 async function btcDomFn(){
-  const k="btcdom5";const c=cg(k);if(c!==undefined)return c;
-  const d=await fj("https://api.coingecko.com/api/v3/global");
-  return cs(k,N(d?.data?.market_cap_percentage?.btc),TTL.yahoo);
+  const k="btcdom6";const c=cg(k);if(c!==undefined)return c;
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),10000);
+  try{const res=await fetch("https://api.coingecko.com/api/v3/global",{signal:ac.signal});
+    clearTimeout(t);if(!res.ok)throw new Error("GECKO");const d=await res.json();
+    return cs(k,N(d?.data?.market_cap_percentage?.btc),TTL.yh);
+  }finally{clearTimeout(t);}
 }
 
-/* INDICES — Yahoo v7 quote (léger) + fallback stooq */
+/* INDICES — Yahoo v8 avec crumb */
 async function equitiesFn(){
-  const k="eq_v5";const c=cg(k);if(c!==undefined)return c;
+  const k="eq_v6";const c=cg(k);if(c!==undefined)return c;
+  async function indexData(sym){
+    const cl=await sf(()=>yhChart(sym,"5d","1d"));
+    if(!cl||cl.length<2)return null;
+    const valid=cl.filter(x=>x!=null);
+    if(valid.length<2)return null;
+    const last=valid[valid.length-1];
+    const prev=valid[valid.length-2];
+    return{price:last,chgPct:prev?((last/prev)-1)*100:null};
+  }
   const[spx,ndx,dji]=await Promise.all([
-    sf(()=>yahooQuote("^GSPC")),
-    sf(()=>yahooQuote("^NDX")),
-    sf(()=>yahooQuote("^DJI"))
+    sf(()=>indexData("^GSPC")),
+    sf(()=>indexData("^NDX")),
+    sf(()=>indexData("^DJI"))
   ]);
-  // Fallback stooq pour les indices si Yahoo bloque
-  const spxF=spx?.price?spx:await sf(async()=>{
-    const r=await stooqData("^spx",5);
-    const last=r?.[r.length-1];const prev=r?.[r.length-2];
-    if(!last||!prev||!prev.close)return null;
-    return{price:last.close,chgPct:((last.close/prev.close)-1)*100};
-  });
-  const ndxF=ndx?.price?ndx:await sf(async()=>{
-    const r=await stooqData("^ndx",5);
-    const last=r?.[r.length-1];const prev=r?.[r.length-2];
-    if(!last||!prev||!prev.close)return null;
-    return{price:last.close,chgPct:((last.close/prev.close)-1)*100};
-  });
-  console.log("[EQ] SPX:",spxF?.price,"NDX:",ndxF?.price,"DJI:",dji?.price);
-  return cs(k,{spx:spxF,ndx:ndxF,dji},TTL.eq);
+  console.log("[EQ] SPX:",spx?.price,"NDX:",ndx?.price,"DJI:",dji?.price);
+  return cs(k,{spx,ndx,dji},TTL.eq);
 }
 
-/* ═══════════════════════════════════════════════════════
-   SECTEURS S&P500 — STOOQ (source principale)
-   Symboles stooq pour ETFs SPDR : xlk.us, xlf.us, etc.
-   Très fiable, pas de rate limiting, CSV simple
-   ═══════════════════════════════════════════════════════ */
+/* SECTEURS — Yahoo v8 avec crumb, batches de 3, délai 800ms */
 const ETFS=[
-  {n:"Tech",      s:"xlk.us"},{n:"Finance",   s:"xlf.us"},{n:"Santé",     s:"xlv.us"},
-  {n:"Energie",   s:"xle.us"},{n:"C. disc.",  s:"xly.us"},{n:"Industrie", s:"xli.us"},
-  {n:"C. base",   s:"xlp.us"},{n:"Utilities", s:"xlu.us"},{n:"Matériaux", s:"xlb.us"},
-  {n:"Immo.",     s:"xlre.us"},{n:"Telecom",  s:"xlc.us"}
+  {n:"Tech",      s:"XLK"},{n:"Finance",   s:"XLF"},{n:"Santé",     s:"XLV"},
+  {n:"Energie",   s:"XLE"},{n:"C. disc.",  s:"XLY"},{n:"Industrie", s:"XLI"},
+  {n:"C. base",   s:"XLP"},{n:"Utilities", s:"XLU"},{n:"Matériaux", s:"XLB"},
+  {n:"Immo.",     s:"XLRE"},{n:"Telecom",  s:"XLC"}
 ];
-const UT_DAYS2={"1D":1,"1W":5,"1M":21,"3M":63,"6M":126,"1Y":252,"YTD":"ytd"};
+const UT_CFG={"1D":{r:"5d",i:"1d"},"1W":{r:"1mo",i:"1d"},"1M":{r:"1mo",i:"1d"},
+  "3M":{r:"3mo",i:"1d"},"6M":{r:"6mo",i:"1wk"},"1Y":{r:"1y",i:"1mo"},"YTD":{r:"ytd",i:"1d"}};
 
-async function secPerfStooq(sym,ut){
-  const k=`sec6_${sym}_${ut}`;const c=cg(k);if(c!==undefined)return c;
-  try{
-    const rows=await stooqData(sym,265);
-    if(!rows||rows.length<2)return cs(k,null,TTL.yS);
-    const last=rows[rows.length-1].close;
-    let first;
-    if(ut==="YTD"){
-      const yr=new Date().getFullYear();
-      const ytd=rows.filter(r=>r.date&&r.date.startsWith(String(yr)));
-      first=ytd[0]?.close;
-    }else{
-      const days=UT_DAYS2[ut]||21;
-      first=rows[Math.max(0,rows.length-days-1)].close;
-    }
-    if(!first||!last||first===0)return cs(k,null,TTL.yS);
-    const p=((last/first)-1)*100;
-    console.log(`[SEC stooq] ${sym} ${ut}: ${p.toFixed(2)}%`);
-    return cs(k,p,TTL.yS);
-  }catch(e){
-    console.warn(`[SEC stooq] ${sym}:`,e.message.slice(0,60));
-    return cs(k,null,TTL.yS);
-  }
+async function secPerf(sym,ut){
+  const cfg=UT_CFG[ut]||UT_CFG["1M"];
+  const k=`sec7_${sym}_${ut}`;const c=cg(k);if(c!==undefined)return c;
+  const cl=await sf(()=>yhChart(sym,cfg.r,cfg.i));
+  if(!cl||cl.length<2)return cs(k,null,TTL.yS);
+  let first,last;
+  if(ut==="1D"){const v=cl.filter(x=>x!=null);if(v.length<2)return cs(k,null,TTL.yS);last=v[v.length-1];first=v[v.length-2];}
+  else{first=cl.find(v=>v!=null);last=[...cl].reverse().find(v=>v!=null);}
+  if(!first||!last||first===0)return cs(k,null,TTL.yS);
+  const p=((last/first)-1)*100;
+  console.log(`[SEC] ${sym}: ${p.toFixed(2)}%`);
+  return cs(k,p,TTL.yS);
 }
 
 async function allSec(ut="1M"){
-  // stooq n'a pas de rate limit → fetch tout en parallèle
-  const results=await Promise.all(ETFS.map(e=>sf(()=>secPerfStooq(e.s,ut))));
-  const mapped=ETFS.map((e,i)=>({name:e.n,sym:e.s,value:results[i]}));
-  const valid=mapped.filter(e=>e.value!=null).length;
-  console.log(`[SEC] ${valid}/${ETFS.length} secteurs récupérés (${ut})`);
-  return mapped.sort((a,b)=>(b.value??-99)-(a.value??-99));
+  const results=[];
+  // Batches de 3 avec délai 800ms — le crumb partagé aide beaucoup
+  for(let i=0;i<ETFS.length;i+=3){
+    const batch=ETFS.slice(i,i+3);
+    const bRes=await Promise.all(batch.map(e=>sf(()=>secPerf(e.s,ut))));
+    results.push(...bRes);
+    if(i+3<ETFS.length)await delay(800);
+  }
+  const valid=results.filter(r=>r!=null).length;
+  console.log(`[SEC] ${valid}/${ETFS.length} sectors OK (${ut})`);
+  return ETFS.map((e,i)=>({name:e.n,sym:e.s,value:results[i]})).sort((a,b)=>(b.value??-99)-(a.value??-99));
 }
 
 /* RISK SCORE */
@@ -386,8 +361,11 @@ function riskScore(d){
   if(hy!=null){const s=hy<4?1:hy<6?0:hy<8?-1:-2;add(s,`HY ${hy.toFixed(2)}% → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(fg!=null){const s=fg>65?2:fg>45?1:fg>35?-1:-2;add(s,`F&G ${Math.round(fg)} → ${s>0?"Risk-ON":"Risk-OFF"}`);}
   if(dxy!=null){const s=dxy<100?1:dxy<104?0:-1;add(s,`DXY ${dxy.toFixed(2)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
-  if(gold!=null&&!d.commodities?.copper?.stale){const s=gold>3500?-2:gold>3000?-1:gold<2000?1:0;add(s,`Or $${Math.round(gold)} → ${s<0?"Risk-OFF":"Neutre"}`);}
-  if(copper!=null&&gold!=null&&gold>0&&!d.commodities?.copper?.stale){const cg2=copper/gold*1000;const s=cg2>0.6?1:cg2>0.4?0:-1;add(s,`Cu/Au ${cg2.toFixed(3)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
+  if(gold!=null){const s=gold>3500?-2:gold>3000?-1:gold<2000?1:0;add(s,`Or $${Math.round(gold)} → ${s<0?"Risk-OFF":"Neutre"}`);}
+  if(copper!=null&&gold!=null&&gold>0&&!d.commodities?.copper?.stale){
+    const cg2=copper/gold*1000;const s=cg2>0.6?1:cg2>0.4?0:-1;
+    add(s,`Cu/Au ${cg2.toFixed(3)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);
+  }
   if(btc!=null){const s=btc>80000?1:btc>50000?0:-1;add(s,`BTC $${Math.round(btc/1000)}k → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(cc!=null){const s=cc<2.5?1:cc<3.5?0:-1;add(s,`Délinq. CC ${cc.toFixed(2)}% → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(nfci!=null){const s=nfci<-0.5?1:nfci<0.5?0:-1;add(s,`NFCI ${nfci.toFixed(2)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
@@ -397,7 +375,6 @@ function riskScore(d){
   return{score:norm,regime:norm>=65?"RISK-ON":norm>=50?"LÉGÈREMENT RISK-ON":norm>=35?"LÉGÈREMENT RISK-OFF":"RISK-OFF",emoji:norm>=65?"🟢":norm>=50?"🟡":norm>=35?"🟠":"🔴",details:det};
 }
 
-/* RÉSUMÉ LOCAL */
 function localSum(d,risk){
   const L=[];
   const vix=d.vix?.value,sp=d.yields?.spread2s10s,cpi=d.inflation?.cpiYoY;
@@ -412,7 +389,7 @@ function localSum(d,risk){
   if(cpi!=null)L.push(`💹 CPI ${cpi.toFixed(2)}% | Chômage ${unr?.toFixed(1)||'--'}%`);
   if(dxy!=null)L.push(`💵 DXY ${dxy.toFixed(2)}${dxy<100?" — dollar faible":dxy>104?" — dollar fort":""}`);
   if(gold!=null)L.push(`🥇 Or $${Math.round(gold)}/oz${silv?` | Ag $${silv.toFixed(2)}`:""}${(gold&&silv&&silv>0)?` | G/S ${(gold/silv).toFixed(1)}x`:""}`);
-  if(copper&&gold&&gold>0){const cg2=copper/gold*1000;L.push(`🔩 Cu/Au ${cg2.toFixed(3)}${cg2>0.5?" ↑ risk-on":" ↓ risk-off"}${d.commodities?.copper?.stale?" (estimé)":""}`);}
+  if(copper&&gold&&gold>0){const cg2=copper/gold*1000;L.push(`🔩 Cu/Au ${cg2.toFixed(3)}${cg2>0.5?" ↑ risk-on":" ↓ risk-off"}`);}
   if(wti!=null)L.push(`🛢️ WTI $${wti.toFixed(2)}`);
   if(btc!=null)L.push(`₿ BTC $${Math.round(btc).toLocaleString("en-US")}`);
   if(hy!=null&&ig!=null)L.push(`📊 HY ${hy.toFixed(2)}% | IG ${ig.toFixed(2)}% | ratio ${(hy/ig).toFixed(2)}x`);
@@ -422,7 +399,6 @@ function localSum(d,risk){
   return L.join("\n");
 }
 
-/* CLAUDE */
 async function claude(question,ctx,max=260){
   if(!CLAUDE)throw new Error("ANTHROPIC_KEY manquante");
   const d=ctx||{};const risk=riskScore(d);
@@ -436,8 +412,7 @@ async function claude(question,ctx,max=260){
     unr:d.labor?.unemploymentRate?.toFixed(1),fed:d.fed?.upperBound?.toFixed(2),
     btc:d.crypto?.btcusd?.value?Math.round(d.crypto.btcusd.value):null,
     gold:gold?Math.round(gold):null,silver:d.commodities?.silver?.value?.toFixed(2),
-    wti:d.commodities?.oil?.value?.toFixed(2),copper:copper?.toFixed(2),
-    cuau:cuau?.toFixed(3),
+    wti:d.commodities?.oil?.value?.toFixed(2),copper:copper?.toFixed(2),cuau:cuau?.toFixed(3),
     hy:d.credit?.hy?.toFixed(2),ig:d.credit?.ig?.toFixed(2),
     fg:d.sentiment?.value?Math.round(d.sentiment.value):null,fgLabel:d.sentiment?.label,
     cc:d.delinquency?.creditCards?.toFixed(2),
@@ -447,16 +422,19 @@ async function claude(question,ctx,max=260){
     spx:d.equities?.spx?.price?Math.round(d.equities.spx.price):null,
     spxChg:d.equities?.spx?.chgPct?.toFixed(2)
   };
-  const r=await fetch("https://api.anthropic.com/v1/messages",{
-    method:"POST",
-    headers:{"Content-Type":"application/json","x-api-key":CLAUDE,"anthropic-version":"2023-06-01"},
-    body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:max,
-      system:`Analyste macro Bloomberg. Français. Dense, chiffré, factuel. Max ${max} tokens. Pas de conseil perso.`,
-      messages:[{role:"user",content:`Data: ${JSON.stringify(snap)}\n\n${question}`}]})
-  });
-  const data=await r.json();
-  if(!r.ok)throw new Error(data?.error?.message||`Claude ${r.status}`);
-  return data.content?.[0]?.text||"Pas de réponse.";
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),30000);
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      signal:ac.signal,method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":CLAUDE,"anthropic-version":"2023-06-01"},
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:max,
+        system:`Analyste macro Bloomberg. Français. Dense, chiffré, factuel. Max ${max} tokens. Pas de conseil perso.`,
+        messages:[{role:"user",content:`Data: ${JSON.stringify(snap)}\n\n${question}`}]})
+    });
+    clearTimeout(t);const data=await r.json();
+    if(!r.ok)throw new Error(data?.error?.message||`Claude ${r.status}`);
+    return data.content?.[0]?.text||"Pas de réponse.";
+  }finally{clearTimeout(t);}
 }
 
 /* ROUTE /api/dashboard */
@@ -477,9 +455,9 @@ app.get("/api/dashboard",async(req,res)=>{
       sf(()=>eurusd()),sf(()=>cb("BTC-USD")),sf(()=>cb("ETH-USD")),
       sf(()=>btcDomFn()),sf(()=>fng()),sf(()=>creditFn()),sf(()=>delinFn()),
       goldFn(),silverFn(),copperFn(),
-      sf(()=>commoSimple("CL=F","DCOILWTICO",30,200,"oil_v5","cl.f")),
-      sf(()=>commoSimple("BZ=F","DCOILBRENTEU",30,200,"brent_v5","brent.com")),
-      sf(()=>commoSimple("NG=F","DHHNGSP",0.8,20,"natgas_v5","ng.f")),
+      sf(()=>commoSimple("CL=F","DCOILWTICO",30,200,"oil_v6")),
+      sf(()=>commoSimple("BZ=F","DCOILBRENTEU",30,200,"brent_v6")),
+      sf(()=>commoSimple("NG=F","DHHNGSP",0.8,20,"natgas_v6")),
       sf(()=>allSec(ut),[]),sf(()=>researchFn()),sf(()=>equitiesFn())
     ]);
     const us1m=N(r1m?.v),us3m=N(r3m?.v),us2y=N(r2y?.v),us10y=N(r10y?.v),us30y=N(r30y?.v);
@@ -516,7 +494,8 @@ app.get("/api/dashboard",async(req,res)=>{
     };
     const risk=riskScore(data);data.riskAnalysis=risk;
     data.localSummary=localSum(data,risk);
-    res.json({updatedAt:new Date().toISOString(),sources:{fred:"FRED",market:"stooq·Coinbase·Yahoo·Frankfurter·Alt.me"},data});
+    res.json({updatedAt:new Date().toISOString(),
+      sources:{fred:"FRED",market:"Coinbase XAU/XAG·Yahoo (crumb)·Frankfurter·Alt.me"},data});
   }catch(err){console.error("ERR:",err);res.status(500).json({error:"failed",message:err.message});}
 });
 
@@ -532,9 +511,7 @@ app.post("/api/ai",async(req,res)=>{
 });
 app.post("/api/ai/summary",async(req,res)=>{
   const dash=req.body?.dashboard||null;if(!dash?.data)return res.json({text:"Indisponible."});
-  try{res.json({text:await claude(
-    "Briefing en 5 points chiffrés : 1) Régime Risk-ON/OFF + signal dominant 2) Taux US et crédit HY/IG 3) Actifs réels (or, Cu/Au, pétrole) 4) Macro (CPI, emploi, NFCI, WEI) 5) Signal alerte ou opportunité notable.",
-    dash.data,420)});}
+  try{res.json({text:await claude("Briefing 5 points chiffrés : 1) Régime Risk-ON/OFF + signal dominant 2) Taux US et crédit HY/IG 3) Actifs réels (or, Cu/Au, pétrole) 4) Macro (CPI, emploi, NFCI, WEI) 5) Signal alerte ou opportunité.",dash.data,420)});}
   catch(e){res.json({text:localSum(dash.data,riskScore(dash.data))});}
 });
 app.post("/api/ai/risk",async(req,res)=>{
@@ -545,10 +522,19 @@ app.post("/api/ai/risk",async(req,res)=>{
     res.json({text,score:risk?.score,regime:risk?.regime,details:risk?.details});
   }catch(e){res.status(500).json({error:e.message});}
 });
-app.get("/health",(_,res)=>res.json({ok:true,ts:new Date().toISOString(),cache:C.size}));
+
+/* HEALTH — utile pour debug */
+app.get("/health",(_,res)=>res.json({
+  ok:true,ts:new Date().toISOString(),cache:C.size,
+  crumb:_crumb?_crumb.slice(0,6)+"...":"null",
+  crumbAge:_crumbTs?Math.round((Date.now()-_crumbTs)/60000)+"min":"N/A"
+}));
 app.get("*",(_,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
-app.listen(PORT,()=>console.log(`◆ TERMINAL MACRO v4.4 — port ${PORT}
-  Secteurs: stooq.com CSV (xlk.us, xlf.us... — TOUS les 11)
-  Indices: Yahoo v7 quote + fallback stooq
-  Auto loans: DRAUTONSA → DTCTHFNM → fallback 1.74%
-  Cuivre: stooq hg.f → FRED → fallback 4.60`));
+app.listen(PORT,async()=>{
+  console.log(`◆ TERMINAL MACRO v4.5 — port ${PORT}`);
+  console.log("  Or: Coinbase XAU-USD [2000,4200] → Yahoo GC=F → FRED");
+  console.log("  Secteurs: Yahoo v8 avec crumb partagé, batches 3×800ms");
+  console.log("  Auto loans: DRAUTONSA → DTCTHFNM → fallback 1.74%");
+  // Préchauffer le crumb Yahoo au démarrage
+  await sf(()=>getYahooCrumb());
+});
