@@ -233,6 +233,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'SF Mono',Consolas,Mo
  <div class="top-r">
   <span style="font-size:8px;color:var(--mu)">CB XAU/XAG · YAHOO · FRED · ALT.ME</span>
   <button class="tbtn ta" onclick="showMorning()">☀ BRIEFING</button>
+  <button class="tbtn" onclick="exportCSV()" id="export-btn" title="Exporter toutes les données en CSV pour Excel/Sheets">⬇ CSV</button>
   <button class="tbtn" onclick="loadDash()">⟳ REFRESH</button>
   <span style="font-size:9px;color:var(--mu2)" id="lupd">--</span>
  </div>
@@ -875,6 +876,252 @@ async function askRisk(){
     const r=await fetch('/api/ai/risk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dashboard:dash})});
     const d=await r.json();set('aiout',d.text||'--');aiN++;set('tokinfo',`~$0.001 · ${aiN} appels`);
   }catch(e){set('aiout','⚠ '+e.message);}
+}
+
+/* ══════════════════════════════════════════════════════
+   EXPORT CSV — Structure optimisée pour Excel/Google Sheets
+   Plusieurs feuilles simulées via sections séparées
+   Format : BOM UTF-8 pour compatibilité Excel FR (séparateur ;)
+══════════════════════════════════════════════════════ */
+function exportCSV(){
+  if(!dash?.data){alert("Aucune donnée disponible. Cliquez sur REFRESH d'abord.");return;}
+  const d=dash.data;
+  const ts=new Date(dash.updatedAt||new Date());
+  const dateStr=ts.toLocaleDateString('fr-FR');
+  const timeStr=ts.toLocaleTimeString('fr-FR');
+  const N=v=>(v==null||isNaN(+v))?"":(+v).toString().replace('.',','); // format FR décimal
+  const P=v=>v==null?"":((+v).toFixed(2)+"%" ).replace('.',',');
+  const S=v=>v==null?"":String(v);
+
+  // Helper : ligne CSV
+  const row=(...cells)=>cells.map(c=>{
+    const s=String(c??'');
+    // Echapper les guillemets et entourer si nécessaire
+    return s.includes(';')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;
+  }).join(';');
+
+  const lines=[];
+
+  // ── MÉTADONNÉES ─────────────────────────────────────────
+  lines.push(row("◆ TERMINAL MACRO — EXPORT DE DONNÉES"));
+  lines.push(row("Date d'export",dateStr));
+  lines.push(row("Heure d'export",timeStr+" (heure locale)"));
+  lines.push(row("Sources","FRED St. Louis · Coinbase · Yahoo Finance · Alt.me · Frankfurter"));
+  lines.push(row("Note","Données à titre informatif uniquement — pas de conseil d'investissement"));
+  lines.push("");
+
+  // ── 1. RÉSUMÉ RÉGIME DE MARCHÉ ───────────────────────────
+  lines.push(row("=== 1. RÉGIME DE MARCHÉ (RISK-ON / RISK-OFF) ==="));
+  lines.push(row("Indicateur","Valeur","Signal","Commentaire"));
+  const risk=d.riskAnalysis;
+  if(risk){
+    lines.push(row("Score composite",N(risk.score)+"/100",risk.emoji+" "+risk.regime,""));
+    (risk.details||[]).forEach(det=>{
+      const parts=det.split('→');
+      const indicateur=(parts[0]||det).trim();
+      const signal=(parts[1]||'').trim();
+      lines.push(row(indicateur,"",signal,""));
+    });
+  }
+  lines.push("");
+
+  // ── 2. TAUX D'INTÉRÊT US ────────────────────────────────
+  lines.push(row("=== 2. TAUX D'INTÉRÊT US (FRED Treasury) ==="));
+  lines.push(row("Maturité","Taux (%)","Date source","Note"));
+  lines.push(row("1 mois",N(d.yields?.us1m),S(d.vix?.date),"DGS1MO FRED"));
+  lines.push(row("3 mois",N(d.yields?.us3m),"","DGS3MO FRED"));
+  lines.push(row("2 ans",N(d.yields?.us2y),"","DGS2 FRED"));
+  lines.push(row("5 ans",N(d.yields?.us5y||null),"","DGS5 FRED"));
+  lines.push(row("10 ans",N(d.yields?.us10y),"","DGS10 FRED"));
+  lines.push(row("30 ans",N(d.yields?.us30y),"","DGS30 FRED"));
+  lines.push(row("","","",""));
+  lines.push(row("Spread 2s10s (pb)",N(d.yields?.spread2s10s),"","Positif = courbe normale / Négatif = inversée"));
+  lines.push(row("État courbe",S(d.derived?.curveState),"",""));
+  lines.push(row("Fed Funds Rate (%)",N(d.fed?.upperBound),"","DFEDTARU FRED"));
+  lines.push("");
+
+  // ── 3. INFLATION ────────────────────────────────────────
+  lines.push(row("=== 3. INFLATION USA (FRED) ==="));
+  lines.push(row("Indicateur","Valeur (%)","Date source","Série FRED"));
+  lines.push(row("CPI All Items YoY",N(d.inflation?.cpiYoY),S(d.inflation?.date),"CPIAUCSL (calculé YoY)"));
+  lines.push(row("Core CPI (hors alim./énergie) YoY",N(d.inflation?.coreCpi),S(d.inflation?.date),"CPILFESL (calculé YoY)"));
+  lines.push(row("PCE Core YoY",N(d.inflation?.pceCore),S(d.inflation?.date),"PCEPILFE (calculé YoY)"));
+  lines.push("");
+
+  // ── 4. MARCHÉS ACTIONS ──────────────────────────────────
+  lines.push(row("=== 4. MARCHÉS ACTIONS ==="));
+  lines.push(row("Indice","Niveau","Variation jour (%)","Source"));
+  lines.push(row("S&P 500",N(d.equities?.spx?.price),N(d.equities?.spx?.chgPct),"Yahoo Finance ^GSPC"));
+  lines.push(row("NASDAQ 100",N(d.equities?.ndx?.price),N(d.equities?.ndx?.chgPct),"Yahoo Finance ^NDX"));
+  lines.push(row("Dow Jones",N(d.equities?.dji?.price),N(d.equities?.dji?.chgPct),"Yahoo Finance ^DJI"));
+  lines.push("");
+
+  // ── 5. SECTEURS S&P 500 ──────────────────────────────────
+  lines.push(row("=== 5. SECTEURS S&P 500 (ETFs SPDR) ==="));
+  lines.push(row("Secteur","ETF","Performance (%)",`Unité de temps: ${S(d.sectorUT||'1M')}`));
+  (d.sectors||[]).forEach(s=>{
+    lines.push(row(s.name,s.sym,N(s.value)));
+  });
+  lines.push("");
+
+  // ── 6. MATIÈRES PREMIÈRES ────────────────────────────────
+  lines.push(row("=== 6. MATIÈRES PREMIÈRES ==="));
+  lines.push(row("Actif","Prix","Unité","Source"));
+  lines.push(row("Or (XAU)",N(d.commodities?.gold?.value),"USD/oz troy",S(d.commodities?.gold?.src||"FRED/Coinbase")));
+  lines.push(row("Argent (XAG)",N(d.commodities?.silver?.value),"USD/oz troy",S(d.commodities?.silver?.src||"Coinbase")));
+  lines.push(row("Gold/Silver Ratio",N(d.derived?.goldSilverRatio),"x","calculé"));
+  lines.push(row("Cuivre (HG)",N(d.commodities?.copper?.value),"USD/lb",S(d.commodities?.copper?.src||"Yahoo")+(d.derived?.copperStale?" *estimé":"")));
+  lines.push(row("Cu/Au Ratio",N(d.derived?.copperGoldRatio),"x 1000","calculé — baromètre risque"));
+  lines.push(row("WTI Crude",N(d.commodities?.oil?.value),"USD/bbl",S(d.commodities?.oil?.src||"Yahoo")));
+  lines.push(row("Brent Crude",N(d.commodities?.brent?.value),"USD/bbl",S(d.commodities?.brent?.src||"Yahoo")));
+  lines.push(row("Natural Gas",N(d.commodities?.natgas?.value),"USD/MMBtu",S(d.commodities?.natgas?.src||"Yahoo")));
+  lines.push("");
+
+  // ── 7. CRYPTO ────────────────────────────────────────────
+  lines.push(row("=== 7. CRYPTO-MONNAIES ==="));
+  lines.push(row("Actif","Prix (USD)","Note","Source"));
+  lines.push(row("Bitcoin (BTC)",N(d.crypto?.btcusd?.value),"","Coinbase"));
+  lines.push(row("Ethereum (ETH)",N(d.crypto?.ethusd),"","Coinbase"));
+  lines.push(row("BTC Dominance (%)",N(d.crypto?.btcDominance),"% du marché crypto","CoinGecko"));
+  lines.push("");
+
+  // ── 8. CRÉDIT & CONDITIONS FINANCIÈRES ──────────────────
+  lines.push(row("=== 8. CRÉDIT & CONDITIONS FINANCIÈRES ==="));
+  lines.push(row("Indicateur","Valeur","Unité","Source FRED / Note"));
+  lines.push(row("HY Spread OAS",N(d.credit?.hy),"%","BAMLH0A0HYM2 — Ice BofA HY"));
+  lines.push(row("IG Spread OAS",N(d.credit?.ig),"%","BAMLC0A0CM — Ice BofA AAA"));
+  lines.push(row("Ratio HY/IG",N(d.credit?.ratio),"x","calculé — >3.5 = tension crédit"));
+  lines.push(row("NFCI Chicago Fed",N(d.research?.nfci?.v),"","NFCI — 0=neutre >0=tendu <0=souple"));
+  lines.push(row("TED Spread",N(d.research?.ted?.v),"%","TEDRATE — stress interbancaire"));
+  lines.push(row("EUR/USD",N(d.fx?.eurusd?.value),"","Frankfurter API"));
+  lines.push("");
+
+  // ── 9. SENTIMENT ────────────────────────────────────────
+  lines.push(row("=== 9. SENTIMENT DE MARCHÉ ==="));
+  lines.push(row("Indicateur","Valeur","Niveau","Source"));
+  lines.push(row("Fear & Greed Index",N(d.sentiment?.value),S(d.sentiment?.label),"Alternative.me (0=peur extrême 100=euphorie)"));
+  lines.push(row("DXY Proxy (TWI)",N(d.dxyProxy?.value),"",S(d.dxyProxy?.date)+" — DTWEXBGS FRED"));
+  lines.push(row("VIX CBOE",N(d.vix?.value),"",S(d.vix?.date)+" — VIXCLS FRED"));
+  lines.push(row("Régime VIX",S(d.derived?.vixRegime),"","<15=calme 15-20=modéré >30=stress"));
+  lines.push("");
+
+  // ── 10. MACRO ÉCONOMIQUE ────────────────────────────────
+  lines.push(row("=== 10. INDICATEURS MACRO ÉCONOMIQUES ==="));
+  lines.push(row("Indicateur","Valeur","Unité","Source FRED / Note"));
+  lines.push(row("Taux de chômage UNRATE",N(d.labor?.unemploymentRate),"%",S(d.labor?.date)+" — UNRATE"));
+  lines.push(row("Weekly Economic Index (WEI)",N(d.research?.wei?.v),"","WEI — NY Fed (>0=expansion)"));
+  lines.push(row("Conf. consommateur Michigan",N(d.research?.conf?.v),"","UMCSENT — moy. historique ~85"));
+  const jolts=d.research?.jolts?.v;
+  lines.push(row("JOLTS Offres d'emploi",jolts?Math.round(jolts):"","milliers","JTSJOL — mensuel, 2 mois décalage"));
+  lines.push("");
+
+  // ── 11. DÉLINQUANCE BANCAIRE ────────────────────────────
+  lines.push(row("=== 11. DÉLINQUANCE BANCAIRE (FRED trimestriel) ==="));
+  lines.push(row("Catégorie","Taux (%)","Source FRED","Note"));
+  const dl=d.delinquency||{};
+  lines.push(row("Cartes de crédit (90+ jours)",N(dl.creditCards),"DRCCLACBS","Seuil d'alerte ~3.5%"));
+  lines.push(row("Auto loans",N(dl.autoLoans),"DTCTHFNM",(dl.autoStale||d.derived?.autoStale)?"*valeur estimée (fallback 1.74%)":""));
+  lines.push(row("Immobilier résidentiel",N(dl.realEstate),"DRSFRMACBS",""));
+  lines.push(row("Real estate loans",N(dl.studentLoans),"DRSREACBS",""));
+  lines.push(row("Consumer loans",N(dl.commercialRe),"DRCLACBS",""));
+  lines.push(row("","","",""));
+  lines.push(row("Date dernière donnée",S(dl.date||""),"","Données trimestrielles — retard habituel 1-2 trimestres"));
+  lines.push("");
+
+  // ── 12. CDS SOUVERAINS ──────────────────────────────────
+  lines.push(row("=== 12. CDS SOUVERAINS 5 ANS (points de base — estimés) ==="));
+  lines.push(row("Pays","CDS 5A (pb)","Niveau de risque","Note"));
+  (d.cds||[]).forEach(c=>{
+    lines.push(row(c.c,N(c.v),c.r,"Valeurs indicatives — non temps réel"));
+  });
+  lines.push("");
+
+  // ── 13. TABLEAU DE BORD SYNTHÈSE ────────────────────────
+  lines.push(row("=== 13. TABLEAU DE BORD SYNTHÈSE — POUR GRAPHIQUES ==="));
+  lines.push(row("Catégorie","Indicateur","Valeur numérique","Signal","Commentaire"));
+
+  // Risque global
+  lines.push(row("Risque","Score Risk-ON/OFF",N(risk?.score),risk?.emoji+" "+risk?.regime,"0=Risk-OFF 100=Risk-ON"));
+
+  // Taux
+  lines.push(row("Taux","US 2A (%)",N(d.yields?.us2y),"","FRED DGS2"));
+  lines.push(row("Taux","US 10A (%)",N(d.yields?.us10y),"","FRED DGS10"));
+  lines.push(row("Taux","Spread 2s10s (pb)",N(d.yields?.spread2s10s),d.yields?.spread2s10s>=0?"Positif":"INVERSÉE",""));
+  lines.push(row("Taux","Fed Funds (%)",N(d.fed?.upperBound),"",""));
+
+  // Inflation
+  lines.push(row("Inflation","CPI YoY (%)",N(d.inflation?.cpiYoY),"","FRED CPIAUCSL"));
+  lines.push(row("Inflation","Core CPI YoY (%)",N(d.inflation?.coreCpi),"","FRED CPILFESL"));
+  lines.push(row("Inflation","PCE Core YoY (%)",N(d.inflation?.pceCore),"","FRED PCEPILFE"));
+
+  // Crédit
+  lines.push(row("Crédit","HY Spread OAS (%)",N(d.credit?.hy),d.credit?.hy>5.5?"ÉLEVÉ":d.credit?.hy>4?"MODÉRÉ":"NORMAL",""));
+  lines.push(row("Crédit","IG Spread OAS (%)",N(d.credit?.ig),"",""));
+  lines.push(row("Crédit","NFCI",N(d.research?.nfci?.v),d.research?.nfci?.v>0.5?"TENDU":d.research?.nfci?.v<-0.5?"SOUPLE":"NEUTRE","Chicago Fed"));
+
+  // Marché
+  lines.push(row("Marché","VIX",N(d.vix?.value),d.vix?.value>=30?"STRESS":d.vix?.value>=20?"MODÉRÉ":"CALME","FRED VIXCLS"));
+  lines.push(row("Marché","DXY",N(d.dxyProxy?.value),d.dxyProxy?.value<100?"FAIBLE":d.dxyProxy?.value>104?"FORT":"NEUTRE","FRED DTWEXBGS"));
+  lines.push(row("Marché","Fear & Greed",N(d.sentiment?.value),S(d.sentiment?.label),"Alternative.me"));
+  lines.push(row("Marché","S&P 500",N(d.equities?.spx?.price),"Var: "+N(d.equities?.spx?.chgPct)+"%","Yahoo"));
+
+  // Actifs réels
+  lines.push(row("Actifs réels","Or (USD/oz)",N(d.commodities?.gold?.value),"","Coinbase XAU-USD"));
+  lines.push(row("Actifs réels","Argent (USD/oz)",N(d.commodities?.silver?.value),"","Coinbase XAG-USD"));
+  lines.push(row("Actifs réels","Cu/Au Ratio",N(d.derived?.copperGoldRatio),d.derived?.copperGoldRatio>0.55?"RISK-ON":d.derived?.copperGoldRatio>0.4?"NEUTRE":"RISK-OFF","Baromètre macro"));
+  lines.push(row("Actifs réels","WTI (USD/bbl)",N(d.commodities?.oil?.value),"","Yahoo CL=F"));
+  lines.push(row("Actifs réels","BTC (USD)",N(d.crypto?.btcusd?.value),"","Coinbase"));
+
+  // Macro
+  lines.push(row("Macro","Chômage UNRATE (%)",N(d.labor?.unemploymentRate),"","FRED UNRATE"));
+  lines.push(row("Macro","WEI (NY Fed)",N(d.research?.wei?.v),d.research?.wei?.v>1?"SOLIDE":d.research?.wei?.v>-1?"MODÉRÉ":"FAIBLE","FRED WEI"));
+  lines.push(row("Macro","Conf. Michigan",N(d.research?.conf?.v),d.research?.conf?.v>90?"ÉLEVÉE":d.research?.conf?.v>70?"MODÉRÉE":"FAIBLE","FRED UMCSENT"));
+  lines.push(row("Macro","JOLTS (milliers)",jolts?Math.round(jolts):"","","FRED JTSJOL — mensuel"));
+
+  // Délinquance
+  lines.push(row("Délinquance","Cartes crédit (%)",N(dl.creditCards),dl.creditCards>3.5?"ÉLEVÉE":dl.creditCards>2.5?"MODÉRÉE":"NORMALE","FRED"));
+  lines.push(row("Délinquance","Auto loans (%)",N(dl.autoLoans),(d.derived?.autoStale?"estimé — ":"")+(dl.autoLoans>2?"ÉLEVÉE":"NORMALE"),"FRED"));
+
+  // Secteurs
+  lines.push(row("","","","",""));
+  lines.push(row("=== SECTEURS POUR CAMEMBERT ===","","","",""));
+  lines.push(row("Secteur","Performance (%)","Signal","ETF",""));
+  (d.sectors||[]).forEach(s=>{
+    const sig=s.value==null?"N/D":s.value>2?"Surperformance":s.value>0?"Positif":s.value>-2?"Légèrement négatif":"Sous-performance";
+    lines.push(row(s.name,N(s.value),sig,s.sym,""));
+  });
+  lines.push("");
+
+  // ── INSTRUCTIONS ────────────────────────────────────────
+  lines.push(row("=== INSTRUCTIONS POUR EXCEL / GOOGLE SHEETS ==="));
+  lines.push(row("1. Ouvrir Excel → Données → À partir d'un fichier texte/CSV → Sélectionner ce fichier"));
+  lines.push(row("2. Séparateur : point-virgule (;) — Encodage : UTF-8"));
+  lines.push(row("3. Pour les graphiques : utiliser la section 13 (Tableau de bord synthèse)"));
+  lines.push(row("4. Colonnes utiles pour graphiques : Indicateur / Valeur numérique / Signal"));
+  lines.push(row("5. Camembert secteurs : section 5 ou 13 bas de page — colonnes Secteur / Performance"));
+  lines.push(row("6. Pour Google Sheets : Fichier → Importer → sélectionner le fichier CSV"));
+  lines.push(row("","","",""));
+  lines.push(row("Export généré le",dateStr+" à "+timeStr,"","Version Terminal Macro v5.0"));
+
+  // ── GÉNÉRATION DU FICHIER ────────────────────────────────
+  const BOM="\uFEFF"; // BOM UTF-8 pour Excel FR
+  const csvContent=BOM+lines.join("\n");
+  const blob=new Blob([csvContent],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const dateFile=ts.toISOString().slice(0,10);
+  const timeFile=ts.toISOString().slice(11,16).replace(":","h");
+  a.href=url;
+  a.download=`terminal_macro_${dateFile}_${timeFile}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Feedback visuel
+  const btn=$('export-btn');
+  if(btn){btn.textContent="✓ Exporté";btn.style.color="var(--g)";btn.style.borderColor="var(--g)";
+    setTimeout(()=>{btn.textContent="⬇ CSV";btn.style.color="";btn.style.borderColor="";},2500);}
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
