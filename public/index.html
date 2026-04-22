@@ -342,7 +342,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'SF Mono',Consolas,Mo
   <div class="sep"></div>
   <div class="ph" style="margin-bottom:5px"><span class="ph-t">Délinquance</span><span class="ph-s">FRED trimestriel</span></div>
   <div class="gr"><span class="gl">Cartes crédit</span><div class="gt"><div class="gf" id="g-cc" style="background:var(--r);width:0%"></div></div><span class="gv r" id="gv-cc">--</span></div>
-  <div class="gr"><span class="gl">Auto loans<span class="stale" id="au-stale" style="display:none"> *est.</span></span><div class="gt"><div class="gf" id="g-au" style="background:var(--y);width:0%"></div></div><span class="gv y" id="gv-au">--</span></div>
+  <div class="gr"><span class="gl">Auto loans<span id="au-stale" style="display:none;color:#6a5c2a;font-size:8px"> *est.</span></span><div class="gt"><div class="gf" id="g-au" style="background:var(--y);width:0%"></div></div><span class="gv y" id="gv-au">--</span></div>
   <div class="gr"><span class="gl">Immo. rés.</span><div class="gt"><div class="gf" id="g-re" style="background:var(--g);width:0%"></div></div><span class="gv g" id="gv-re">--</span></div>
   <div class="gr"><span class="gl">Real est. loans</span><div class="gt"><div class="gf" id="g-rl" style="background:var(--r);width:0%"></div></div><span class="gv r" id="gv-rl">--</span></div>
   <div class="gr"><span class="gl">Consumer loans</span><div class="gt"><div class="gf" id="g-cl" style="background:var(--y);width:0%"></div></div><span class="gv y" id="gv-cl">--</span></div>
@@ -762,7 +762,7 @@ async function loadDash(){
     const dl=d.delinquency||{};
     gauge('g-cc','gv-cc',dl.creditCards,4.5);
     gauge('g-au','gv-au',dl.autoLoans,3.0);
-    const auStale=$('au-stale');if(auStale)auStale.style.display=d.derived?.autoStale?'inline':'none';
+    const auS=$('au-stale');if(auS)auS.style.display=d.derived?.autoStale?'inline':'none';
     gauge('g-re','gv-re',dl.realEstate,3.0);gauge('g-rl','gv-rl',dl.studentLoans,12.0);
     gauge('g-cl','gv-cl',dl.commercialRe,4.0);
     set('unrate',fP(d.labor?.unemploymentRate));
