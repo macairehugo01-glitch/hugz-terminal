@@ -595,6 +595,167 @@ app.get("/api/sectors",async(req,res)=>{
   res.json({ut,sectors:await safe(()=>allSectors(ut),[]),updatedAt:new Date().toISOString()});
 });
 
+/* ═══════════════════════════════════════════════════════
+   JOURNAL D'ANALYSES — Articles en Markdown
+   ─────────────────────────────────────────────────────
+   Structure : dossier articles/ à la racine du projet
+   Chaque article = un fichier .md avec frontmatter YAML :
+
+   ---
+   title: Mon analyse du marché
+   date: 2026-05-18
+   category: Macro
+   tags: [Fed, inflation, or]
+   cover: /articles/images/mon-image.jpg
+   excerpt: Résumé court affiché dans la liste
+   ---
+
+   Contenu de l'article en Markdown...
+
+   Pour ajouter un article :
+   1. Créer articles/2026-05-18-mon-titre.md
+   2. Git add + commit + push → Railway redéploie
+   3. L'article apparaît automatiquement
+═══════════════════════════════════════════════════════ */
+const fs=require("fs");
+const fsP=require("fs").promises;
+const ARTICLES_DIR=path.join(__dirname,"articles");
+
+// Crée le dossier articles/ s'il n'existe pas
+if(!fs.existsSync(ARTICLES_DIR))fs.mkdirSync(ARTICLES_DIR,{recursive:true});
+if(!fs.existsSync(path.join(ARTICLES_DIR,"images")))
+  fs.mkdirSync(path.join(ARTICLES_DIR,"images"),{recursive:true});
+
+// Parser frontmatter YAML minimal (sans dépendance externe)
+function parseFrontmatter(content){
+  const match=content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if(!match)return{meta:{},body:content};
+  const meta={};
+  match[1].split("\n").forEach(line=>{
+    const m=line.match(/^(\w+):\s*(.+)$/);
+    if(!m)return;
+    const[,k,v]=m;
+    // Tableaux [a, b, c]
+    if(v.startsWith("[")&&v.endsWith("]")){
+      meta[k]=v.slice(1,-1).split(",").map(s=>s.trim().replace(/['"]/g,""));
+    }else{
+      meta[k]=v.replace(/^['"]|['"]$/g,"").trim();
+    }
+  });
+  return{meta,body:match[2].trim()};
+}
+
+// Convertir Markdown basique en HTML (sans dépendance)
+function mdToHtml(md){
+  return md
+    // Titres
+    .replace(/^#### (.+)$/gm,"<h4>$1</h4>")
+    .replace(/^### (.+)$/gm,"<h3>$1</h3>")
+    .replace(/^## (.+)$/gm,"<h2>$1</h2>")
+    .replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    // Gras + italique
+    .replace(/\*\*\*(.+?)\*\*\*/g,"<strong><em>$1</em></strong>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,"<em>$1</em>")
+    // Code inline
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    // Liens
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>')
+    // Images
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img src="$2" alt="$1" loading="lazy">')
+    // Séparateurs
+    .replace(/^---$/gm,"<hr>")
+    // Blockquotes
+    .replace(/^> (.+)$/gm,"<blockquote>$1</blockquote>")
+    // Listes
+    .replace(/^\- (.+)$/gm,"<li>$1</li>")
+    .replace(/^(\d+)\. (.+)$/gm,"<li>$2</li>")
+    // Paragraphes (double saut de ligne)
+    .split(/\n\n+/)
+    .map(block=>{
+      if(/^<(h[1-4]|blockquote|hr|ul|ol|li|img)/.test(block.trim()))return block;
+      if(block.trim().startsWith("<li>"))return`<ul>${block}</ul>`;
+      return block.trim()?`<p>${block.replace(/\n/g,"<br>")}</p>`:"";
+    })
+    .join("\n");
+}
+
+// Lire tous les articles (liste)
+async function getArticlesList(){
+  const k="articles_list";const cached=cacheGet(k);
+  if(cached!==undefined)return cached;
+  try{
+    const files=await fsP.readdir(ARTICLES_DIR);
+    const mdFiles=files.filter(f=>f.endsWith(".md")).sort().reverse(); // plus récent en premier
+    const articles=[];
+    for(const file of mdFiles){
+      const content=await fsP.readFile(path.join(ARTICLES_DIR,file),"utf8");
+      const{meta}=parseFrontmatter(content);
+      const slug=file.replace(/\.md$/,"");
+      if(meta.title){
+        articles.push({
+          slug,
+          title:meta.title||slug,
+          date:meta.date||"",
+          category:meta.category||"Analyse",
+          tags:meta.tags||[],
+          cover:meta.cover||null,
+          excerpt:meta.excerpt||"",
+        });
+      }
+    }
+    return cacheSet(k,articles,5*60*1000); // Cache 5min
+  }catch(e){
+    console.warn("[ARTICLES]",e.message);
+    return[];
+  }
+}
+
+// Lire un article complet
+async function getArticle(slug){
+  // Sécurité : pas de path traversal
+  const safe_slug=slug.replace(/[^a-zA-Z0-9\-_]/g,"");
+  const file=path.join(ARTICLES_DIR,safe_slug+".md");
+  if(!fs.existsSync(file))return null;
+  const content=await fsP.readFile(file,"utf8");
+  const{meta,body}=parseFrontmatter(content);
+  return{
+    slug:safe_slug,
+    title:meta.title||safe_slug,
+    date:meta.date||"",
+    category:meta.category||"Analyse",
+    tags:meta.tags||[],
+    cover:meta.cover||null,
+    excerpt:meta.excerpt||"",
+    html:mdToHtml(body),
+    readTime:Math.max(1,Math.round(body.split(/\s+/).length/200)), // ~200 mots/min
+  };
+}
+
+// Servir les images des articles
+app.use("/articles/images",express.static(path.join(ARTICLES_DIR,"images")));
+
+// Route : liste des articles
+app.get("/api/articles",async(req,res)=>{
+  const articles=await getArticlesList();
+  res.json({ok:true,count:articles.length,articles});
+});
+
+// Route : article individuel
+app.get("/api/articles/:slug",async(req,res)=>{
+  const article=await getArticle(req.params.slug);
+  if(!article)return res.status(404).json({error:"Article non trouvé"});
+  res.json({ok:true,article});
+});
+
+// Invalider le cache articles (appelé après un redéploiement)
+app.post("/api/articles/refresh",(_,res)=>{
+  CACHE.delete("articles_list");
+  res.json({ok:true,message:"Cache articles vidé"});
+});
+
+
+
 app.post("/api/ai",async(req,res)=>{
   const q=String(req.body?.question||"").trim().slice(0,300);
   const dash=req.body?.dashboard||null;
@@ -626,8 +787,565 @@ app.post("/api/ai/risk",async(req,res)=>{
 
 app.get("/health",(_,res)=>res.json({
   ok:true,ts:new Date().toISOString(),cache:CACHE.size,
-  crumb:_crumb?`${_crumb.slice(0,6)}... (${Math.round((Date.now()-_crumbAge)/60000)}min)`:"null"
+  crumb:_crumb?`${_crumb.slice(0,6)}... (${Math.round((Date.now()-_crumbAge)/60000)}min)`:"null",
+  telegram:{
+    configured:!!(process.env.TELEGRAM_BOT_TOKEN&&process.env.TELEGRAM_CHAT_ID),
+    nextSend:_nextTelegramSend?new Date(_nextTelegramSend).toISOString():"not scheduled",
+    intervalDays:TELEGRAM_INTERVAL_DAYS
+  }
 }));
+
+/* ═══════════════════════════════════════════════════════
+   TELEGRAM BRIEFING
+   Variables d'environnement Railway à configurer :
+     TELEGRAM_BOT_TOKEN = token donné par @BotFather
+     TELEGRAM_CHAT_ID   = ID du canal ou de ton compte
+     TELEGRAM_INTERVAL_DAYS = 2 ou 3 (défaut: 2)
+
+   Comment obtenir ces valeurs :
+   1. Parle à @BotFather sur Telegram → /newbot → copie le token
+   2. Ajoute le bot à ton canal et donne-lui le droit d'écrire
+   3. Récupère le chat_id : envoie un message dans le canal,
+      puis visite https://api.telegram.org/bot<TOKEN>/getUpdates
+      → cherche "chat":{"id": -100XXXXXXXXX}
+═══════════════════════════════════════════════════════ */
+const TG_TOKEN =process.env.TELEGRAM_BOT_TOKEN||"";
+const TG_CHAT  =process.env.TELEGRAM_CHAT_ID||"";
+const TELEGRAM_INTERVAL_DAYS=parseInt(process.env.TELEGRAM_INTERVAL_DAYS||"2",10);
+
+/* Formater le briefing en Markdown Telegram */
+function buildTelegramMessage(data,risk){
+  const d=data;
+  const f=(v,dec=2)=>v==null?"N/D":(+v).toFixed(dec);
+  const pct=(v)=>v==null?"N/D":f(v)+'%';
+  const usd=(v,d=0)=>v==null?"N/D":'$'+Math.round(v).toLocaleString('en-US');
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const vix=d.vix?.value;
+  const sp=d.yields?.spread2s10s;
+  const hy=d.credit?.hy,ig=d.credit?.ig;
+  const gold=d.commodities?.gold?.value;
+  const copper=d.commodities?.copper?.value;
+  const cuau=d.derived?.copperGoldRatio;
+  const wti=d.commodities?.oil?.value;
+  const btc=d.crypto?.btcusd?.value;
+  const cpi=d.inflation?.cpiYoY;
+  const nfci=d.research?.nfci?.v;
+  const wei=d.research?.wei?.v;
+  const conf=d.research?.conf?.v;
+  const jolts=d.research?.jolts?.v;
+  const dxy=d.dxyProxy?.value;
+  const fg=d.sentiment?.value;
+  const unr=d.labor?.unemploymentRate;
+
+  // En-tête
+  let msg=`◆ *BRIEFING MACRO* — ${dateStr}\n`;
+  msg+=`━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  // Régime
+  msg+=`${risk?.emoji} *RÉGIME : ${risk?.regime}*\n`;
+  msg+=`Score composite : *${risk?.score}/100*\n\n`;
+
+  // 1. Conditions de marché
+  msg+=`📊 *CONDITIONS DE MARCHÉ*\n`;
+  msg+=`• VIX : ${f(vix)} ${vix>=30?'🔴 stress élevé':vix>=20?'🟡 modéré':'🟢 calme'}\n`;
+  msg+=`• DXY : ${f(dxy,2)} ${dxy<100?'🟢 dollar faible':dxy>104?'🔴 dollar fort':'⚪ neutre'}\n`;
+  msg+=`• Fear & Greed : ${fg!=null?Math.round(fg)+'/100 — '+(d.sentiment?.label||''):'N/D'}\n`;
+  msg+=`• NFCI : ${f(nfci,2)} ${nfci>0.5?'🔴 conditions tendues':nfci<-0.5?'🟢 conditions souples':'⚪ neutre'}\n\n`;
+
+  // 2. Taux et courbe
+  msg+=`📈 *TAUX US & CRÉDIT*\n`;
+  msg+=`• Courbe 2s10s : ${sp!=null?f(sp,0)+' pb':' N/D'} ${sp>=0?'✅ normale':'🔴 INVERSÉE'}\n`;
+  msg+=`• US 2A : ${pct(d.yields?.us2y)} | US 10A : ${pct(d.yields?.us10y)}\n`;
+  msg+=`• HY Spread : ${pct(hy)} ${hy>5.5?'🔴 tension crédit':hy>4?'🟡 surveiller':'🟢 normal'}\n`;
+  msg+=`• IG Spread : ${pct(ig)} | Ratio HY/IG : ${hy&&ig?f(hy/ig,2)+'x':'N/D'}\n`;
+  msg+=`• Fed Funds : ${pct(d.fed?.upperBound)}\n\n`;
+
+  // 3. Actifs réels
+  msg+=`🪙 *ACTIFS RÉELS*\n`;
+  msg+=`• Or : ${gold?usd(gold):'N/D'}/oz\n`;
+  msg+=`• Argent : ${d.commodities?.silver?.value?'$'+f(d.commodities.silver.value,2):'N/D'}/oz`;
+  if(gold&&d.commodities?.silver?.value)msg+=` | G/S : ${f(gold/d.commodities.silver.value,1)}x`;
+  msg+=`\n`;
+  msg+=`• Cuivre : ${copper?'$'+f(copper,2):'N/D'}/lb${d.derived?.copperStale?' \\*estimé':''}\n`;
+  msg+=`• Cu/Au ratio : *${cuau?f(cuau,3):'N/D'}* ${cuau>0.55?'🟢 risk-on':cuau>0.4?'🟡 neutre':'🔴 risk-off'}\n`;
+  msg+=`• WTI : ${wti?'$'+f(wti,2):'N/D'}/bbl\n`;
+  msg+=`• BTC : ${btc?usd(btc):'N/D'}\n\n`;
+
+  // 4. Macro
+  msg+=`📡 *MACRO ÉCONOMIQUE*\n`;
+  msg+=`• CPI YoY : ${pct(cpi)} | Chômage : ${pct(unr,1)}\n`;
+  msg+=`• WEI (NY Fed) : ${wei!=null?f(wei,2):' N/D'} ${wei>1?'🟢 solide':wei>-1?'🟡 modéré':'🔴 faible'}\n`;
+  msg+=`• Conf. Michigan : ${conf!=null?f(conf,1):'N/D'}/100 ${conf>85?'🟢':'conf<70?🔴':''}\n`;
+  if(jolts!=null)msg+=`• JOLTS emploi : ${Math.round(jolts).toLocaleString('fr-FR')}k offres\n`;
+  msg+=`\n`;
+
+  // 5. Secteurs top/flop
+  const sectors=(d.sectors||[]).filter(s=>s.value!=null);
+  if(sectors.length>0){
+    const top=sectors.slice(0,3);
+    const flop=[...sectors].reverse().slice(0,2);
+    msg+=`📊 *SECTEURS S&P 500*\n`;
+    msg+=`Top : ${top.map(s=>`${s.name} ${s.value>=0?'+':''}${f(s.value)}%`).join(' • ')}\n`;
+    msg+=`Flop : ${flop.map(s=>`${s.name} ${f(s.value)}%`).join(' • ')}\n\n`;
+  }
+
+  // 6. Signaux risk détaillés
+  if(risk?.details?.length){
+    msg+=`⚡ *SIGNAUX RISK-ON/OFF*\n`;
+    risk.details.forEach(det=>{
+      const p=det.split('→');
+      const signal=(p[1]||'').trim();
+      const icon=signal.includes('Risk-ON')?'🟢':signal.includes('Risk-OFF')?'🔴':'⚪';
+      msg+=`${icon} ${(p[0]||det).trim()}\n`;
+    });
+    msg+='\n';
+  }
+
+  // Footer
+  msg+=`━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg+=`_Terminal Macro — données informatives uniquement_`;
+
+  return msg;
+}
+
+/* Envoyer sur Telegram */
+async function sendTelegram(text,chatId){
+  const chat=chatId||TG_CHAT;
+  if(!TG_TOKEN||!chat){
+    throw new Error("TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID manquant dans les variables Railway");
+  }
+  // Telegram limite à 4096 caractères par message
+  const chunks=[];
+  let remaining=text;
+  while(remaining.length>0){
+    chunks.push(remaining.slice(0,4096));
+    remaining=remaining.slice(4096);
+  }
+  for(const chunk of chunks){
+    const res=await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        chat_id:chat,
+        text:chunk,
+        parse_mode:"Markdown",
+        disable_web_page_preview:true
+      })
+    });
+    const result=await res.json();
+    if(!result.ok)throw new Error(`Telegram API: ${result.description||result.error_code}`);
+  }
+  console.log(`[TG] Message envoyé → chat ${chat} (${text.length} chars)`);
+  return{ok:true,chars:text.length,chunks:chunks.length};
+}
+
+/* Route manuelle : POST /api/telegram/send */
+app.post("/api/telegram/send",async(req,res)=>{
+  const dash=req.body?.dashboard||null;
+  const chatId=req.body?.chatId||TG_CHAT; // optionnel : override le chat
+  if(!dash?.data)return res.status(400).json({error:"Pas de données dashboard"});
+  if(!TG_TOKEN)return res.status(400).json({
+    error:"TELEGRAM_BOT_TOKEN non configuré",
+    help:"Ajouter TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID dans les variables Railway"
+  });
+  try{
+    const risk=calcRisk(dash.data);
+    // Générer l'analyse IA complète pour le briefing Telegram
+    let aiText="";
+    try{
+      aiText=await callClaude(
+        "Briefing Telegram 5 points concis et chiffrés : 1) Régime Risk-ON/OFF + raison dominante 2) Taux US et crédit 3) Actifs réels (or, Cu/Au, pétrole) 4) Macro (CPI, chômage, NFCI, WEI) 5) Signal d'alerte ou opportunité. Sois direct, dense, sans intro ni conclusion génériques.",
+        dash.data,380);
+    }catch(e){
+      aiText=buildSummary(dash.data,risk);
+    }
+    // Construire le message Telegram structuré
+    const structuredMsg=buildTelegramMessage(dash.data,risk);
+    const fullMsg=structuredMsg+"\n\n🤖 *Analyse IA*\n"+aiText;
+    const result=await sendTelegram(fullMsg,chatId);
+    res.json({ok:true,...result,preview:fullMsg.slice(0,200)+"..."});
+  }catch(e){
+    console.error("[TG] Send error:",e.message);
+    res.status(500).json({error:e.message,help:"Vérifier TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID"});
+  }
+});
+
+/* Route test : GET /api/telegram/test */
+app.get("/api/telegram/test",async(req,res)=>{
+  if(!TG_TOKEN||!TG_CHAT){
+    return res.status(400).json({
+      configured:false,
+      error:"Variables manquantes",
+      needed:["TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID"],
+      help:[
+        "1. Parle à @BotFather sur Telegram → /newbot → copie le token",
+        "2. Ajoute le bot à ton canal (admin)",
+        "3. Envoie un message dans le canal, puis visite :",
+        "   https://api.telegram.org/bot<TON_TOKEN>/getUpdates",
+        "   → cherche 'chat':{'id': -100XXXXXXXXX}",
+        "4. Ajoute les variables dans Railway : Settings → Variables"
+      ]
+    });
+  }
+  try{
+    await sendTelegram("◆ *Terminal Macro* — Test de connexion ✅\nBriefings automatiques configurés.",null);
+    res.json({ok:true,token:TG_TOKEN.slice(0,8)+"...",chat:TG_CHAT,intervalDays:TELEGRAM_INTERVAL_DAYS});
+  }catch(e){
+    res.status(500).json({ok:false,error:e.message});
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   SCHEDULER AUTOMATIQUE — toutes les N jours
+   Envoie le briefing à l'heure configurée (défaut : 8h00)
+   Variable : TELEGRAM_SEND_HOUR (défaut: 8)
+═══════════════════════════════════════════════════════ */
+let _nextTelegramSend=0;
+const SEND_HOUR=parseInt(process.env.TELEGRAM_SEND_HOUR||"8",10);
+
+function scheduleNextSend(){
+  const now=new Date();
+  const next=new Date();
+  next.setDate(next.getDate()+TELEGRAM_INTERVAL_DAYS);
+  next.setHours(SEND_HOUR,0,0,0);
+  _nextTelegramSend=next.getTime();
+  const ms=_nextTelegramSend-now.getTime();
+  console.log(`[TG] Prochain envoi : ${next.toISOString()} (dans ${Math.round(ms/3600000)}h)`);
+  return ms;
+}
+
+async function autoSendBriefing(){
+  if(!TG_TOKEN||!TG_CHAT){
+    console.log("[TG] Scheduler désactivé (variables Telegram non configurées)");
+    return;
+  }
+  console.log("[TG] Envoi automatique du briefing...");
+  try{
+    // Récupérer les données fraîches
+    const dashRes=await fetch(`http://localhost:${PORT}/api/dashboard`);
+    const dashData=await dashRes.json();
+    const risk=calcRisk(dashData.data);
+    let aiText="";
+    try{
+      aiText=await callClaude(
+        "Briefing Telegram 5 points concis et chiffrés : 1) Régime Risk-ON/OFF + raison dominante 2) Taux US et crédit 3) Actifs réels (or, Cu/Au, pétrole) 4) Macro (CPI, chômage, NFCI, WEI) 5) Signal alerte ou opportunité.",
+        dashData.data,380);
+    }catch(e){aiText=buildSummary(dashData.data,risk);}
+    const msg=buildTelegramMessage(dashData.data,risk)+"\n\n🤖 *Analyse IA*\n"+aiText;
+    await sendTelegram(msg,null);
+    console.log("[TG] ✅ Briefing automatique envoyé");
+  }catch(e){
+    console.error("[TG] Erreur envoi auto:",e.message);
+  }
+  // Planifier le prochain envoi
+  const nextMs=scheduleNextSend();
+  setTimeout(autoSendBriefing,nextMs);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODULE REDDIT SENTIMENT
+   ─────────────────────────────────────────────────────────────
+   Scrape les subreddits financiers toutes les 4h (configurable)
+   Analyse le sentiment avec Claude Haiku
+   Stocke le résultat en cache, exposé via /api/sentiment
+
+   Subreddits ciblés :
+     MACRO  : r/investing, r/economics, r/MacroEconomics
+     RETAIL : r/wallstreetbets, r/stocks
+     CONSOM : r/personalfinance
+     CRYPTO : r/CryptoCurrency, r/Bitcoin
+
+   Variables Railway (optionnelles) :
+     REDDIT_CLIENT_ID     → app ID Reddit (API officielle)
+     REDDIT_CLIENT_SECRET → secret Reddit
+     REDDIT_USERNAME      → ton compte Reddit
+     REDDIT_PASSWORD      → mot de passe Reddit
+     SENTIMENT_INTERVAL_H → fréquence en heures (défaut: 4)
+
+   Sans clés Reddit → mode "public JSON" (pas d'auth, rate-limité)
+   Avec clés Reddit → OAuth2, 60 req/min, bien plus fiable
+═══════════════════════════════════════════════════════════════ */
+
+const SENTIMENT_INTERVAL_H = parseInt(process.env.SENTIMENT_INTERVAL_H||"4",10);
+const REDDIT_CLIENT_ID     = process.env.REDDIT_CLIENT_ID||"";
+const REDDIT_CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET||"";
+const REDDIT_USER          = process.env.REDDIT_USERNAME||"";
+const REDDIT_PASS          = process.env.REDDIT_PASSWORD||"";
+
+// Cache sentiment (4h par défaut)
+let _sentimentCache = null;
+let _sentimentTs    = 0;
+let _redditToken    = null;
+let _redditTokenTs  = 0;
+
+// Subreddits par catégorie
+const SUBREDDITS = {
+  macro:  ["investing","economics","MacroEconomics"],
+  retail: ["wallstreetbets","stocks"],
+  conso:  ["personalfinance"],
+  crypto: ["CryptoCurrency","Bitcoin"],
+};
+
+// Tous en liste plate
+const ALL_SUBS = Object.values(SUBREDDITS).flat();
+
+/* ── Auth Reddit OAuth2 ─────────────────────────────────── */
+async function getRedditToken(){
+  if(!REDDIT_CLIENT_ID||!REDDIT_CLIENT_SECRET)return null;
+  // Token valide 1h, on le réutilise
+  if(_redditToken&&Date.now()-_redditTokenTs<55*60*1000)return _redditToken;
+  try{
+    const creds=Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString("base64");
+    const body=new URLSearchParams({
+      grant_type:"password",
+      username:REDDIT_USER,
+      password:REDDIT_PASS
+    });
+    const r=await fetch("https://www.reddit.com/api/v1/access_token",{
+      method:"POST",
+      headers:{
+        "Authorization":`Basic ${creds}`,
+        "Content-Type":"application/x-www-form-urlencoded",
+        "User-Agent":"MacroTerminal/5.0 (by /u/"+REDDIT_USER+")"
+      },
+      body:body.toString()
+    });
+    const d=await r.json();
+    if(d.access_token){
+      _redditToken=d.access_token;
+      _redditTokenTs=Date.now();
+      console.log("[REDDIT] Token OAuth2 obtenu");
+      return _redditToken;
+    }
+  }catch(e){console.warn("[REDDIT] Auth failed:",e.message);}
+  return null;
+}
+
+/* ── Fetch posts d'un subreddit ─────────────────────────── */
+async function fetchSubreddit(sub, limit=25){
+  const token=await getRedditToken();
+  const baseUrl=token
+    ? `https://oauth.reddit.com/r/${sub}/hot`
+    : `https://www.reddit.com/r/${sub}/hot.json`;
+  const headers={
+    "User-Agent":"MacroTerminal/5.0",
+    ...(token?{"Authorization":`Bearer ${token}`}:{})
+  };
+  try{
+    const ac=new AbortController();
+    const t=setTimeout(()=>ac.abort(),12000);
+    const r=await fetch(`${baseUrl}.json?limit=${limit}&t=day`,{headers,signal:ac.signal});
+    clearTimeout(t);
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const d=await r.json();
+    const posts=d?.data?.children||[];
+    // Extraire titre + score + nb comments + top flair
+    return posts
+      .filter(p=>p.data&&!p.data.stickied)
+      .map(p=>({
+        title:   p.data.title?.slice(0,200)||"",
+        score:   p.data.score||0,
+        comments:p.data.num_comments||0,
+        flair:   p.data.link_flair_text||"",
+        sub:     sub,
+        url:     p.data.permalink||""
+      }))
+      .filter(p=>p.score>10); // Filtrer le bruit (posts sans engagement)
+  }catch(e){
+    console.warn(`[REDDIT] r/${sub} failed:`,e.message.slice(0,60));
+    return [];
+  }
+}
+
+/* ── Analyse sentiment par Claude Haiku ─────────────────── */
+async function analyzeWithClaude(posts, category){
+  if(!posts.length)return null;
+  if(!CLAUDE_KEY)return null;
+
+  // Préparer le texte — top 20 posts par engagement
+  const sorted=posts
+    .sort((a,b)=>(b.score+b.comments*2)-(a.score+a.comments*2))
+    .slice(0,20);
+
+  const textBlock=sorted.map((p,i)=>
+    `[${i+1}] r/${p.sub} (${p.score} pts, ${p.comments} cmts): "${p.title}"`
+  ).join("\n");
+
+  const prompt=`Tu es un analyste de sentiment de marché financier.
+Voici les ${sorted.length} posts Reddit les plus engagés du moment sur la finance (catégorie: ${category}) :
+
+${textBlock}
+
+Analyse le sentiment global et réponds UNIQUEMENT en JSON valide, sans markdown :
+{
+  "score": <nombre entre -100 (panique totale) et +100 (euphorie totale)>,
+  "label": <"Très baissier"|"Baissier"|"Légèrement baissier"|"Neutre"|"Légèrement haussier"|"Haussier"|"Très haussier">,
+  "themes": [<3 thèmes dominants en français, max 4 mots chacun>],
+  "top_concern": <la principale inquiétude ou opportunité détectée, 1 phrase max>,
+  "conviction": <"faible"|"modérée"|"forte">,
+  "posts_analyzed": ${sorted.length}
+}`;
+
+  try{
+    const ac=new AbortController();
+    const t=setTimeout(()=>ac.abort(),25000);
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      signal:ac.signal,
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":CLAUDE_KEY,
+        "anthropic-version":"2023-06-01"
+      },
+      body:JSON.stringify({
+        model:"claude-haiku-4-5-20251001",
+        max_tokens:300,
+        messages:[{role:"user",content:prompt}]
+      })
+    });
+    clearTimeout(t);
+    const data=await r.json();
+    if(!r.ok)throw new Error(data?.error?.message||`Claude ${r.status}`);
+    const text=data.content?.[0]?.text||"{}";
+    // Nettoyer le JSON (enlever éventuels backticks)
+    const clean=text.replace(/```json?|```/g,"").trim();
+    return JSON.parse(clean);
+  }catch(e){
+    console.warn(`[REDDIT] Claude analysis failed (${category}):`,e.message.slice(0,80));
+    return null;
+  }
+}
+
+/* ── Fonction principale : collecte + analyse ───────────── */
+async function runSentimentAnalysis(){
+  console.log("[REDDIT] Démarrage analyse sentiment...");
+  const start=Date.now();
+
+  // 1. Fetch tous les subreddits en parallèle (par catégorie)
+  const results={};
+  const allPosts=[];
+
+  for(const[cat,subs] of Object.entries(SUBREDDITS)){
+    const catPosts=[];
+    // Batches de 2 pour éviter le rate limiting
+    for(let i=0;i<subs.length;i+=2){
+      const batch=subs.slice(i,i+2);
+      const fetched=await Promise.all(batch.map(s=>fetchSubreddit(s,20)));
+      catPosts.push(...fetched.flat());
+      if(i+2<subs.length)await new Promise(r=>setTimeout(r,1500));
+    }
+    results[cat]=catPosts;
+    allPosts.push(...catPosts);
+    console.log(`[REDDIT] r/${cat}: ${catPosts.length} posts collectés`);
+  }
+
+  // 2. Analyse Claude Haiku par catégorie + global
+  // Séquentiel pour éviter de surcharger l'API
+  const analyses={};
+
+  // Global (tous les posts ensemble)
+  const globalAnalysis=await analyzeWithClaude(allPosts,"finance globale");
+  if(globalAnalysis)analyses.global=globalAnalysis;
+  await new Promise(r=>setTimeout(r,800));
+
+  // Par catégorie si assez de posts
+  for(const[cat,posts] of Object.entries(results)){
+    if(posts.length>=5){
+      const a=await analyzeWithClaude(posts,cat);
+      if(a)analyses[cat]=a;
+      await new Promise(r=>setTimeout(r,600));
+    }
+  }
+
+  // 3. Score composite pondéré
+  // macro x0.35, retail x0.25, conso x0.20, crypto x0.20
+  const weights={macro:0.35,retail:0.25,conso:0.20,crypto:0.20};
+  let weightedScore=null;
+  let totalWeight=0;
+  for(const[cat,w] of Object.entries(weights)){
+    if(analyses[cat]?.score!=null){
+      weightedScore=(weightedScore||0)+analyses[cat].score*w;
+      totalWeight+=w;
+    }
+  }
+  if(totalWeight>0&&weightedScore!=null)weightedScore=Math.round(weightedScore/totalWeight);
+
+  // 4. Top posts globaux (les plus engagés)
+  const topPosts=allPosts
+    .sort((a,b)=>(b.score+b.comments*3)-(a.score+a.comments*3))
+    .slice(0,5)
+    .map(p=>({title:p.title,sub:p.sub,score:p.score,comments:p.comments}));
+
+  const sentiment={
+    updatedAt:new Date().toISOString(),
+    fetchDurationMs:Date.now()-start,
+    postsCollected:allPosts.length,
+    compositeScore:weightedScore,          // -100 à +100
+    compositeLabel:scoreToLabel(weightedScore),
+    byCategory:analyses,
+    topPosts,
+    nextUpdate:new Date(Date.now()+SENTIMENT_INTERVAL_H*3600*1000).toISOString()
+  };
+
+  _sentimentCache=sentiment;
+  _sentimentTs=Date.now();
+  console.log(`[REDDIT] ✅ Analyse terminée en ${Math.round((Date.now()-start)/1000)}s`);
+  console.log(`[REDDIT] Score composite: ${weightedScore} — ${sentiment.compositeLabel}`);
+  console.log(`[REDDIT] Posts analysés: ${allPosts.length} sur ${ALL_SUBS.length} subreddits`);
+  return sentiment;
+}
+
+function scoreToLabel(score){
+  if(score==null)return "N/D";
+  if(score<=-60)return "Panique";
+  if(score<=-30)return "Baissier";
+  if(score<=-10)return "Légèrement baissier";
+  if(score<=10) return "Neutre";
+  if(score<=30) return "Légèrement haussier";
+  if(score<=60) return "Haussier";
+  return "Euphorique";
+}
+
+/* ── Scheduler toutes les N heures ─────────────────────── */
+async function scheduleSentiment(){
+  try{await runSentimentAnalysis();}
+  catch(e){console.error("[REDDIT] Erreur scheduler:",e.message);}
+  setTimeout(scheduleSentiment, SENTIMENT_INTERVAL_H*3600*1000);
+}
+
+/* ── Route API ──────────────────────────────────────────── */
+app.get("/api/sentiment",async(req,res)=>{
+  // Forcer refresh si demandé (?refresh=1) ou cache expiré
+  const expired=Date.now()-_sentimentTs>SENTIMENT_INTERVAL_H*3600*1000;
+  if((req.query.refresh==="1"||expired)&&!_sentimentCache){
+    // Lancer en background, retourner placeholder
+    scheduleSentiment().catch(()=>{});
+    return res.json({
+      status:"loading",
+      message:`Première analyse en cours... (${SENTIMENT_INTERVAL_H}h d'intervalle)`,
+      compositeScore:null,
+      compositeLabel:"Calcul en cours",
+      updatedAt:null
+    });
+  }
+  if(!_sentimentCache){
+    return res.json({status:"not_ready",compositeScore:null,compositeLabel:"N/D"});
+  }
+  res.json({status:"ok",..._sentimentCache});
+});
+
+// Route pour forcer un refresh manuel
+app.post("/api/sentiment/refresh",async(req,res)=>{
+  res.json({ok:true,message:"Analyse Reddit lancée en arrière-plan..."});
+  try{await runSentimentAnalysis();}catch(e){console.error("[REDDIT]",e.message);}
+});
+
+// Route journal
+app.get("/journal",(_,res)=>res.sendFile(path.join(__dirname,"public","journal.html")));
+app.get("/journal/*",(_,res)=>res.sendFile(path.join(__dirname,"public","journal.html")));
+
 app.get("*",(_,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
 
 app.listen(PORT,async()=>{
@@ -635,8 +1353,26 @@ app.listen(PORT,async()=>{
   console.log(`  Or: FRED GOLDAMGBD228NLBM [2000,5000] → Coinbase XAU-USD → Yahoo GC=F`);
   console.log(`  Secteurs: Yahoo v8 crumb, batches 3×800ms`);
   console.log(`  Auto loans: DRAUTONSA → DTCTHFNM → fallback 1.74%`);
-  // Préchauffer le crumb au démarrage (critique pour les secteurs et les indices)
   console.log("  Warming up Yahoo crumb...");
   await safe(()=>refreshCrumb());
   console.log(`  Crumb: ${_crumb?_crumb.slice(0,8)+"...":"FAILED"}`);
+
+  // Démarrer le scheduler Telegram
+  if(TG_TOKEN&&TG_CHAT){
+    console.log(`[TG] ✅ Bot configuré — envoi toutes les ${TELEGRAM_INTERVAL_DAYS}j à ${SEND_HOUR}h00`);
+    const firstMs=scheduleNextSend();
+    setTimeout(autoSendBriefing,firstMs);
+  }else{
+    console.log("[TG] ⚠️  Telegram non configuré — ajouter TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID dans Railway");
+  }
+
+  // Démarrer le scheduler Reddit Sentiment (délai 30s pour laisser le serveur se stabiliser)
+  console.log(`[REDDIT] 🔄 Scheduler sentiment démarré — intervalle ${SENTIMENT_INTERVAL_H}h`);
+  console.log(`[REDDIT] Subreddits: ${ALL_SUBS.join(", ")}`);
+  if(REDDIT_CLIENT_ID){
+    console.log(`[REDDIT] Mode OAuth2 (clés configurées)`);
+  }else{
+    console.log(`[REDDIT] Mode public JSON (sans clés — ajouter REDDIT_CLIENT_ID pour plus de fiabilité)`);
+  }
+  setTimeout(scheduleSentiment, 30*1000); // Premier run 30s après démarrage
 });
