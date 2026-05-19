@@ -1,7 +1,7 @@
 ---
 title: Bitcoin sous tension ?!
 date: 2026-05-05
-category: Macro
+category: Crypto
 tags: [BTC, cot, Resistance, Support, cryptomonnaies]
 cover: /articles/images/macro-mai-2026.jpg
 excerpt: plusieurs signaux montrent une nette détérioration du contexte sur bitcoin.
