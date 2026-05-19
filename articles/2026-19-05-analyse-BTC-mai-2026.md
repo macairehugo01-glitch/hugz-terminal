@@ -22,7 +22,7 @@ Le marché ne semble plus évoluer dans une phase d’impulsion haussière propr
 
 # Les institutionnels commencent à réduire leur exposition
 
-### Le premier signal de fragilité vient du positionnement institutionnel sur les futures CME Bitcoin.
+#### Le premier signal de fragilité vient du positionnement institutionnel sur les futures CME Bitcoin.
 
 Les acteurs non commerciaux restent encore légèrement net long, avec une position nette positive passant de :
 - **1.44 → 1.26**
@@ -42,7 +42,7 @@ Le COT ne montre donc pas encore un retournement majeur, mais il indique clairem
 
 # Les ETF Bitcoin envoient un vrai signal d’alerte
 
-###  Le changement le plus important de cette semaine vient cependant des flux ETF.
+####  Le changement le plus important de cette semaine vient cependant des flux ETF.
 
 La semaine précédente, les ETF Bitcoin spot affichaient encore :
 - plus de **+631M$ d’inflows**,
@@ -108,7 +108,7 @@ En revanche, une cassure propre de cette zone changerait beaucoup plus sérieuse
 
 # Conclusion
 
-###  Bitcoin n’est pas encore dans un bear market confirmé. La structure de fond reste globalement haussière et les institutionnels ne sont pas encore totalement retournés.
+####  Bitcoin n’est pas encore dans un bear market confirmé. La structure de fond reste globalement haussière et les institutionnels ne sont pas encore totalement retournés.
 
 Mais plusieurs éléments montrent que le marché entre dans une phase beaucoup plus fragile :
 - les flux ETF ralentissent fortement,
