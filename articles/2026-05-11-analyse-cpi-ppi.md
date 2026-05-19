@@ -7,11 +7,6 @@ cover: /articles/images/cpi.jpg
 excerpt: La mesure de l'inflation n'est pas aussi simple que vous le pensez.
 ---
 
-
-
-
-
-
 # Macroéconomie & Trading : Décoder l'Inflation Globale et ses Pièges Comptables
 
 > **Note :** *Synthèse hebdomadaire et applications de marché suite au dernier webinaire spécial actualité économique.*
@@ -39,7 +34,7 @@ Dans ce contexte déjà tenu, les investisseurs attendaient de pied ferme les me
 * **CPI Core (Mensuel) :** C'est l'indicateur le plus scruté par les banques centrales car il exclut l'alimentation et l'énergie, jugées trop volatiles. Il ressort à **0,4 %**, soit plus haut que la prévision du marché (0,3 %) et que la précédente mesure (0,2 %).
 
 ### L'anomalie de l'OER : Pourquoi le CPI Core est artificiellement boosté
-Une analyse purement quantitative mènerait à une conclusion de panique : l'inflation accélère de manière incontrôlée. Pourtant, une spécificité technique majeure se cache derrière ce chiffre du CPI Core : la composante **OER (*Owner's Equivalent Rent*)**, ou loyer équivalent propriétaire. L'OER représente à lui seul **26 % du CPI total**, ce qui en fait la plus grosse composante du panier.
+Une analyse purement quantitative mènerait à une conclusion de panique : l'inflation accélère de manière incomplète. Pourtant, une spécificité technique majeure se cache derrière ce chiffre du CPI Core : la composante **OER (*Owner's Equivalent Rent*)**, ou loyer équivalent propriétaire. L'OER représente à lui seul **26 % du CPI total**, ce qui en fait la plus grosse composante du panier.
 
 Le *Bureau of Labor Statistics* (BLS) ne pouvant mesurer directement ce que coûte le fait de vivre dans sa propre maison (personne ne se payant un loyer à soi-même), il mène une enquête sur des logements locatifs comparables et impute un "loyer fictif" aux propriétaires. 
 
@@ -62,7 +57,7 @@ La décomposition des autres segments confirme d'ailleurs cette idée :
 
 Si le CPI permet de relativiser la panique grâce à l'explication technique de l'OER, la publication du **PPI (*Producer Price Index*)** – l'indice des prix à la production – vient malheureusement noircir le tableau et valider des craintes bien réelles.
 
-Le PPI est un indicator avancé fondamental : les prix payés aujourd'hui par les producteurs pour fabriquer leurs biens et services se répercutent, avec quelques mois de décalage, sur le portefeuille du consommateur final. 
+Le PPI est un indicateur avancé fondamental : les prix payés aujourd'hui par les producteurs pour fabriquer leurs biens et services se répercutent, avec quelques mois de décalage, sur le portefeuille du consommateur final. 
 
 Et les résultats sont sans équivoque : **le PPI est uniformément mauvais**. Il affiche une très nette augmentation à **1,4 % au lieu des 0,5 % prévus**. Pour couronner le tout, le chiffre précédent a été révisé à la hausse à **0,7 %** (au lieu de 0,5 % initialement annoncé). L’inflation sur la production est donc bien pire que ce qu'anticipaient les analystes.
 
@@ -81,10 +76,10 @@ Ce qui préoccupe le plus les marchés dans ce rapport PPI, c'est la répartitio
 ## 4. Synthèse des Données Macroéconomiques
 
 | Indicateur Macroéconomique | Donnée Précédente | Prévision Consensus | Donnée Réelle Publiée | Évaluation pour le Marché |
-| :--- | :---: | :---: | :---: | :--- |
-| **CPI Global** (Annuel) | 3,3 % | 3,7 % | **3,8 %** | 🔴 **Mauvais** (Hausse de l'inflation globale) |
-| **CPI Core** (Mensuel) | 0,2 % | 0,3 % | **0,4 %** | 🟠 **Mitigé** (0,25 % hors biais technique OER) |
-| **PPI Global** (Mensuel) | 0,7 % *(révisé)* | 0,5 % | **1,4 %** | 🔴 **Très Mauvais** (Surchauffe généralisée) |
+| :--- | :--- | :--- | :--- | :--- |
+| **CPI Global** (Annuel) | 3,3 % | 3,7 % | **3,8 %** | 🔴 Mauvais (Hausse globale) |
+| **CPI Core** (Mensuel) | 0,2 % | 0,3 % | **0,4 %** | 🟠 Mitigé (0,25 % hors OER) |
+| **PPI Global** (Mensuel) | 0,7 % (révisé) | 0,5 % | **1,4 %** | 🔴 Très Mauvais (Surchauffe) |
 
 ---
 
@@ -94,6 +89,8 @@ Face à ces forces contraires – un CPI final faussé par la comptabilité mais
 
 1. **Dollar Américain (DXY) & Rendements Oblataires (US10Y) :** La virulence du PPI et la résilience faciale du CPI renforcent le scénario des taux d'intérêt *"higher for longer"* (plus hauts plus longtemps) de la Fed. La baisse des taux s'éloigne. Cela offre un plancher fondamental très solide au Dollar américain face à l'Euro ou au Yen, et maintient les rendements obligataires sous pression haussière. Les stratégies d'achat du Dollar sur repli technique restent à privilégier.
 2. **Indices Actions (S&P 500, Nasdaq, DAX) :** Prudence accrue. La hausse marquée des composants électroniques (+8,1 %), de l'acier et de la chimie va peser directement sur les marges des entreprises. Dans cet environnement, privilégiez le stock-picking sur des entreprises à fort *pricing power* (capacité à monter leurs prix sans perdre de clients), capables de digérer la hausse du PPI. Les indices risquent de connaître des phases de correction ou de consolidation nerveuse.
-3. **Matières Premières & Or (XAU/USD) :** Le cocktail "tensions géopolitiques + hausse des prix des matériaux industriels de base" est extrêmement haussier pour les matières premières. L'Or conserve son statut de couverture ultime contre l'inflation et le risque de guerre, tandis que les métaux industriels et le pétrole profitent de la hausse des coûts de production. Les velléités vendeuses (shorts) sur ces actifs sont statistiquement dangereuses actuellement.
+3. **Matières Premières & Or (XAU/USD) :** Le cocktail "tensions géopolitiques + hausse des prix des matériaux industriels de base" est extrêmement haussier pour les matières premières. L'Or conserva son statut de couverture ultime contre l'inflation et le risque de guerre, tandis que les métaux industriels et le pétrole profitent de la hausse des coûts de production. Les velléités vendeuses (shorts) sur ces actifs sont statistiquement dangereuses actuellement.
 
 **Le mot de la fin :** Restez pragmatiques. Ne sur-interprétez pas le CPI sans intégrer l'effet de distorsion de l'OER, mais ne fermez pas les yeux sur la réalité brutale du PPI. Ajustez vos leviers, respectez vos plans de trading et rendez-vous au prochain webinaire pour suivre nos positions en direct !
+
+
