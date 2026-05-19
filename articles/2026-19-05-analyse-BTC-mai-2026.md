@@ -1,24 +1,22 @@
-title	Analyse macro mai 2026 — Régime RISK-ON malgré les tensions
-date	2026-05-05
-category	Bitcoin
-tags	
-tensions
-résistance
-support
-institutions
-CTO
-cover	/articles/images/macro-mai-2026.jpg
-#Situation générale
+---
+title: Analyse macro mai 2026 — Régime RISK-ON malgré les tensions
+date: 2026-05-05
+category: Macro
+tags: [BTC, cot, Resistance, Support, cryptomonnaies]
+cover: /articles/images/macro-mai-2026.jpg
+excerpt: plusieurs signaux montrent une nette détérioration du contexte sur bitcoin.
+---
 
-**Le marché Bitcoin reste dans une structure haussière de fond (HTF Weekly et Daily encore orientés à la hausse), mais plusieurs signaux montrent une nette détérioration du contexte entre la semaine 1 et la semaine 2.
+
+**Le marché Bitcoin reste dans une structure haussière de fond (HTF Weekly et Daily encore orientés à la hausse), mais plusieurs signaux montrent une nette détérioration du contexte entre la semaine du 05/05 et la semaine du 11/05.
 Le marché semble passer d’un régime de momentum haussier propre à une phase plus fragile de compression, distribution ou correction intermédiaire.**
 
 #1. Positionnement institutionnel (COT CME)
 
 Le positionnement des acteurs non commerciaux reste légèrement bullish :
 
-les positions longues restent supérieures aux shorts,
-la position nette reste positive (1.44 → 1.26).
+**les positions longues restent supérieures aux shorts,
+la position nette reste positive (1.44 → 1.26).**
 
 Cependant :
 
@@ -29,9 +27,9 @@ le spreading augmente.
 
 Cela suggère :
 
-une réduction d’exposition,
-moins de conviction directionnelle,
-davantage d’hedging et d’attentisme.
+**une réduction d’exposition**,
+**moins de conviction directionnelle**,
+**davantage d’hedging et d’attentisme**.
 
 Le marché n’est pas encore structurellement bearish selon le COT, mais le momentum spéculatif institutionnel ralentit clairement.
 
@@ -39,7 +37,7 @@ Le marché n’est pas encore structurellement bearish selon le COT, mais le mom
 
 C’est la détérioration la plus importante du rapport.
 
-Semaine 1
+Semaine 05/05
 
 Les ETF affichaient de forts inflows :
 
@@ -50,15 +48,15 @@ Semaine 2
 
 Les flux deviennent fortement négatifs :
 
--995M$ d’outflows,
+**-995M$ d’outflows,
 IBIT et FBTC passent vendeurs,
-le cumul 4 semaines devient négatif.
+le cumul 4 semaines devient négatif**.
 
 Cela indique :
 
-une réduction nette de l’exposition institutionnelle,
+**une réduction nette de l’exposition institutionnelle,
 un ralentissement de la demande spot,
-une perte de soutien structurel à court terme.
+une perte de soutien structurel à court terme**.
 
 Le marché perd donc l’un de ses principaux moteurs haussiers récents.
 
