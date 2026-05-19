@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>◆ Journal — Hugo Macaire</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#03070e;--p:#060c18;--p2:#07101f;
+  --b:#152030;--b2:#0c1828;
+  --tx:#ccd9ee;--mu:#4a6080;--mu2:#283848;
+  --acc:#f59e0b;--acc2:#d97706;
+  --g:#10b981;--r:#ef4444;--bl:#3b82f6;
+}
+html,body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh}
+
+/* TOPBAR */
+.top{height:44px;background:var(--p);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.6)}
+.logo{color:var(--acc);font-size:13px;font-weight:700;letter-spacing:3px;font-family:monospace}
+.nav{display:flex;gap:6px}
+.nbtn{background:transparent;border:1px solid var(--b);color:var(--mu);padding:4px 12px;font-size:11px;cursor:pointer;border-radius:3px;text-decoration:none;display:inline-flex;align-items:center;transition:all .18s}
+.nbtn:hover,.nbtn.active{border-color:var(--acc);color:var(--acc)}
+
+/* LAYOUT */
+.wrap{max-width:900px;margin:0 auto;padding:32px 20px}
+
+/* ── LISTE ─────────────────────────────────────────── */
+.list-header{margin-bottom:32px}
+.list-title{font-size:24px;font-weight:700;color:var(--tx);margin-bottom:6px}
+.list-sub{font-size:14px;color:var(--mu)}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.ftag{background:transparent;border:1px solid var(--b);color:var(--mu);padding:4px 12px;font-size:12px;cursor:pointer;border-radius:20px;transition:all .18s}
+.ftag:hover,.ftag.on{border-color:var(--acc);color:var(--acc);background:rgba(245,158,11,.07)}
+
+.articles{display:flex;flex-direction:column;gap:1px;background:var(--b)}
+.card{background:var(--p);padding:20px 24px;cursor:pointer;transition:background .18s;display:flex;gap:18px;align-items:flex-start;border-left:3px solid transparent}
+.card:hover{background:var(--p2);border-left-color:var(--acc)}
+.card-cover{width:90px;height:60px;border-radius:4px;object-fit:cover;flex-shrink:0;background:var(--b2)}
+.card-cover-ph{width:90px;height:60px;border-radius:4px;flex-shrink:0;background:var(--b2);display:flex;align-items:center;justify-content:center;color:var(--mu2);font-size:22px}
+.card-body{flex:1;min-width:0}
+.card-meta{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.cat-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:2px;background:rgba(245,158,11,.12);color:var(--acc);border:1px solid rgba(245,158,11,.25);letter-spacing:.5px;text-transform:uppercase}
+.date{font-size:11px;color:var(--mu);font-family:monospace}
+.read-time{font-size:10px;color:var(--mu2)}
+.card-title{font-size:16px;font-weight:700;color:var(--tx);line-height:1.35;margin-bottom:6px;transition:color .18s}
+.card:hover .card-title{color:var(--acc)}
+.card-excerpt{font-size:13px;color:var(--mu);line-height:1.55;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.tag{font-size:10px;color:var(--mu2);padding:1px 6px;border:1px solid var(--b2);border-radius:2px}
+.empty{padding:48px;text-align:center;color:var(--mu)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+
+/* ── ARTICLE ────────────────────────────────────────── */
+.article-wrap{max-width:720px;margin:0 auto;padding:32px 20px}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--mu);font-size:13px;cursor:pointer;margin-bottom:28px;background:none;border:none;padding:0;transition:color .18s;font-family:inherit}
+.back:hover{color:var(--acc)}
+.art-meta{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.art-cover{width:100%;max-height:340px;object-fit:cover;border-radius:6px;margin-bottom:28px;display:block}
+.art-title{font-size:28px;font-weight:800;color:var(--tx);line-height:1.25;margin-bottom:16px}
+.art-excerpt{font-size:16px;color:var(--mu);line-height:1.6;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--b)}
+
+/* Contenu Markdown rendu */
+.art-body{line-height:1.75;color:#a8c4d8}
+.art-body h1,.art-body h2{font-size:21px;font-weight:700;color:var(--tx);margin:32px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--b)}
+.art-body h3{font-size:17px;font-weight:700;color:var(--tx);margin:24px 0 10px}
+.art-body h4{font-size:15px;font-weight:600;color:var(--acc);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+.art-body p{margin-bottom:16px;font-size:15px;line-height:1.75}
+.art-body strong{color:var(--tx);font-weight:600}
+.art-body em{color:var(--acc);font-style:italic}
+.art-body code{background:var(--p2);border:1px solid var(--b);color:#7dd3fc;padding:2px 7px;border-radius:3px;font-size:13px;font-family:monospace}
+.art-body blockquote{border-left:3px solid var(--acc);padding:10px 16px;background:var(--p2);border-radius:0 4px 4px 0;margin:20px 0;color:var(--mu);font-style:italic;font-size:15px}
+.art-body hr{border:none;border-top:1px solid var(--b);margin:28px 0}
+.art-body ul,.art-body ol{padding-left:22px;margin-bottom:16px}
+.art-body li{margin-bottom:6px;font-size:15px}
+.art-body img{max-width:100%;border-radius:5px;margin:18px 0;display:block}
+.art-body a{color:var(--bl);text-decoration:none}
+.art-body a:hover{text-decoration:underline}
+
+/* Pagination article */
+.art-footer{margin-top:48px;padding-top:24px;border-top:1px solid var(--b);display:flex;justify-content:center}
+
+/* LOADING */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--b);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+.skel{animation:sk .8s ease infinite;color:var(--mu2)}
+@keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}}
+
+/* SCROLL */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="top">
+  <span class="logo">◆ TERMINAL</span>
+  <div class="nav">
+    <a href="/" class="nbtn">⬅ Terminal</a>
+    <a href="/journal" class="nbtn active">📓 Journal</a>
+  </div>
+</div>
+
+<!-- CONTENU DYNAMIQUE -->
+<div id="app"></div>
+
+<script>
+"use strict";
+
+let allArticles = [];
+let currentFilter = "Tous";
+
+// ── UTILS ────────────────────────────────────────────
+function fmt_date(d){
+  if(!d) return "";
+  try{
+    return new Date(d).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+  }catch{return d;}
+}
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// ── RENDU LISTE ──────────────────────────────────────
+function renderList(articles, filter){
+  const filtered = filter==="Tous" ? articles
+    : articles.filter(a=>a.category===filter || (a.tags||[]).includes(filter));
+
+  // Catégories disponibles
+  const cats = ["Tous",...new Set(articles.map(a=>a.category).filter(Boolean))];
+
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="list-header">
+        <div class="list-title">📓 Journal d'Analyses</div>
+        <div class="list-sub">${articles.length} article${articles.length>1?"s":""} · Hugo Macaire</div>
+      </div>
+
+      <div class="filters">
+        ${cats.map(c=>`
+          <button class="ftag${c===filter?" on":""}" onclick="filterBy('${esc(c)}')">${esc(c)}</button>
+        `).join("")}
+      </div>
+
+      <div class="articles">
+        ${filtered.length===0
+          ? `<div class="empty">
+               <div class="empty-icon">📄</div>
+               <div>Aucun article dans cette catégorie.</div>
+             </div>`
+          : filtered.map(a=>cardHtml(a)).join("")
+        }
+      </div>
+    </div>
+  `;
+}
+
+function cardHtml(a){
+  const cover = a.cover
+    ? `<img class="card-cover" src="${esc(a.cover)}" alt="" loading="lazy">`
+    : `<div class="card-cover-ph">📊</div>`;
+  const tags = (a.tags||[]).slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  return `
+    <div class="card" onclick="openArticle('${esc(a.slug)}')">
+      ${cover}
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="cat-badge">${esc(a.category||"Analyse")}</span>
+          <span class="date">${fmt_date(a.date)}</span>
+          ${a.readTime?`<span class="read-time">· ${a.readTime} min de lecture</span>`:""}
+        </div>
+        <div class="card-title">${esc(a.title)}</div>
+        ${a.excerpt?`<div class="card-excerpt">${esc(a.excerpt)}</div>`:""}
+        ${tags?`<div class="card-tags">${tags}</div>`:""}
+      </div>
+    </div>
+  `;
+}
+
+function filterBy(cat){
+  currentFilter = cat;
+  renderList(allArticles, cat);
+}
+
+// ── RENDU ARTICLE ────────────────────────────────────
+function renderArticle(article){
+  const tags = (article.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  document.getElementById("app").innerHTML = `
+    <div class="article-wrap">
+      <button class="back" onclick="goBack()">← Retour au journal</button>
+
+      <div class="art-meta">
+        <span class="cat-badge">${esc(article.category||"Analyse")}</span>
+        <span class="date">${fmt_date(article.date)}</span>
+        ${article.readTime?`<span class="read-time">· ${article.readTime} min</span>`:""}
+        ${tags}
+      </div>
+
+      <h1 class="art-title">${esc(article.title)}</h1>
+
+      ${article.excerpt?`<div class="art-excerpt">${esc(article.excerpt)}</div>`:""}
+
+      ${article.cover?`<img class="art-cover" src="${esc(article.cover)}" alt="${esc(article.title)}">`:""}
+
+      <div class="art-body">${article.html}</div>
+
+      <div class="art-footer">
+        <button class="nbtn" onclick="goBack()">← Retour au journal</button>
+      </div>
+    </div>
+  `;
+  window.scrollTo(0,0);
+  // Mettre à jour le titre de la page
+  document.title = `${article.title} — Journal Hugo Macaire`;
+}
+
+// ── NAVIGATION ───────────────────────────────────────
+async function openArticle(slug){
+  document.getElementById("app").innerHTML =
+    `<div class="article-wrap"><div class="skel" style="padding:40px;text-align:center">
+      <span class="spinner"></span>Chargement...
+    </div></div>`;
+  window.scrollTo(0,0);
+
+  try{
+    const r = await fetch(`/api/articles/${encodeURIComponent(slug)}`);
+    const d = await r.json();
+    if(d.ok) renderArticle(d.article);
+    else renderError("Article introuvable.");
+  }catch(e){
+    renderError("Erreur de chargement : "+e.message);
+  }
+
+  // Mettre à jour l'URL sans recharger la page
+  history.pushState({slug},"",`/journal/${slug}`);
+}
+
+function goBack(){
+  document.title = "Journal — Hugo Macaire";
+  renderList(allArticles, currentFilter);
+  history.pushState({},"","/journal");
+  window.scrollTo(0,0);
+}
+
+function renderError(msg){
+  document.getElementById("app").innerHTML =
+    `<div class="wrap"><div class="empty">
+      <div class="empty-icon">⚠️</div>
+      <div>${esc(msg)}</div>
+      <button class="nbtn" style="margin-top:16px" onclick="goBack()">← Retour</button>
+    </div></div>`;
+}
+
+// Bouton retour navigateur
+window.addEventListener("popstate",e=>{
+  if(e.state?.slug) openArticle(e.state.slug);
+  else{document.title="Journal — Hugo Macaire";renderList(allArticles,currentFilter);}
+});
+
+// ── INIT ─────────────────────────────────────────────
+async function init(){
+  document.getElementById("app").innerHTML =
+    `<div class="wrap"><div class="skel" style="padding:60px;text-align:center">
+      <span class="spinner"></span>Chargement des articles...
+    </div></div>`;
+
+  try{
+    const r = await fetch("/api/articles");
+    const d = await r.json();
+    allArticles = d.articles||[];
+  }catch(e){
+    allArticles = [];
+    console.warn("Articles load error:",e.message);
+  }
+
+  // Vérifier si on arrive sur un article direct (URL /journal/slug)
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  if(parts.length>=2 && parts[0]==="journal"){
+    await openArticle(parts[1]);
+  }else{
+    renderList(allArticles, currentFilter);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
