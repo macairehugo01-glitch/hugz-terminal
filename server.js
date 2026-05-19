@@ -877,7 +877,7 @@ function buildTelegramMessage(data,risk){
   msg+=`📡 *MACRO ÉCONOMIQUE*\n`;
   msg+=`• CPI YoY : ${pct(cpi)} | Chômage : ${pct(unr,1)}\n`;
   msg+=`• WEI (NY Fed) : ${wei!=null?f(wei,2):' N/D'} ${wei>1?'🟢 solide':wei>-1?'🟡 modéré':'🔴 faible'}\n`;
-  msg+=`• Conf. Michigan : ${conf!=null?f(conf,1):'N/D'}/100 ${conf>85?'🟢':'conf<70?🔴':''}\n`;
+  msg+=`• Conf. Michigan : ${conf!=null?f(conf,1):'N/D'}/100 ${conf>85?'🟢':conf<70?'🔴':''}\n`;
   if(jolts!=null)msg+=`• JOLTS emploi : ${Math.round(jolts).toLocaleString('fr-FR')}k offres\n`;
   msg+=`\n`;
 
