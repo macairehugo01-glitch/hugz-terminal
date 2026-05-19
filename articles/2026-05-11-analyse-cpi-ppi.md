@@ -75,40 +75,11 @@ Ce qui préoccupe le plus les marchés dans ce rapport PPI, c'est la répartitio
 
 ## 4. Synthèse des Données Macroéconomiques
 
-<table>
-  <thead>
-    <tr>
-      <th align="left">Indicateur Macroéconomique</th>
-      <th align="center">Donnée Précédente</th>
-      <th align="center">Prévision Consensus</th>
-      <th align="center">Donnée Réelle Publiée</th>
-      <th align="left">Évaluation pour le Marché</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><b>CPI Global</b> (Annuel)</td>
-      <td align="center">3,3 %</td>
-      <td align="center">3,7 %</td>
-      <td align="center"><b>3,8 %</b></td>
-      <td>🔴 Mauvais (Hausse globale)</td>
-    </tr>
-    <tr>
-      <td><b>CPI Core</b> (Mensuel)</td>
-      <td align="center">0,2 %</td>
-      <td align="center">0,3 %</td>
-      <td align="center"><b>0,4 %</b></td>
-      <td>🟠 Mitigé (0,25 % hors OER)</td>
-    </tr>
-    <tr>
-      <td><b>PPI Global</b> (Mensuel)</td>
-      <td align="center">0,7 % (révisé)</td>
-      <td align="center">0,5 %</td>
-      <td align="center"><b>1,4 %</b></td>
-      <td>🔴 Très Mauvais (Surchauffe)</td>
-    </tr>
-  </tbody>
-</table>
+| Indicateur Macro | Donnée Précédente | Consensus | Réel Publié | Évaluation |
+| :--- | :---: | :---: | :---: | :--- |
+| **CPI Global** (Annuel) | 3,3 % | 3,7 % | **3,8 %** | 🔴 Mauvais (Inflation en hausse) |
+| **CPI Core** (Mensuel) | 0,2 % | 0,3 % | **0,4 %** | 🟠 Mitigé (~0,25 % hors OER) |
+| **PPI Global** (Mensuel) | 0,7 % (révisé) | 0,5 % | **1,4 %** | 🔴 Très Mauvais (Surchauffe) |
 
 ---
 
