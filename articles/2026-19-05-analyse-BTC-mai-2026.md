@@ -9,163 +9,118 @@ excerpt: Plusieurs signaux montrent une nette détérioration du contexte sur Bi
 
 ## Contexte général
 
-Le marché Bitcoin reste dans une structure haussière de fond avec des tendances **Weekly** et **Daily** toujours orientées à la hausse. Pourtant, plusieurs signaux montrent une nette détérioration du contexte entre la semaine du 05/05 et celle du 11/05.
+Après plusieurs semaines de dynamique haussière alimentée par les ETF spot Bitcoin et un environnement globalement Risk-ON, le marché commence à montrer des signes clairs de ralentissement. La structure de fond reste encore orientée à la hausse, aussi bien sur les unités Weekly que Daily, mais la qualité du momentum se dégrade progressivement.
 
-Le marché semble progressivement passer :
-- d’un régime de momentum haussier propre,
-- vers une phase plus fragile de compression,
-- de distribution,
-- ou de correction intermédiaire.
-
-Cette transition devient particulièrement visible à travers :
-- le ralentissement des flux ETF,
-- la perte de momentum technique,
-- et un environnement macroéconomique de moins en moins favorable.
-
----
-
-## Les signaux qui restent encore haussiers
-
-**La structure HTF reste positive.**  
-Bitcoin conserve pour l’instant une tendance Weekly et Daily haussière avec des acheteurs toujours présents au-dessus des zones majeures de support.
-
-**Le positionnement CME reste légèrement bullish.**  
-Les non-commercials restent net long avec une position nette toujours positive :
-- **1.44 → 1.26**
-
-Le marché institutionnel ne s’est donc pas encore totalement retourné.
-
-**La Fed reste relativement neutre.**  
-Malgré une inflation plus élevée, aucun pivot hawkish brutal n’a encore été confirmé par la banque centrale américaine.
-
-**Le marché reste techniquement récupérable.**  
-Tant que les zones 76k–80k tiennent, une reprise du momentum reste possible si les flux institutionnels reviennent.
-
----
-
-## Les signaux de détérioration
-
-#### 1. Les ETF Bitcoin deviennent vendeurs
-
-C’est la dégradation la plus importante du rapport.
-
-### Semaine du 05/05
-
-Les ETF affichaient encore :
-- +631M$ d’inflows hebdomadaires,
-- IBIT fortement acheteur,
-- un sentiment institutionnel très favorable.
-
-### Semaine suivante
-
-Les flux deviennent fortement négatifs :
-- **-995M$ d’outflows**
-- IBIT et FBTC passent vendeurs,
-- le cumul 4 semaines devient négatif.
-
-Cela indique :
-- une réduction nette de l’exposition institutionnelle,
-- un ralentissement de la demande spot,
-- une perte de soutien structurel à court terme.
-
-Le marché perd donc l’un de ses principaux moteurs haussiers récents.
-
----
-
-#### 2. L’inflation redevient un problème
-
-L’inflation devient un point de tension majeur :
-- CPI en hausse,
-- PPI très élevés,
-- risques d’inflation persistante.
-
-Le marché commence à réagir plus négativement à ces données, même si certaines réactions restent contradictoires (“vente puis achat”).
-
-Cela traduit :
-- une incertitude croissante,
-- un marché plus sensible aux surprises macro.
-
----
-
-#### 3. Le dollar repart à la hausse
-
-Le DXY repart à la hausse tandis que les taux américains restent orientés à la hausse.
-
-Ces éléments créent historiquement un environnement moins favorable aux actifs spéculatifs comme Bitcoin.
-
-Le Nasdaq montre également les premiers signes de ralentissement après une phase Risk-ON particulièrement forte.
-
----
-
-## Analyse technique
-
-### Tendance de fond
-
-La tendance Weekly et Daily reste officiellement haussière.
-
-Cependant, plusieurs signes de faiblesse apparaissent :
-- difficulté à maintenir les nouveaux plus hauts,
-- perte progressive du momentum,
-- baisse des résistances,
-- support principal abaissé vers 76k.
-
-La structure actuelle ressemble davantage à :
-- une compression,
-- un ralentissement de tendance,
-- ou un début de distribution locale.
-
-Le maintien des zones **76k–80k** devient désormais critique pour préserver la structure haussière de moyen terme.
-
----
-
-## Lecture synthétique du marché
-
-Le marché Bitcoin n’est pas encore dans un bear market confirmé, mais :
-- la qualité du momentum se dégrade,
-- les flux institutionnels ralentissent fortement,
-- le contexte macro devient moins favorable,
+Entre la semaine du 05/05 et celle du 11/05, plusieurs éléments ont commencé à changer :
+- les flux institutionnels ralentissent brutalement,
+- l’environnement macro devient moins favorable,
 - et la structure technique perd en puissance.
 
-Le régime actuel semble évoluer vers :
-- davantage de volatilité,
-- des mouvements plus piégeux,
-- une baisse de la qualité des breakouts,
-- et un risque accru de correction intermédiaire.
+Le marché ne semble plus évoluer dans une phase d’impulsion haussière propre, mais davantage dans une zone de transition où la volatilité, les faux signaux et les mouvements de compression deviennent plus probables.
 
 ---
 
-## Les niveaux et signaux à surveiller
+## Les institutionnels commencent à réduire leur exposition
 
-### Scénario bullish
+Le premier signal de fragilité vient du positionnement institutionnel sur les futures CME Bitcoin.
 
-Le contexte redeviendrait constructif si :
-- les ETF reviennent en inflows,
-- Bitcoin conserve les 76k–80k,
-- le Nasdaq repart à la hausse,
-- le DXY se calme.
+Les acteurs non commerciaux restent encore légèrement net long, avec une position nette positive passant de :
+- **1.44 → 1.26**
 
-### Scénario bearish
+À première vue, cela peut sembler rassurant. Les institutionnels ne sont pas encore passés bearish structurellement. Pourtant, en regardant plus en détail, le tableau devient moins positif.
 
-Le risque de correction augmenterait fortement si :
-- les outflows ETF persistent plusieurs semaines,
-- le DXY accélère fortement,
-- le Nasdaq casse sa structure,
-- Bitcoin perd les supports HTF.
+Les positions longues diminuent progressivement, la concentration des gros acteurs baisse légèrement et le spreading augmente. Autrement dit, les intervenants commencent à réduire leur exposition et à couvrir davantage leurs positions.
+
+Ce type de comportement apparaît souvent lorsque le marché entre dans une phase :
+- d’attentisme,
+- de réduction du risque,
+- ou de perte de conviction directionnelle.
+
+Le COT ne montre donc pas encore un retournement majeur, mais il indique clairement un ralentissement du momentum spéculatif institutionnel.
+
+---
+
+## Les ETF Bitcoin envoient un vrai signal d’alerte
+
+Le changement le plus important de cette semaine vient cependant des flux ETF.
+
+La semaine précédente, les ETF Bitcoin spot affichaient encore :
+- plus de **+631M$ d’inflows**,
+- un IBIT fortement acheteur,
+- et un sentiment institutionnel extrêmement positif.
+
+Mais en l’espace de quelques jours, la situation s’est brutalement retournée.
+
+Les flux passent désormais à :
+- **-995M$ d’outflows**
+- avec IBIT et FBTC devenus vendeurs,
+- tandis que le cumul sur 4 semaines repasse lui aussi en territoire négatif.
+
+Ce changement est particulièrement important car les ETF spot ont été l’un des principaux moteurs de la hausse récente de Bitcoin. Lorsque ces flux ralentissent ou deviennent négatifs, le marché perd une partie importante de son soutien structurel.
+
+Cela ne signifie pas nécessairement qu’un bear market commence immédiatement, mais cela traduit clairement une baisse de l’appétit institutionnel à court terme.
+
+---
+
+## La macroéconomie devient moins favorable au Risk-ON
+
+En parallèle, l’environnement macro commence lui aussi à se compliquer.
+
+Les chiffres de l’emploi américain restent solides avec des NFP supérieurs au consensus, ce qui continue de soutenir partiellement les actifs risqués. Cependant, le véritable problème vient désormais de l’inflation.
+
+Le CPI repart à la hausse, le PPI atteint des niveaux particulièrement élevés et les risques d’inflation persistante deviennent de plus en plus difficiles à ignorer.
+
+Le comportement du marché face à ces données est d’ailleurs révélateur :
+- certaines annonces provoquent d’abord de la vente,
+- avant un rebond rapide,
+- signe d’un marché devenu nerveux et hésitant.
+
+Cette réaction traduit souvent une perte de clarté directionnelle où les investisseurs commencent à craindre :
+- des taux élevés plus longtemps,
+- un maintien d’une politique monétaire restrictive,
+- et une dégradation progressive des conditions financières.
+
+Dans le même temps, le DXY repart à la hausse tandis que les taux américains restent orientés positivement. Historiquement, cette combinaison crée rarement un environnement favorable aux actifs spéculatifs comme Bitcoin.
+
+Même le Nasdaq, qui portait largement le sentiment Risk-ON ces derniers mois, commence à montrer les premiers signes de ralentissement.
+
+---
+
+## La structure technique reste haussière… mais se fragilise
+
+D’un point de vue technique, Bitcoin conserve encore une structure de fond haussière. Les tendances Weekly et Daily restent orientées à la hausse et le marché ne montre pas encore de cassure majeure.
+
+Mais plusieurs signaux indiquent clairement une perte de momentum :
+- les nouveaux plus hauts sont de plus en plus difficiles à maintenir,
+- les résistances redescendent progressivement,
+- et le support principal glisse désormais vers la zone des 76k.
+
+La structure actuelle ressemble davantage à :
+- une phase de compression,
+- un ralentissement de tendance,
+- voire un début de distribution locale.
+
+Le maintien de la zone 76k–80k devient donc particulièrement important. Tant que cette zone tient, le marché peut encore reprendre sa dynamique si les flux ETF et le contexte macro s’améliorent.
+
+En revanche, une cassure propre de cette zone changerait beaucoup plus sérieusement la lecture de marché.
 
 ---
 
 ## Conclusion
 
-Bitcoin reste haussier structurellement, mais le contexte s’est nettement fragilisé.
+Bitcoin n’est pas encore dans un bear market confirmé. La structure de fond reste globalement haussière et les institutionnels ne sont pas encore totalement retournés.
 
-Les données montrent un passage progressif :
-- d’un environnement de forte impulsion institutionnelle,
-- vers un régime plus défensif et incertain.
+Mais plusieurs éléments montrent que le marché entre dans une phase beaucoup plus fragile :
+- les flux ETF ralentissent fortement,
+- l’inflation redevient un problème,
+- le dollar repart à la hausse,
+- et le momentum technique se détériore progressivement.
 
-La prudence devient désormais plus importante :
-- confirmation des mouvements,
-- gestion du risque,
-- attention aux faux breakouts,
-- surveillance accrue des flux ETF et des réactions macro.
+Le marché semble donc évoluer vers un régime :
+- plus volatil,
+- plus dépendant de la macro,
+- et beaucoup plus sensible aux flux institutionnels.
 
-Je reste constructif tant que les supports HTF tiennent, mais avec une approche beaucoup plus prudente dans un marché devenu plus sensible aux flux et à la macroéconomie.
+Dans ce contexte, la prudence devient essentielle. Les confirmations techniques prennent davantage d’importance et les faux breakouts risquent de devenir plus fréquents dans les prochaines semaines.
+
+Le comportement des ETF Bitcoin et la réaction du marché aux prochaines données inflationnistes seront probablement les éléments les plus importants à surveiller pour la suite.
