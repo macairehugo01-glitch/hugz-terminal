@@ -75,11 +75,19 @@ Ce qui préoccupe le plus les marchés dans ce rapport PPI, c'est la répartitio
 
 ## 4. Synthèse des Données Macroéconomiques
 
-| Indicateur Macro | Donnée Précédente | Consensus | Réel Publié | Évaluation |
-| :--- | :---: | :---: | :---: | :--- |
-| **CPI Global** (Annuel) | 3,3 % | 3,7 % | **3,8 %** | 🔴 Mauvais (Inflation en hausse) |
-| **CPI Core** (Mensuel) | 0,2 % | 0,3 % | **0,4 %** | 🟠 Mitigé (~0,25 % hors OER) |
-| **PPI Global** (Mensuel) | 0,7 % (révisé) | 0,5 % | **1,4 %** | 🔴 Très Mauvais (Surchauffe) |
+> 📊 **Indicateurs Clés de la Semaine**
+
+* **CPI Global (Annuel) :** * 📋 *Précédent :* `3,3 %` | *Consensus :* `3,7 %`
+  * 🎯 **Réel Publié : 3,8 %**
+  * 🔴 **Évaluation :** Mauvais (Reprise de l'inflation globale)
+
+* **CPI Core (Mensuel) :** * 📋 *Précédent :* `0,2 %` | *Consensus :* `0,3 %`
+  * 🎯 **Réel Publié : 0,4 %**
+  * 🟠 **Évaluation :** Mitigé (Mais rassurant car situé à `~0,25 %` hors distorsion technique de l'OER)
+
+* **PPI Global (Mensuel) :** * 📋 *Précédent :* `0,7 % (révisé)` | *Consensus :* `0,5 %`
+  * 🎯 **Réel Publié : 1,4 %**
+  * 🔴 **Évaluation :** Très Mauvais (Forte surchauffe et risques de contagion sur la production)
 
 ---
 
