@@ -3,7 +3,7 @@ title: LE CPI est faussé ?!
 date: 2026-05-11
 category: Macro
 tags: [CPI, CPPI, Inflation, macro, économie]
-cover: /articles/images/bitcoin.jpg
+cover: /articles/images/cpi.jpg
 excerpt: La mesure de l'inflation n'est pas aussi simple que vous le pensez.
 ---
 
