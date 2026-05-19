@@ -7,7 +7,7 @@ cover: /articles/images/bitcoin.jpg
 excerpt: Plusieurs signaux montrent une nette détérioration du contexte sur Bitcoin malgré une structure encore haussière.
 ---
 
-### Contexte général
+# Contexte général
 
 Après plusieurs semaines de dynamique haussière alimentée par les ETF spot Bitcoin et un environnement globalement Risk-ON, le marché commence à montrer des signes clairs de ralentissement. La structure de fond reste encore orientée à la hausse, aussi bien sur les unités Weekly que Daily, mais la qualité du momentum se dégrade progressivement.
 
@@ -20,9 +20,9 @@ Le marché ne semble plus évoluer dans une phase d’impulsion haussière propr
 
 ---
 
-### Les institutionnels commencent à réduire leur exposition
+# Les institutionnels commencent à réduire leur exposition
 
-# Le premier signal de fragilité vient du positionnement institutionnel sur les futures CME Bitcoin.
+## Le premier signal de fragilité vient du positionnement institutionnel sur les futures CME Bitcoin.
 
 Les acteurs non commerciaux restent encore légèrement net long, avec une position nette positive passant de :
 - **1.44 → 1.26**
@@ -40,9 +40,9 @@ Le COT ne montre donc pas encore un retournement majeur, mais il indique clairem
 
 ---
 
-### Les ETF Bitcoin envoient un vrai signal d’alerte
+# Les ETF Bitcoin envoient un vrai signal d’alerte
 
-# Le changement le plus important de cette semaine vient cependant des flux ETF.
+## Le changement le plus important de cette semaine vient cependant des flux ETF.
 
 La semaine précédente, les ETF Bitcoin spot affichaient encore :
 - plus de **+631M$ d’inflows**,
@@ -62,7 +62,7 @@ Cela ne signifie pas nécessairement qu’un bear market commence immédiatement
 
 ---
 
-### La macroéconomie devient moins favorable au Risk-ON
+# La macroéconomie devient moins favorable au Risk-ON
 
 En parallèle, l’environnement macro commence lui aussi à se compliquer.
 
@@ -86,7 +86,7 @@ Même le Nasdaq, qui portait largement le sentiment Risk-ON ces derniers mois, c
 
 ---
 
-### La structure technique reste haussière… mais se fragilise
+# La structure technique reste haussière… mais se fragilise
 
 D’un point de vue technique, Bitcoin conserve encore une structure de fond haussière. Les tendances Weekly et Daily restent orientées à la hausse et le marché ne montre pas encore de cassure majeure.
 
@@ -106,9 +106,9 @@ En revanche, une cassure propre de cette zone changerait beaucoup plus sérieuse
 
 ---
 
-### Conclusion
+# Conclusion
 
-# Bitcoin n’est pas encore dans un bear market confirmé. La structure de fond reste globalement haussière et les institutionnels ne sont pas encore totalement retournés.
+## Bitcoin n’est pas encore dans un bear market confirmé. La structure de fond reste globalement haussière et les institutionnels ne sont pas encore totalement retournés.
 
 Mais plusieurs éléments montrent que le marché entre dans une phase beaucoup plus fragile :
 - les flux ETF ralentissent fortement,
