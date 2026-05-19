@@ -11,8 +11,8 @@ excerpt: plusieurs signaux montrent une nette détérioration du contexte sur bi
 **Le marché Bitcoin reste dans une structure haussière de fond (HTF Weekly et Daily encore orientés à la hausse), mais plusieurs signaux montrent une nette détérioration du contexte entre la semaine du 05/05 et la semaine du 11/05.
 Le marché semble passer d’un régime de momentum haussier propre à une phase plus fragile de compression, distribution ou correction intermédiaire.**
 
---
-##1. Positionnement institutionnel (COT CME)
+
+##Positionnement institutionnel (COT CME)
 
 Le positionnement des acteurs non commerciaux reste légèrement bullish :
 
@@ -36,7 +36,7 @@ Le marché n’est pas encore structurellement bearish selon le COT, mais le mom
 
 --
 
-##2. Flux ETF Bitcoin Spot
+##Flux ETF Bitcoin Spot
 
 C’est la détérioration la plus importante du rapport.
 
@@ -65,7 +65,7 @@ Le marché perd donc l’un de ses principaux moteurs haussiers récents.
 
 --
 
-##3. Environnement macroéconomique
+##Environnement macroéconomique
 Emploi / NFP
 
 Les chiffres NFP restent solides et supérieurs au consensus.
@@ -101,7 +101,7 @@ Le Nasdaq montre les premiers signes de ralentissement après une phase risk-on 
 
 --
 
-##4. Analyse technique
+##Analyse technique
 Tendance de fond
 
 La tendance Weekly et Daily reste haussière.
@@ -122,7 +122,7 @@ Le maintien des zones 76k–80k devient critique pour préserver la structure ha
 
 --
 
-##5. Lecture synthétique du marché
+##Lecture synthétique du marché
 
 Le marché Bitcoin n’est pas encore dans un bear market confirmé, mais :
 
