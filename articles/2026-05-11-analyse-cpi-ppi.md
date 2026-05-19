@@ -75,11 +75,40 @@ Ce qui préoccupe le plus les marchés dans ce rapport PPI, c'est la répartitio
 
 ## 4. Synthèse des Données Macroéconomiques
 
-| Indicateur Macroéconomique | Donnée Précédente | Prévision Consensus | Donnée Réelle Publiée | Évaluation pour le Marché |
-| :--- | :--- | :--- | :--- | :--- |
-| **CPI Global** (Annuel) | 3,3 % | 3,7 % | **3,8 %** | 🔴 Mauvais (Hausse globale) |
-| **CPI Core** (Mensuel) | 0,2 % | 0,3 % | **0,4 %** | 🟠 Mitigé (0,25 % hors OER) |
-| **PPI Global** (Mensuel) | 0,7 % (révisé) | 0,5 % | **1,4 %** | 🔴 Très Mauvais (Surchauffe) |
+<table>
+  <thead>
+    <tr>
+      <th align="left">Indicateur Macroéconomique</th>
+      <th align="center">Donnée Précédente</th>
+      <th align="center">Prévision Consensus</th>
+      <th align="center">Donnée Réelle Publiée</th>
+      <th align="left">Évaluation pour le Marché</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>CPI Global</b> (Annuel)</td>
+      <td align="center">3,3 %</td>
+      <td align="center">3,7 %</td>
+      <td align="center"><b>3,8 %</b></td>
+      <td>🔴 Mauvais (Hausse globale)</td>
+    </tr>
+    <tr>
+      <td><b>CPI Core</b> (Mensuel)</td>
+      <td align="center">0,2 %</td>
+      <td align="center">0,3 %</td>
+      <td align="center"><b>0,4 %</b></td>
+      <td>🟠 Mitigé (0,25 % hors OER)</td>
+    </tr>
+    <tr>
+      <td><b>PPI Global</b> (Mensuel)</td>
+      <td align="center">0,7 % (révisé)</td>
+      <td align="center">0,5 %</td>
+      <td align="center"><b>1,4 %</b></td>
+      <td>🔴 Très Mauvais (Surchauffe)</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -92,5 +121,3 @@ Face à ces forces contraires – un CPI final faussé par la comptabilité mais
 3. **Matières Premières & Or (XAU/USD) :** Le cocktail "tensions géopolitiques + hausse des prix des matériaux industriels de base" est extrêmement haussier pour les matières premières. L'Or conserva son statut de couverture ultime contre l'inflation et le risque de guerre, tandis que les métaux industriels et le pétrole profitent de la hausse des coûts de production. Les velléités vendeuses (shorts) sur ces actifs sont statistiquement dangereuses actuellement.
 
 **Le mot de la fin :** Restez pragmatiques. Ne sur-interprétez pas le CPI sans intégrer l'effet de distorsion de l'OER, mais ne fermez pas les yeux sur la réalité brutale du PPI. Ajustez vos leviers, respectez vos plans de trading et rendez-vous au prochain webinaire pour suivre nos positions en direct !
-
-
