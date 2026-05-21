@@ -3,7 +3,7 @@ title: Nvidia bat tous les records — La démesure industrielle face à l'exige
 date: 2026-05-21
 category: Analyse actif
 tags: [Nvidia, NVDA, IA, Microéconomie, Nasdaq, WallStreet]
-cover: /articles/images/nvidia-results.jpg
+cover: /articles/images/nvidia.jpg
 excerpt: Malgré des résultats stratosphériques et une capitalisation supérieure à un an et demi de production économique française, Nvidia fait face à des attentes presque irréelles.
 ---
 
