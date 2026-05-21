@@ -3,7 +3,7 @@ title: Hyperliquid (HYPE) — L'ogre de la DeFi que rien ne semble arrêter
 date: 2026-05-21
 category: Crypto
 tags: [Hyperliquid, HYPE, DeFi, SP500, Crypto, RWA]
-cover: /articles/images/hyperliquid.jpg
+cover: /articles/images/hype.jpg
 excerpt: Alliance historique avec S&P Dow Jones, lancement d'HyperCore et métriques explosives. Focus sur le protocole qui redéfinit l'écosystème crypto.
 ---
 
