@@ -668,7 +668,7 @@ function buildDebrief(d){
   set("db-macro-ttl","Courbe "+(spread>=0?"normalisée à +"+Math.round(spread)+"pb":"inversée à "+Math.round(spread)+"pb")+" · CPI "+fp(d.inflation?.cpiYoY)+" · NFCI "+fd(d.research?.nfci?.v));
   set("db-macro-exc","HY à "+fp(d.credit?.hy)+", IG à "+fp(d.credit?.ig)+". NFCI "+fd(d.research?.nfci?.v)+(d.research?.nfci?.v<0?" (souple)":" (tendu)")+". Fed maintient "+fp(d.fed?.upperBound)+" face à une inflation persistante.");
   set("db-crypto-ttl","BTC "+fu(d.crypto?.btcusd?.value)+" · ETH "+fu(d.crypto?.ethusd)+" · Dominance "+fp(d.crypto?.btcDominance,1));
-  set("db-crypto-exc","Bitcoin "+(d.crypto?.btcusd?.value>80000?"au-dessus de $80k, signe de force relative":"consolide"). +" Dominance à "+fp(d.crypto?.btcDominance,1)+". Le marché crypto surveille les flux institutionnels.");
+  set("db-crypto-exc","Bitcoin "+(d.crypto?.btcusd?.value>80000?"au-dessus de $80k, signe de force relative":"consolide")+". Dominance à "+fp(d.crypto?.btcDominance,1)+". Le marché crypto surveille les flux institutionnels.");
   const sectors=d.sectors||[];
   const top3=sectors.filter(s=>s.value!=null).slice(0,3).map(s=>s.name+" "+(s.value>=0?"+":"")+s.value.toFixed(2)+"%").join(" · ");
   set("db-marche-ttl","S&P 500 : "+fi(d.equities?.spx?.price)+" ("+fc(d.equities?.spx?.chgPct)+")"+(top3?" · "+top3:""));
