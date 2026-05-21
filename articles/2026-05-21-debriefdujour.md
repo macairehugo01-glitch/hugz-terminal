@@ -1,9 +1,9 @@
 ---
 title: Le Brief Macro International — Le Japon surprend, Nvidia écrase les attentes et la Fed durcit le ton
 date: 2026-05-21
-category: journalière
+category: Journalière
 tags: [BoJ, Nvidia, Fed, Inflation, TIPS]
-cover: /articles/images/brief-macro-international.jpg
+cover: /articles/images/macro-mai-2026.jpg
 excerpt: Le Japon valide le plan de la BoJ, Nvidia pulvérise le consensus et les Minutes de la Fed jettent un froid hawkish sur les marchés. Analyse complète de la séance.
 ---
 
