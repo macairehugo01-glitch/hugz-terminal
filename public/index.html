@@ -334,11 +334,6 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
 
     <div class="grid" id="art-grid"></div>
-
-    <div class="sec-hdr" id="list-hdr" style="display:none">
-      <span class="sec-ttl">Analyses récentes</span>
-      <span class="sec-tag">Suite</span>
-    </div>
     <div class="art-list" id="art-list"></div>
     <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
       <div style="font-size:36px;margin-bottom:12px">📄</div>
@@ -713,22 +708,28 @@ async function loadArticles(){
 }
 
 function renderArticles(){
-  const filtered=curCat==="tous"?articles:articles.filter(a=>a.category===curCat||(a.tags||[]).includes(curCat));
+  // Comparaison insensible à la casse pour les catégories et tags
+  const filtered=curCat==="tous"?articles:articles.filter(a=>{
+    const cat=(a.category||"").toLowerCase().trim();
+    const cur=curCat.toLowerCase().trim();
+    const tagMatch=(a.tags||[]).some(t=>(t||"").toLowerCase().trim()===cur);
+    return cat===cur||tagMatch;
+  });
   set("art-cnt",filtered.length+" article"+(filtered.length>1?"s":""));
 
   const grid=document.getElementById("art-grid");
   const list=document.getElementById("art-list");
   const empty=document.getElementById("art-empty");
-  const lhdr=document.getElementById("list-hdr");
 
   if(!filtered.length){
-    if(grid)grid.innerHTML="";if(list)list.innerHTML="";
-    if(empty)empty.style.display="block";if(lhdr)lhdr.style.display="none";
+    if(grid)grid.innerHTML="";
+    if(list)list.innerHTML="";
+    if(empty)empty.style.display="block";
     return;
   }
   if(empty)empty.style.display="none";
 
-  // Hero — dernier article avec sa photo si disponible
+  // Hero — premier article filtré avec sa photo
   const first=filtered[0];
   if(first){
     const ec=CAT_COLORS[first.category]||"#f59e0b";
@@ -737,27 +738,27 @@ function renderArticles(){
     set("hero-exc",first.excerpt||"Cliquez pour lire l'analyse complète.");
     set("hero-date",fdate(first.date));
     set("hero-read",first.readTime?first.readTime+" min de lecture":"");
-
-    // Photo de l'article dans le hero
     const heroImg=document.getElementById("hero-img-wrap");
     if(heroImg){
       if(first.cover){
-        heroImg.innerHTML=`<img src="${esc(first.cover)}" alt="${esc(first.title)}" style="width:100%;height:100%;object-fit:cover;opacity:.9">`;
+        heroImg.innerHTML=`<img src="${esc(first.cover)}" alt="${esc(first.title)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9">`;
       }else{
-        heroImg.innerHTML=`<div id="hero-emoji" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;background:linear-gradient(135deg,#1e3a5f,#0a1520 50%,#1a1500);opacity:.45">${CAT_EMOJI[first.category]||"📈"}</div>`;
+        const emoji=CAT_EMOJI[first.category]||"📈";
+        heroImg.innerHTML=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;background:linear-gradient(135deg,#1e3a5f,#0a1520 50%,#1a1500);opacity:.45">${emoji}</div>`;
       }
     }
     const heroEl=document.getElementById("hero");
     if(heroEl)heroEl.onclick=()=>openArt(first.slug);
   }
 
-  // Grid (2-5)
+  // Grille (articles 2-5)
   if(grid){
     const items=filtered.slice(1,5);
-    grid.innerHTML=items.length?items.map(a=>{
+    grid.style.display=items.length?"grid":"none";
+    grid.innerHTML=items.map(a=>{
       const ec=CAT_COLORS[a.category]||"#f59e0b";
       return`<div class="card" onclick="openArt('${a.slug}')">
-        <div class="card-cat"><div class="cdot" style="background:${ec}"></div><span class="cname">${a.category}</span></div>
+        <div class="card-cat"><div class="cdot" style="background:${ec}"></div><span class="cname">${esc(a.category)}</span></div>
         <h3 class="card-ttl">${esc(a.title)}</h3>
         ${a.excerpt?`<p class="card-exc">${esc(a.excerpt)}</p>`:""}
         <div class="card-ft">
@@ -767,23 +768,24 @@ function renderArticles(){
           ${a.readTime?`<span class="ft-sep">·</span><span class="ft-read">${a.readTime} min</span>`:""}
         </div>
       </div>`;
-    }).join(""):`<div class="empty"><div class="empty-icon">📄</div><div>Aucun article dans cette catégorie.</div></div>`;
+    }).join("");
   }
 
-  // Liste (6+)
-  const rest=filtered.slice(5);
-  if(lhdr)lhdr.style.display=rest.length?"flex":"none";
-  if(list)list.innerHTML=rest.map((a,i)=>{
-    const ec=CAT_COLORS[a.category]||"#f59e0b";
-    return`<div class="li" onclick="openArt('${a.slug}')">
-      <div class="li-num">${String(i+1).padStart(2,"0")}</div>
-      <div>
-        <div class="li-cat" style="color:${ec}">${CAT_EMOJI[a.category]||"📊"} ${a.category}</div>
-        <div class="li-ttl">${esc(a.title)}</div>
-        <div class="li-meta">Hugo Macaire · ${fdate(a.date)}${a.readTime?" · "+a.readTime+" min":""}</div>
-      </div>
-    </div>`;
-  }).join("");
+  // Liste compacte (articles 6+)
+  if(list){
+    const rest=filtered.slice(5);
+    list.innerHTML=rest.map((a,i)=>{
+      const ec=CAT_COLORS[a.category]||"#f59e0b";
+      return`<div class="li" onclick="openArt('${a.slug}')">
+        <div class="li-num">${String(i+1).padStart(2,"0")}</div>
+        <div>
+          <div class="li-cat" style="color:${ec}">${CAT_EMOJI[a.category]||"📊"} ${esc(a.category)}</div>
+          <div class="li-ttl">${esc(a.title)}</div>
+          <div class="li-meta">Hugo Macaire · ${fdate(a.date)}${a.readTime?" · "+a.readTime+" min":""}</div>
+        </div>
+      </div>`;
+    }).join("");
+  }
 }
 
 function filterCat(el,cat){
@@ -879,5 +881,141 @@ async function init(){
 }
 init();
 </script>
+<!-- ── POPUP EMAIL OBLIGATOIRE ─────────────────────────── -->
+<div id="email-gate" style="
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(10,12,16,.97);
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(8px);
+">
+  <div style="
+    background:var(--ink2);
+    border:1px solid #2a2e38;
+    border-top:3px solid var(--gold);
+    border-radius:6px;
+    padding:48px 40px;
+    max-width:460px;width:90%;
+    text-align:center;
+    box-shadow:0 24px 80px rgba(0,0,0,.6);
+  ">
+    <!-- Logo -->
+    <div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:white;margin-bottom:4px">Hugo Macaire</div>
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--gold2);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px">Analyses Économiques</div>
+
+    <!-- Accroche -->
+    <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--gold2);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">Accès gratuit</div>
+    <h2 style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:white;line-height:1.25;margin-bottom:12px">
+      Recevez le briefing macro hebdomadaire
+    </h2>
+    <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:28px">
+      Analyses de marché, signal Risk-ON/OFF, décryptage macro.<br>
+      <strong style="color:#e5e7eb">Gratuit · Sans spam · Désinscription en 1 clic</strong>
+    </p>
+
+    <!-- Formulaire -->
+    <input
+      id="gate-email"
+      type="email"
+      placeholder="votre@email.com"
+      style="
+        width:100%;background:#0d1117;border:1px solid #2a2e38;
+        color:white;padding:12px 16px;border-radius:4px;
+        font-family:'DM Sans',sans-serif;font-size:14px;
+        margin-bottom:12px;outline:none;
+        transition:border-color .2s;box-sizing:border-box;
+      "
+      onkeydown="if(event.key==='Enter')gateSubmit()"
+      onfocus="this.style.borderColor='var(--gold)'"
+      onblur="this.style.borderColor='#2a2e38'"
+    >
+    <div id="gate-error" style="color:#f87171;font-size:12px;margin-bottom:10px;display:none">
+      Veuillez entrer une adresse email valide.
+    </div>
+    <button
+      onclick="gateSubmit()"
+      id="gate-btn"
+      style="
+        width:100%;background:var(--gold);border:none;
+        color:var(--ink);font-family:'DM Sans',sans-serif;
+        font-size:14px;font-weight:700;letter-spacing:.5px;
+        padding:13px;border-radius:4px;cursor:pointer;
+        transition:background .18s;
+      "
+      onmouseover="this.style.background='var(--gold2)'"
+      onmouseout="this.style.background='var(--gold)'"
+    >
+      Accéder aux analyses →
+    </button>
+
+    <!-- Sous-texte -->
+    <div style="margin-top:16px;font-size:11px;color:#4b5563;line-height:1.5">
+      En continuant, vous acceptez de recevoir la newsletter hebdomadaire.<br>
+      Contenu informatif — pas de conseil en investissement.
+    </div>
+  </div>
+</div>
+
+<script>
+// ── EMAIL GATE ─────────────────────────────────────────────
+const GATE_KEY="hm_gate_v1";
+
+function gateCheck(){
+  // Si déjà passé (cookie/localStorage), masquer le popup
+  try{
+    if(localStorage.getItem(GATE_KEY)){
+      document.getElementById("email-gate").style.display="none";
+      return true;
+    }
+  }catch{}
+  // Bloquer le scroll
+  document.body.style.overflow="hidden";
+  return false;
+}
+
+async function gateSubmit(){
+  const inp=document.getElementById("gate-email");
+  const err=document.getElementById("gate-error");
+  const btn=document.getElementById("gate-btn");
+  const email=(inp?.value||"").trim().toLowerCase();
+
+  // Validation
+  if(!email||!email.includes("@")||!email.includes(".")){
+    if(err)err.style.display="block";
+    return;
+  }
+  if(err)err.style.display="none";
+  if(btn){btn.textContent="Enregistrement...";btn.disabled=true;}
+
+  // Envoyer l'email au serveur
+  try{
+    await fetch("/api/newsletter",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email,source:"gate"})
+    });
+  }catch(e){
+    console.warn("Newsletter API:",e.message);
+    // On laisse passer même si l'API échoue
+  }
+
+  // Mémoriser localement pour ne plus afficher le popup
+  try{localStorage.setItem(GATE_KEY,"1");}catch{}
+
+  // Fermer le popup avec animation
+  const gate=document.getElementById("email-gate");
+  if(gate){
+    gate.style.transition="opacity .4s";
+    gate.style.opacity="0";
+    setTimeout(()=>{
+      gate.style.display="none";
+      document.body.style.overflow="";
+    },400);
+  }
+}
+
+// Vérifier au chargement
+gateCheck();
+</script>
+
 </body>
 </html>
