@@ -735,41 +735,6 @@ async function getArticle(slug){
 // Servir les images des articles
 app.use("/articles/images",express.static(path.join(ARTICLES_DIR,"images")));
 
-/* ── NEWSLETTER — stockage local /data/newsletter.json ── */
-const NL_FILE=path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH||__dirname,"newsletter.json");
-
-function loadEmails(){
-  try{
-    if(!fs.existsSync(NL_FILE))return[];
-    return JSON.parse(fs.readFileSync(NL_FILE,"utf8"));
-  }catch{return[];}
-}
-function saveEmails(list){
-  try{fs.writeFileSync(NL_FILE,JSON.stringify(list,null,2),"utf8");}catch{}
-}
-
-// POST /api/newsletter — enregistrer un email
-app.post("/api/newsletter",async(req,res)=>{
-  const email=(req.body?.email||"").trim().toLowerCase();
-  if(!email||!email.includes("@")||!email.includes("."))
-    return res.status(400).json({error:"Email invalide"});
-  const list=loadEmails();
-  if(list.find(e=>e.email===email))
-    return res.json({ok:true,message:"Déjà inscrit"});
-  list.push({email,date:new Date().toISOString(),source:req.body?.source||"popup"});
-  saveEmails(list);
-  console.log(`[NL] Nouvel inscrit : ${email} (total: ${list.length})`);
-  res.json({ok:true,message:"Inscrit",total:list.length});
-});
-
-// GET /api/newsletter — liste des emails (usage interne)
-app.get("/api/newsletter",async(req,res)=>{
-  const list=loadEmails();
-  res.json({ok:true,count:list.length,emails:list});
-});
-
-
-
 // Route : liste des articles
 app.get("/api/articles",async(req,res)=>{
   const articles=await getArticlesList();
@@ -861,7 +826,7 @@ app.delete("/api/newsletter/:email",async(req,res)=>{
   res.json({ok:true,message:"Désinscrit"});
 });
 
-
+app.post("/api/ai",async(req,res)=>{
   const q=String(req.body?.question||"").trim().slice(0,300);
   const dash=req.body?.dashboard||null;
   if(!q)return res.status(400).json({error:"vide"});
