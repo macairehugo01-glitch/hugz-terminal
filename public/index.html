@@ -361,26 +361,33 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
 
 
-    <!-- Affiliation discrète -->
+    <!-- Affiliation RaiseFX -->
     <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" rel="noopener sponsored" style="display:block;text-decoration:none">
-      <div style="background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.25);border-radius:4px;padding:12px 14px;transition:border-color .18s" onmouseover="this.style.borderColor='#c0392b'" onmouseout="this.style.borderColor='rgba(192,57,43,.25)'">
-        <div style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:1.5px;color:#c0392b;text-transform:uppercase;margin-bottom:5px">Partenaire</div>
-        <div style="font-size:12px;font-weight:600;color:#e5e7eb;line-height:1.4;margin-bottom:8px">
-          Profite du marché avec RaiseFX — broker CFD de référence
+      <div style="background:rgba(192,57,43,.08);border:1.5px solid #c0392b;border-radius:4px;padding:14px 16px;transition:opacity .18s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+        <div style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:2px;color:#c0392b;text-transform:uppercase;margin-bottom:8px">Partenaire</div>
+        <img src="/articles/images/logoraise.jpg" alt="RaiseFX" style="height:28px;object-fit:contain;display:block;margin-bottom:10px" onerror="this.style.display='none'">
+        <div style="font-size:12.5px;font-weight:700;color:#e5e7eb;line-height:1.45;margin-bottom:10px">
+          Tu veux profiter du marché ? Découvre les meilleurs actifs à trader sur RaiseFX
         </div>
-        <div style="font-size:10px;color:#9ca3af;margin-bottom:8px">Spreads serrés · Actifs crypto, forex, indices</div>
-        <div style="font-size:10.5px;font-weight:700;color:#c0392b;letter-spacing:.3px">Ouvrir un compte →</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#c0392b;color:white;font-size:10.5px;font-weight:700;padding:7px 12px;border-radius:3px;letter-spacing:.3px">
+          S'inscrire maintenant →
+        </div>
       </div>
     </a>
 
-    <!-- Newsletter -->
-    <div class="nl">
-      <span class="nl-badge">GRATUIT</span>
-      <div class="nl-ttl">Briefing Hebdomadaire</div>
-      <p class="nl-sub">Analyses macro, signal Risk-ON/OFF et décryptage des marchés chaque semaine.</p>
-      <input class="nl-inp" type="email" id="nl-email" placeholder="votre@email.com">
-      <button class="nl-btn" onclick="submitEmail()">S'abonner gratuitement</button>
-      <div class="nl-free">📧 Aucun spam · Désinscription en 1 clic</div>
+    <!-- Appel découverte -->
+    <div style="background:linear-gradient(135deg,var(--ink),#1a2235);border:1px solid #252a35;border-radius:4px;padding:22px 18px">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1.5px;color:var(--gold2);text-transform:uppercase;margin-bottom:10px">Session personnalisée</div>
+      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:800;color:white;line-height:1.25;margin-bottom:10px">
+        Tu ne sais pas par où commencer ?
+      </div>
+      <p style="font-size:12.5px;color:#9ca3af;line-height:1.6;margin-bottom:16px">
+        Réserve un appel directement avec moi. On fait le point sur ta situation, tes objectifs et les marchés à suivre.
+      </p>
+      <a href="mailto:contact@hugomacaire.com?subject=Demande%20d%27appel%20d%C3%A9couverte" style="display:block;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;text-decoration:none;letter-spacing:.3px;transition:background .18s" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">
+        📞 Réserver un appel gratuit
+      </a>
+      <div style="font-size:10.5px;color:#4b5563;text-align:center;margin-top:8px">Réponse sous 24h · Sans engagement</div>
     </div>
 
     <!-- Prochains Lives -->
@@ -490,8 +497,9 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid #252a35">
         <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" rel="noopener sponsored" style="display:block;text-decoration:none">
           <div style="background:rgba(192,57,43,.08);border:1.5px solid #c0392b;border-radius:4px;padding:14px 16px">
-            <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:700;letter-spacing:2px;color:#c0392b;text-transform:uppercase;margin-bottom:6px">Partenaire</div>
-            <div style="font-size:13px;font-weight:700;color:#e5e7eb;line-height:1.4;margin-bottom:8px">
+            <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:700;letter-spacing:2px;color:#c0392b;text-transform:uppercase;margin-bottom:8px">Partenaire</div>
+            <img src="/articles/images/logoraise.jpg" alt="RaiseFX" style="height:28px;object-fit:contain;display:block;margin-bottom:10px" onerror="this.style.display='none'">
+            <div style="font-size:13px;font-weight:700;color:#e5e7eb;line-height:1.4;margin-bottom:10px">
               Tu veux profiter du marché ? Découvre les meilleurs actifs à trader sur RaiseFX
             </div>
             <div style="display:inline-flex;align-items:center;gap:6px;background:#c0392b;color:white;font-size:11px;font-weight:700;padding:6px 12px;border-radius:3px;letter-spacing:.3px">
