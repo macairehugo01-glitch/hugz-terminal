@@ -119,11 +119,8 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .ft-sep{color:var(--line);font-size:10px}
 
 /* LISTE */
-.art-list{display:flex;flex-direction:column;margin-bottom:30px}
 .li{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:padding-left .18s}
 .li:hover{padding-left:6px}.li:last-child{border-bottom:none}
-.li-num{font-family:'Playfair Display',serif;font-size:21px;font-weight:900;color:var(--line);line-height:1;flex-shrink:0;width:26px;transition:color .18s}
-.li:hover .li-num{color:var(--gold)}
 .li-cat{font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
 .li-ttl{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:3px;transition:color .18s}
 .li:hover .li-ttl{color:var(--gold)}
@@ -334,7 +331,6 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
 
     <div class="grid" id="art-grid"></div>
-    <div class="art-list" id="art-list"></div>
     <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
       <div style="font-size:36px;margin-bottom:12px">📄</div>
       <div>Aucun article dans cette catégorie.</div>
@@ -363,6 +359,19 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       </div>
       <div id="mkt-rows"></div>
     </div>
+
+
+    <!-- Affiliation discrète -->
+    <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" rel="noopener sponsored" style="display:block;text-decoration:none">
+      <div style="background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.25);border-radius:4px;padding:12px 14px;transition:border-color .18s" onmouseover="this.style.borderColor='#c0392b'" onmouseout="this.style.borderColor='rgba(192,57,43,.25)'">
+        <div style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:1.5px;color:#c0392b;text-transform:uppercase;margin-bottom:5px">Partenaire</div>
+        <div style="font-size:12px;font-weight:600;color:#e5e7eb;line-height:1.4;margin-bottom:8px">
+          Profite du marché avec RaiseFX — broker CFD de référence
+        </div>
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:8px">Spreads serrés · Actifs crypto, forex, indices</div>
+        <div style="font-size:10.5px;font-weight:700;color:#c0392b;letter-spacing:.3px">Ouvrir un compte →</div>
+      </div>
+    </a>
 
     <!-- Newsletter -->
     <div class="nl">
@@ -445,7 +454,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 <!-- ABOUT HUGO -->
 <div class="about-section">
   <div class="about-in">
-    <img src="/images/hugo.jpg" alt="Hugo Macaire" class="about-photo">
+    <img src="/articles/images/HUGO.jpg" alt="Hugo Macaire" class="about-photo">
     <div class="about-bio">
       <div class="about-name">Hugo Macaire</div>
       <div class="about-role">Trader · Expert CFD & Macro · Cryptomonnaies</div>
@@ -455,16 +464,16 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
         pour vous donner une lecture claire et indépendante de l'économie mondiale.
       </p>
       <div class="socials">
-        <a href="#" class="social-btn" target="_blank">
+        <a href="https://x.com/0xHugzer" class="social-btn" target="_blank" rel="noopener">
           <span>𝕏</span> Twitter / X
         </a>
-        <a href="#" class="social-btn" target="_blank">
+        <a href="https://www.linkedin.com/in/hugo-macaire-a41832204/" class="social-btn" target="_blank" rel="noopener">
           <span>in</span> LinkedIn
         </a>
-        <a href="#" class="social-btn" target="_blank">
-          <span>✈</span> Telegram
+        <a href="https://www.instagram.com/hugomacaire?igsh=MTdhaXNwdWlkYnkycw==" class="social-btn" target="_blank" rel="noopener">
+          <span>📸</span> Instagram
         </a>
-        <a href="#" class="social-btn" target="_blank">
+        <a href="https://youtube.com/@dailyhugzer?si=Ht-wyle2TaOBix2u" class="social-btn" target="_blank" rel="noopener">
           <span>▶</span> YouTube
         </a>
       </div>
@@ -479,14 +488,17 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
         ✉ contact@hugomacaire.com
       </a>
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid #252a35">
-        <div class="contact-title" style="margin-bottom:10px">Abonnement Premium</div>
-        <p style="font-size:12.5px;color:#6b7280;margin-bottom:12px;line-height:1.5">
-          Analyses quotidiennes, alertes Signal Risk-ON/OFF, accès terminal live.
-        </p>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-family:'Playfair Display',serif;font-size:26px;font-weight:800;color:var(--gold)">20€</span>
-          <span style="font-size:12px;color:#6b7280">/mois<br>sans engagement</span>
-        </div>
+        <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" rel="noopener sponsored" style="display:block;text-decoration:none">
+          <div style="background:rgba(192,57,43,.08);border:1.5px solid #c0392b;border-radius:4px;padding:14px 16px">
+            <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:700;letter-spacing:2px;color:#c0392b;text-transform:uppercase;margin-bottom:6px">Partenaire</div>
+            <div style="font-size:13px;font-weight:700;color:#e5e7eb;line-height:1.4;margin-bottom:8px">
+              Tu veux profiter du marché ? Découvre les meilleurs actifs à trader sur RaiseFX
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#c0392b;color:white;font-size:11px;font-weight:700;padding:6px 12px;border-radius:3px;letter-spacing:.3px">
+              S'inscrire maintenant →
+            </div>
+          </div>
+        </a>
       </div>
     </div>
   </div>
@@ -718,7 +730,6 @@ function renderArticles(){
   set("art-cnt",filtered.length+" article"+(filtered.length>1?"s":""));
 
   const grid=document.getElementById("art-grid");
-  const list=document.getElementById("art-list");
   const empty=document.getElementById("art-empty");
 
   if(!filtered.length){
@@ -751,9 +762,9 @@ function renderArticles(){
     if(heroEl)heroEl.onclick=()=>openArt(first.slug);
   }
 
-  // Grille (articles 2-5)
+  // Grille tous les articles (sauf hero) en rectangles
   if(grid){
-    const items=filtered.slice(1,5);
+    const items=filtered.slice(1);
     grid.style.display=items.length?"grid":"none";
     grid.innerHTML=items.map(a=>{
       const ec=CAT_COLORS[a.category]||"#f59e0b";
@@ -766,22 +777,6 @@ function renderArticles(){
           <span class="ft-sep">·</span>
           <span class="ft-date">${fdate(a.date)}</span>
           ${a.readTime?`<span class="ft-sep">·</span><span class="ft-read">${a.readTime} min</span>`:""}
-        </div>
-      </div>`;
-    }).join("");
-  }
-
-  // Liste compacte (articles 6+)
-  if(list){
-    const rest=filtered.slice(5);
-    list.innerHTML=rest.map((a,i)=>{
-      const ec=CAT_COLORS[a.category]||"#f59e0b";
-      return`<div class="li" onclick="openArt('${a.slug}')">
-        <div class="li-num">${String(i+1).padStart(2,"0")}</div>
-        <div>
-          <div class="li-cat" style="color:${ec}">${CAT_EMOJI[a.category]||"📊"} ${esc(a.category)}</div>
-          <div class="li-ttl">${esc(a.title)}</div>
-          <div class="li-meta">Hugo Macaire · ${fdate(a.date)}${a.readTime?" · "+a.readTime+" min":""}</div>
         </div>
       </div>`;
     }).join("");
