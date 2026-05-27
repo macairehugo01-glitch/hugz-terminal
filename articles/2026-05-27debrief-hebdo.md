@@ -3,7 +3,7 @@ title: "Débrief Hebdo : Le Nasdaq touche les 30k, la BCE durcit le ton et le pi
 date: 2026-05-27
 category: Debrief
 tags: [BoE, Fed, BTC, Nasdaq, Or, Confiance, Inflation, Macro]
-cover: /articles/images/debrief-hebdo.jpg
+cover: articles/images/Capture d'écran 2025-11-18 123242.png
 excerpt: Analyse complète des chocs macroéconomiques majeurs, de la démesure du Nasdaq à 30 000 points, des fuites de stocks d'or au COMEX et du plan de route critique sur les 76k du Bitcoin.
 ---
 
