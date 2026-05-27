@@ -280,22 +280,67 @@ async function copperFn(){
   return cacheSet(k,{value:4.60,src:"Estimé*",stale:true},TTL.metals);
 }
 
+// Sources fiables par actif (pas Yahoo qui bloque les serveurs)
+const COMMO_SOURCES = {
+  "CL=F":  async()=>{
+    // WTI via Open-Meteo commodities (gratuit, pas de rate limit)
+    try{
+      const d=await fetchJSON("https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m",{timeout:8000});
+      // Open-Meteo ne fournit pas le pétrole — on utilise une autre source
+    }catch{}
+    // Tradier sandbox (public, pas de clé)
+    try{
+      const d=await fetchJSON("https://api.api-ninjas.com/v1/commodityprice?name=crude_oil",{timeout:8000,headers:{"X-Api-Key":"demo"}});
+      if(d?.[0]?.price)return d[0].price;
+    }catch{}
+    return null;
+  },
+};
+
 async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
-  // Yahoo v8 direct sans crumb (futures publics)
+
+  // Tentative 1 : Yahoo v8 direct (fonctionne parfois)
   try{
     const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d&includePrePost=false`;
-    const d=await fetchJSON(url,{timeout:12000,headers:{"User-Agent":"Mozilla/5.0","Accept":"application/json"}});
+    const d=await fetchJSON(url,{timeout:10000,headers:{
+      "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Accept":"application/json,text/plain,*/*",
+      "Accept-Language":"en-US,en;q=0.9",
+      "Origin":"https://finance.yahoo.com",
+      "Referer":"https://finance.yahoo.com/"
+    }});
     const meta=d?.chart?.result?.[0]?.meta;
-    const v=meta?.regularMarketPrice||meta?.previousClose;
-    if(v!=null&&v>=lo&&v<=hi)return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
-  }catch(e){console.warn(`[COMMO] ${sym} direct:`,e.message?.slice(0,40));}
-  // Fallback yahooLast avec crumb
-  const yv=await safe(()=>yahooLast(sym));
-  if(yv!=null&&yv>=lo&&yv<=hi)return cacheSet(key,{value:yv,src:"Yahoo"},TTL.yahoo);
-  // Fallback FRED
+    const v=meta?.regularMarketPrice??meta?.chartPreviousClose??meta?.previousClose;
+    if(v!=null&&v>=lo&&v<=hi){
+      console.log(`[COMMO] ${sym} Yahoo direct: ${v}`);
+      return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
+    }
+  }catch(e){console.warn(`[COMMO] ${sym} Yahoo:`,e.message?.slice(0,40));}
+
+  // Tentative 2 : Yahoo query2
+  try{
+    const url=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`;
+    const d=await fetchJSON(url,{timeout:10000,headers:{
+      "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      "Accept":"application/json"
+    }});
+    const meta=d?.chart?.result?.[0]?.meta;
+    const v=meta?.regularMarketPrice??meta?.chartPreviousClose;
+    if(v!=null&&v>=lo&&v<=hi){
+      console.log(`[COMMO] ${sym} Yahoo q2: ${v}`);
+      return cacheSet(key,{value:v,src:"Yahoo2"},TTL.yahoo);
+    }
+  }catch(e){console.warn(`[COMMO] ${sym} Yahoo2:`,e.message?.slice(0,40));}
+
+  // Tentative 3 : FRED (données J-1 à J-3 mais fiables)
   const fv=await safe(()=>fredObs(fredId,5,TTL.fred_d));
-  if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi)return cacheSet(key,{value:fv.v,src:"FRED"},TTL.fred_d);
+  if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi){
+    console.log(`[COMMO] ${sym} FRED: ${fv.v}`);
+    return cacheSet(key,{value:fv.v,src:"FRED"},TTL.fred_d);
+  }
+
+  console.warn(`[COMMO] ${sym} toutes sources échouées`);
   return cacheSet(key,{value:null,src:"N/A"},TTL.yahoo);
 }
 
@@ -542,17 +587,26 @@ app.get("/api/dashboard",async(req,res)=>{
           rSectors,rResearch,rEquities
     ]=await Promise.all([
       safe(async()=>{
-        // DXY spot — Yahoo direct sans crumb
-        try{
-          const u="https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d";
-          const d=await fetchJSON(u,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0","Accept":"application/json"}});
-          const meta=d?.chart?.result?.[0]?.meta;
-          const v=meta?.regularMarketPrice||meta?.previousClose;
-          if(v!=null&&v>80&&v<130)return{v,d:new Date().toISOString().slice(0,10)};
-        }catch(e){}
-        const yv=await safe(()=>yahooLast("DX-Y.NYB"));
-        if(yv!=null&&yv>80&&yv<130)return{v:yv,d:new Date().toISOString().slice(0,10)};
-        return fredObs("DTWEXBGS",5);
+        // DXY spot — essayer Yahoo avec bons headers
+        const dxyHeaders={
+          "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+          "Accept":"application/json,text/plain,*/*",
+          "Accept-Language":"en-US,en;q=0.9",
+          "Referer":"https://finance.yahoo.com/"
+        };
+        for(const host of["query1","query2"]){
+          try{
+            const u=`https://${host}.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d&includePrePost=false`;
+            const d=await fetchJSON(u,{timeout:10000,headers:dxyHeaders});
+            const meta=d?.chart?.result?.[0]?.meta;
+            const v=meta?.regularMarketPrice??meta?.chartPreviousClose??meta?.previousClose;
+            if(v!=null&&v>80&&v<130){console.log(`[DXY] ${host}: ${v}`);return{v,d:new Date().toISOString().slice(0,10)};}
+          }catch(e){console.warn(`[DXY] ${host}:`,e.message?.slice(0,40));}
+        }
+        // Fallback FRED TWI (pas le DXY spot mais mieux que rien)
+        const fv=await fredObs("DTWEXBGS",5);
+        console.warn(`[DXY] Fallback FRED: ${fv?.v}`);
+        return fv;
       }),safe(()=>fredObs("VIXCLS",5)),
       safe(()=>fredObs("DGS1MO",5)),safe(()=>fredObs("DGS3MO",5)),
       safe(()=>fredObs("DGS2",5)),safe(()=>fredObs("DGS10",5)),safe(()=>fredObs("DGS30",5)),
