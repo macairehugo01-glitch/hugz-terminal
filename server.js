@@ -778,75 +778,90 @@ app.post("/api/articles/refresh",(_,res)=>{
 });
 
 /* ═══════════════════════════════════════════════════════
-   NEWSLETTER — Stockage emails dans /data/newsletter.json
-   GET  /api/newsletter       → liste des inscrits (usage interne)
-   POST /api/newsletter       → inscription
-   DELETE /api/newsletter/:email → désinscription
+   NEWSLETTER — Google Apps Script → Google Sheets
+   Variables Railway :
+     GOOGLE_SCRIPT_URL   → URL du script déployé
+     GOOGLE_SCRIPT_TOKEN → token secret
+     ADMIN_KEY           → mot de passe admin pour lire la liste
 ═══════════════════════════════════════════════════════ */
-const NL_DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data";
+const NL_DATA_DIR  = process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data";
 const NL_FILE_PATH = path.join(NL_DATA_DIR,"newsletter.json");
+const SCRIPT_URL   = process.env.GOOGLE_SCRIPT_URL||"https://script.google.com/macros/s/AKfycbxmMw-aRq0yjdGjoZt2TmoVOsj4PM4wDhN-VqJMPAf0JkYrpkubQEnBcvRE5aNXN2Z6/exec";
+const SCRIPT_TOKEN = process.env.GOOGLE_SCRIPT_TOKEN||"hugomacaire2026";
 
-function loadEmails(){
+function ensureNlDir(){try{if(!fs.existsSync(NL_DATA_DIR))fs.mkdirSync(NL_DATA_DIR,{recursive:true});}catch{}}
+
+// Envoyer email vers Google Sheets via Apps Script
+async function saveToSheets(email, source){
+  if(!SCRIPT_URL) return false;
   try{
-    if(!fs.existsSync(NL_DATA_DIR))fs.mkdirSync(NL_DATA_DIR,{recursive:true});
-    if(!fs.existsSync(NL_FILE_PATH))return[];
-    return JSON.parse(fs.readFileSync(NL_FILE_PATH,"utf8"));
-  }catch{return[];}
-}
-function saveEmails(list){
-  try{
-    if(!fs.existsSync(NL_DATA_DIR))fs.mkdirSync(NL_DATA_DIR,{recursive:true});
-    fs.writeFileSync(NL_FILE_PATH,JSON.stringify(list,null,2),"utf8");
-  }catch(e){console.error("[NL] Save error:",e.message);}
+    const r = await fetch(`${SCRIPT_URL}?token=${encodeURIComponent(SCRIPT_TOKEN)}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({email, source: source||"site"})
+    });
+    const d = await r.json();
+    if(d.ok){
+      console.log(`[SHEETS] ${email} enregistré`);
+      return true;
+    }
+    console.warn("[SHEETS] Refus:", d.error);
+    return false;
+  }catch(e){
+    console.warn("[SHEETS]", e.message?.slice(0,60));
+    return false;
+  }
 }
 
-// Inscription
+// Backup local (au cas où Sheets échoue)
+function loadLocal(){
+  try{ensureNlDir();if(!fs.existsSync(NL_FILE_PATH))return[];return JSON.parse(fs.readFileSync(NL_FILE_PATH,"utf8"));}
+  catch{return[];}
+}
+function saveLocal(email, source){
+  try{
+    ensureNlDir();
+    const l = loadLocal();
+    if(!l.find(e=>e.email===email)){
+      l.push({email, date:new Date().toISOString(), source:source||"site"});
+      fs.writeFileSync(NL_FILE_PATH, JSON.stringify(l,null,2), "utf8");
+    }
+  }catch{}
+}
 app.post("/api/newsletter",async(req,res)=>{
   const email=String(req.body?.email||"").trim().toLowerCase();
   if(!email||!email.includes("@")||!email.includes("."))
     return res.status(400).json({ok:false,error:"Email invalide"});
-
-  const list=loadEmails();
-  const exists=list.find(e=>e.email===email);
-  if(exists)return res.json({ok:true,message:"Déjà inscrit",already:true});
-
-  list.push({
-    email,
-    date:new Date().toISOString(),
-    source:"popup"
-  });
-  saveEmails(list);
-  console.log(`[NL] Nouvel inscrit: ${email} (total: ${list.length})`);
-  res.json({ok:true,message:"Inscription confirmée",total:list.length});
+  const source=req.body?.source||"site";
+  // Envoyer vers Google Sheets
+  const ok=await saveToSheets(email,source);
+  // Backup local dans tous les cas
+  saveLocal(email,source);
+  console.log(`[NL] ${email} | Sheets:${ok} | source:${source}`);
+  res.json({ok:true,message:"Inscrit"});
 });
 
-// Liste inscrits (protégée par clé admin)
 app.get("/api/newsletter",async(req,res)=>{
-  const key=req.query.key||"";
-  const adminKey=process.env.ADMIN_KEY||"hugomacaire2026";
-  if(key!==adminKey)return res.status(401).json({error:"Non autorisé"});
-  const list=loadEmails();
-  res.json({ok:true,count:list.length,emails:list});
+  const ADMIN_KEY=process.env.ADMIN_KEY||"hugomacaire2026";
+  if(req.query.key!==ADMIN_KEY)return res.status(401).json({error:"Non autorisé"});
+  const list=loadLocal();
+  res.json({ok:true,count:list.length,emails:list,note:"Données complètes dans Google Sheets"});
 });
 
-// Export CSV des inscrits
 app.get("/api/newsletter/export",async(req,res)=>{
-  const key=req.query.key||"";
-  const adminKey=process.env.ADMIN_KEY||"hugomacaire2026";
-  if(key!==adminKey)return res.status(401).json({error:"Non autorisé"});
-  const list=loadEmails();
-  const csv=["email,date,source",...list.map(e=>`${e.email},${e.date},${e.source||""}`)].join("\n");
+  const ADMIN_KEY=process.env.ADMIN_KEY||"hugomacaire2026";
+  if(req.query.key!==ADMIN_KEY)return res.status(401).json({error:"Non autorisé"});
+  const list=loadLocal();
+  const csv=["Email,Date,Source",...list.map(e=>`${e.email},${e.date||""},${e.source||""}`)].join("\n");
   res.setHeader("Content-Type","text/csv");
-  res.setHeader("Content-Disposition",`attachment;filename="newsletter-${new Date().toISOString().slice(0,10)}.csv"`);
+  res.setHeader("Content-Disposition",`attachment; filename="newsletter-${new Date().toISOString().slice(0,10)}.csv"`);
   res.send(csv);
 });
 
-// Désinscription
 app.delete("/api/newsletter/:email",async(req,res)=>{
-  const email=decodeURIComponent(req.params.email).toLowerCase();
-  const list=loadEmails().filter(e=>e.email!==email);
-  saveEmails(list);
-  res.json({ok:true,message:"Désinscrit"});
+  const ADMIN_KEY=process.env.ADMIN_KEY||"hugomacaire2026";
+  if(req.query.key!==ADMIN_KEY)return res.status(401).json({error:"Non autorisé"});
+  res.json({ok:true,message:"Supprime manuellement dans Google Sheets"});
 });
 
 app.post("/api/ai",async(req,res)=>{
