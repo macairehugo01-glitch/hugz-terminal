@@ -991,6 +991,40 @@ init();
       onfocus="this.style.borderColor='var(--gold)'"
       onblur="this.style.borderColor='#2a2e38'"
     >
+
+    <!-- D'où venez-vous ? -->
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:11px;color:#6b7280;letter-spacing:.5px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:6px">
+        Comment avez-vous découvert ce site ?
+      </label>
+      <select
+        id="gate-source"
+        style="
+          width:100%;background:#0d1117;border:1px solid #2a2e38;
+          color:#e5e7eb;padding:11px 14px;border-radius:4px;
+          font-family:'DM Sans',sans-serif;font-size:13px;
+          outline:none;cursor:pointer;
+          transition:border-color .2s;box-sizing:border-box;
+          appearance:none;-webkit-appearance:none;
+          background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E\");
+          background-repeat:no-repeat;background-position:right 12px center;
+          padding-right:36px;
+        "
+        onfocus="this.style.borderColor='var(--gold)'"
+        onblur="this.style.borderColor='#2a2e38'"
+      >
+        <option value="" disabled selected style="color:#6b7280">Choisissez une option...</option>
+        <option value="Instagram">Instagram</option>
+        <option value="YouTube">YouTube</option>
+        <option value="Twitter / X">Twitter / X</option>
+        <option value="LinkedIn">LinkedIn</option>
+        <option value="RaiseFX">RaiseFX</option>
+        <option value="Bouche à oreille">Bouche à oreille</option>
+        <option value="Google">Google / Recherche</option>
+        <option value="Autre">Autre</option>
+      </select>
+    </div>
+
     <div id="gate-error" style="color:#f87171;font-size:12px;margin-bottom:10px;display:none">
       Veuillez entrer une adresse email valide.
     </div>
@@ -1037,34 +1071,30 @@ function gateCheck(){
 
 async function gateSubmit(){
   const inp=document.getElementById("gate-email");
+  const sel=document.getElementById("gate-source");
   const err=document.getElementById("gate-error");
   const btn=document.getElementById("gate-btn");
   const email=(inp?.value||"").trim().toLowerCase();
+  const source=sel?.value||"Non renseigné";
 
-  // Validation
   if(!email||!email.includes("@")||!email.includes(".")){
     if(err)err.style.display="block";
+    inp?.focus();
     return;
   }
   if(err)err.style.display="none";
   if(btn){btn.textContent="Enregistrement...";btn.disabled=true;}
 
-  // Envoyer l'email au serveur
   try{
     await fetch("/api/newsletter",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({email,source:"gate"})
+      body:JSON.stringify({email, source})
     });
-  }catch(e){
-    console.warn("Newsletter API:",e.message);
-    // On laisse passer même si l'API échoue
-  }
+  }catch(e){console.warn("Newsletter:",e.message);}
 
-  // Mémoriser localement pour ne plus afficher le popup
   try{localStorage.setItem(GATE_KEY,"1");}catch{}
 
-  // Fermer le popup avec animation
   const gate=document.getElementById("email-gate");
   if(gate){
     gate.style.transition="opacity .4s";
