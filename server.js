@@ -18,8 +18,9 @@ const express=require("express"),path=require("path");
 const app=express(),PORT=process.env.PORT||3000;
 const FRED_KEY=process.env.FRED_API_KEY||"2945c843ac2ef54c3d1272b9f9cc2747";
 const CLAUDE_KEY=process.env.ANTHROPIC_KEY||"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";
-app.use(express.static(path.join(__dirname,"public")));
 app.use(express.json({limit:"2mb"}));
+app.use(express.urlencoded({extended:true}));
+app.use(express.static(path.join(__dirname,"public")));
 
 /* ═══════════════════════════════════════════
    CACHE
@@ -281,8 +282,18 @@ async function copperFn(){
 
 async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
+  // Yahoo v8 direct sans crumb (futures publics)
+  try{
+    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d&includePrePost=false`;
+    const d=await fetchJSON(url,{timeout:12000,headers:{"User-Agent":"Mozilla/5.0","Accept":"application/json"}});
+    const meta=d?.chart?.result?.[0]?.meta;
+    const v=meta?.regularMarketPrice||meta?.previousClose;
+    if(v!=null&&v>=lo&&v<=hi)return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
+  }catch(e){console.warn(`[COMMO] ${sym} direct:`,e.message?.slice(0,40));}
+  // Fallback yahooLast avec crumb
   const yv=await safe(()=>yahooLast(sym));
   if(yv!=null&&yv>=lo&&yv<=hi)return cacheSet(key,{value:yv,src:"Yahoo"},TTL.yahoo);
+  // Fallback FRED
   const fv=await safe(()=>fredObs(fredId,5,TTL.fred_d));
   if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi)return cacheSet(key,{value:fv.v,src:"FRED"},TTL.fred_d);
   return cacheSet(key,{value:null,src:"N/A"},TTL.yahoo);
@@ -530,7 +541,19 @@ app.get("/api/dashboard",async(req,res)=>{
           rGold,rSilver,rCopper,rOil,rBrent,rNatgas,
           rSectors,rResearch,rEquities
     ]=await Promise.all([
-      safe(async()=>{const v=await safe(()=>yahooLast("DX-Y.NYB"));return v!=null&&v>80&&v<130?{v,d:new Date().toISOString().slice(0,10)}:fredObs("DTWEXBGS",5);}),safe(()=>fredObs("VIXCLS",5)),
+      safe(async()=>{
+        // DXY spot — Yahoo direct sans crumb
+        try{
+          const u="https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d";
+          const d=await fetchJSON(u,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0","Accept":"application/json"}});
+          const meta=d?.chart?.result?.[0]?.meta;
+          const v=meta?.regularMarketPrice||meta?.previousClose;
+          if(v!=null&&v>80&&v<130)return{v,d:new Date().toISOString().slice(0,10)};
+        }catch(e){}
+        const yv=await safe(()=>yahooLast("DX-Y.NYB"));
+        if(yv!=null&&yv>80&&yv<130)return{v:yv,d:new Date().toISOString().slice(0,10)};
+        return fredObs("DTWEXBGS",5);
+      }),safe(()=>fredObs("VIXCLS",5)),
       safe(()=>fredObs("DGS1MO",5)),safe(()=>fredObs("DGS3MO",5)),
       safe(()=>fredObs("DGS2",5)),safe(()=>fredObs("DGS10",5)),safe(()=>fredObs("DGS30",5)),
       safe(()=>fredObs("UNRATE",5)),safe(()=>fredObs("DFEDTARU",5)),
