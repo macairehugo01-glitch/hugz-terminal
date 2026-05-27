@@ -15,7 +15,7 @@
   --muted:#7a7060;--line:#d4cfc4;
   --green:#1a7a4a;--red:#c0392b;--blue:#1a4a8a;
 }
-/* MODE NUIT — fond + texte seulement, le reste intact */
+/* MODE NUIT — fond + texte articles seulement */
 body.dark{background:#0d1117;color:#e6edf3}
 body.dark .card{background:#111620;border-left-color:transparent}
 body.dark .card:hover{background:#161b24;border-left-color:var(--gold)}
@@ -29,6 +29,17 @@ body.dark .sec-hdr{border-bottom-color:#21262d}
 body.dark .sec-ttl{color:#e6edf3}
 body.dark .art-empty{color:#8b949e}
 body.dark main{color:#e6edf3}
+/* Tabs & nav en mode nuit — rester lisibles sur fond clair de leur zone */
+body.dark .tab{color:#9ca3af}
+body.dark .tab:hover{color:#e6edf3}
+body.dark .tab.on{color:#e6edf3;border-bottom-color:var(--gold)}
+body.dark .tabs{border-bottom-color:#21262d;background:#0d1117}
+body.dark .ft-sep{color:#3d4555}
+body.dark .card-ft{border-top-color:#21262d}
+body.dark .li{border-bottom-color:#21262d}
+body.dark .li-ttl{color:#e6edf3}
+body.dark .li-meta{color:#6b7280}
+body.dark .li-num{color:#21262d}
 html{scroll-behavior:smooth}
 body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden}
 
@@ -338,9 +349,9 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
     <div class="tabs">
       <button class="tab on" onclick="filterCat(this,'tous')">Tous</button>
-      <button class="tab" onclick="filterCat(this,'Débrief Hebdo')">📅 Débrief Hebdo</button>
-      <button class="tab" onclick="filterCat(this,'Analyse Actif')">🔍 Analyse Actif</button>
-      <button class="tab" onclick="filterCat(this,'Analyse Journalière')">⚡ Journalière</button>
+      <button class="tab" onclick="filterCat(this,'Débrief Hebdo')">📅 Débrief</button>
+      <button class="tab" onclick="filterCat(this,'Analyse Actif')">🔍 Actif</button>
+      <button class="tab" onclick="filterCat(this,'Analyse Journalière')">⚡ Journalier</button>
       <button class="tab" onclick="filterCat(this,'Macro')">🌐 Macro</button>
       <button class="tab" onclick="filterCat(this,'Crypto')">₿ Crypto</button>
     </div>
@@ -563,8 +574,16 @@ const col=(v)=>(+v)>=0?"#4ade80":"#f87171";
 const set=(id,v,c)=>{const e=document.getElementById(id);if(!e)return;e.textContent=v??"—";if(c)e.style.color=c};
 const esc=(s)=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-const CAT_COLORS={"Débrief Hebdo":"#f59e0b","Analyse Actif":"#a78bfa","Analyse Journalière":"#34d399","Macro":"#22d3ee","Crypto":"#818cf8","Marchés":"#f87171","Analyse":"#f59e0b"};
-const CAT_EMOJI={"Débrief Hebdo":"📅","Analyse Actif":"🔍","Analyse Journalière":"⚡","Macro":"🌐","Crypto":"₿","Marchés":"📊","Analyse":"📊"};
+const CAT_COLORS={"Débrief Hebdo":"#f59e0b","Debrief Hebdo":"#f59e0b","debrief hebdo":"#f59e0b","Analyse Actif":"#a78bfa","analyse actif":"#a78bfa","Analyse Journalière":"#34d399","analyse journaliere":"#34d399","Analyse Journaliere":"#34d399","Macro":"#22d3ee","macro":"#22d3ee","Crypto":"#818cf8","crypto":"#818cf8","Marchés":"#f87171","marches":"#f87171","Analyse":"#f59e0b"};
+const CAT_EMOJI={"Débrief Hebdo":"📅","Debrief Hebdo":"📅","debrief hebdo":"📅","Analyse Actif":"🔍","analyse actif":"🔍","Analyse Journalière":"⚡","analyse journaliere":"⚡","Analyse Journaliere":"⚡","Macro":"🌐","macro":"🌐","Crypto":"₿","crypto":"₿","Marchés":"📊","marches":"📊","Analyse":"📊"};
+
+// Normaliser une catégorie pour le matching
+function normCat(s){return(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();}
+// Couleur par catégorie normalisée
+const CAT_COL_NORM={"debrief hebdo":"#f59e0b","analyse actif":"#a78bfa","analyse journaliere":"#34d399","macro":"#22d3ee","crypto":"#818cf8","marches":"#f87171","analyse":"#f59e0b"};
+const CAT_EMO_NORM={"debrief hebdo":"📅","analyse actif":"🔍","analyse journaliere":"⚡","macro":"🌐","crypto":"₿","marches":"📊","analyse":"📊"};
+function catColor(cat){return CAT_COL_NORM[normCat(cat)]||CAT_COLORS[cat]||"#f59e0b";}
+function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||CAT_EMOJI[cat]||"📊";}
 
 // TICKER
 function buildTicker(d){
@@ -750,9 +769,9 @@ async function loadArticles(){
 function renderArticles(){
   // Comparaison insensible à la casse pour les catégories et tags
   const filtered=curCat==="tous"?articles:articles.filter(a=>{
-    const cat=(a.category||"").toLowerCase().trim();
-    const cur=curCat.toLowerCase().trim();
-    const tagMatch=(a.tags||[]).some(t=>(t||"").toLowerCase().trim()===cur);
+    const cat=normCat(a.category);
+    const cur=normCat(curCat);
+    const tagMatch=(a.tags||[]).some(t=>normCat(t)===cur);
     return cat===cur||tagMatch;
   });
   set("art-cnt",filtered.length+" article"+(filtered.length>1?"s":""));
@@ -771,8 +790,8 @@ function renderArticles(){
   // Hero — premier article filtré avec sa photo
   const first=filtered[0];
   if(first){
-    const ec=CAT_COLORS[first.category]||"#f59e0b";
-    set("hero-cat",(CAT_EMOJI[first.category]||"📊")+" "+first.category+" · "+fdate(first.date),ec);
+    const ec=catColor(first.category);
+    set("hero-cat",catEmoji(first.category)+" "+first.category+" · "+fdate(first.date),ec);
     set("hero-ttl",first.title);
     set("hero-exc",first.excerpt||"Cliquez pour lire l'analyse complète.");
     set("hero-date",fdate(first.date));
@@ -795,7 +814,7 @@ function renderArticles(){
     const items=filtered.slice(1);
     grid.style.display=items.length?"grid":"none";
     grid.innerHTML=items.map(a=>{
-      const ec=CAT_COLORS[a.category]||"#f59e0b";
+      const ec=catColor(a.category);
       return`<div class="card" onclick="openArt('${a.slug}')">
         <div class="card-cat"><div class="cdot" style="background:${ec}"></div><span class="cname">${esc(a.category)}</span></div>
         <h3 class="card-ttl">${esc(a.title)}</h3>
