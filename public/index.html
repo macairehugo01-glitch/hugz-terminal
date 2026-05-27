@@ -15,6 +15,27 @@
   --muted:#7a7060;--line:#d4cfc4;
   --green:#1a7a4a;--red:#c0392b;--blue:#1a4a8a;
 }
+body.dark{
+  --paper:#0d1117;--paper2:#111620;--paper3:#161b24;
+  --ink:#e6edf3;--ink2:#161b24;--ink3:#1c2230;
+  --muted:#8b949e;--line:#21262d;
+  --gold:#e8b04b;--gold2:#f5d080;
+}
+body.dark .card{background:#111620}
+body.dark .card:hover{background:#161b24}
+body.dark .hero{background:#0d1117}
+body.dark .hero-ttl{color:#e6edf3}
+body.dark .tags-wgt{background:#111620;border-color:#21262d}
+body.dark .tag{background:#161b24;border-color:#21262d;color:#8b949e}
+body.dark .tag:hover{background:#e8b04b;color:#0d1117;border-color:#e8b04b}
+body.dark .lives-wgt{background:#111620;border-color:#21262d}
+body.dark .live-item{border-color:#21262d}
+body.dark .live-title{color:#e6edf3}
+body.dark .about-section{background:#0d1117}
+body.dark .footer-bottom{background:#080c10}
+body.dark .sec-hdr{border-bottom-color:#21262d}
+body.dark .sec-ttl{color:#e6edf3}
+body.dark .grid{background:#21262d}
 html{scroll-behavior:smooth}
 body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden}
 
@@ -262,6 +283,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
     <div class="hdr-r">
       <span class="hdr-date" id="hdr-date"></span>
+      <button onclick="toggleDark()" id="dark-btn" title="Mode nuit" style="background:transparent;border:1px solid #2a2e38;color:#6b7280;padding:4px 9px;border-radius:3px;cursor:pointer;font-size:13px;transition:all .18s">🌙</button>
       <div class="live-pill"><span class="ldot"></span>LIVE</div>
     </div>
   </div>
@@ -363,13 +385,18 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 
     <!-- Affiliation RaiseFX -->
     <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" rel="noopener sponsored" style="display:block;text-decoration:none">
-      <div style="background:rgba(192,57,43,.08);border:1.5px solid #c0392b;border-radius:4px;padding:14px 16px;transition:opacity .18s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-        <div style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:2px;color:#c0392b;text-transform:uppercase;margin-bottom:8px">Partenaire</div>
-        <img src="/articles/images/logoraise.jpg" alt="RaiseFX" style="height:28px;object-fit:contain;display:block;margin-bottom:10px" onerror="this.style.display='none'">
-        <div style="font-size:12.5px;font-weight:700;color:#e5e7eb;line-height:1.45;margin-bottom:10px">
-          Tu veux profiter du marché ? Découvre les meilleurs actifs à trader sur RaiseFX
+      <div style="background:#1a0808;border:2px solid #c0392b;border-radius:4px;padding:16px;transition:border-color .18s" onmouseover="this.style.borderColor='#e74c3c'" onmouseout="this.style.borderColor='#c0392b'">
+        <div style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:2px;color:#e74c3c;text-transform:uppercase;margin-bottom:10px">⚡ Partenaire</div>
+        <img src="/articles/images/logoraise.jpg" alt="RaiseFX"
+          style="height:32px;max-width:100%;object-fit:contain;display:block;margin-bottom:12px;border-radius:3px;background:white;padding:4px 8px"
+          onerror="this.style.display='none'">
+        <div style="font-size:14px;font-weight:800;color:#ffffff;line-height:1.4;margin-bottom:8px">
+          Tu veux profiter du marché ?
         </div>
-        <div style="display:inline-flex;align-items:center;gap:6px;background:#c0392b;color:white;font-size:10.5px;font-weight:700;padding:7px 12px;border-radius:3px;letter-spacing:.3px">
+        <div style="font-size:12px;color:#f5c6c6;line-height:1.55;margin-bottom:14px">
+          Inscris-toi sur RaiseFX et retrouve les meilleurs actifs à trader — crypto, forex, indices.
+        </div>
+        <div style="display:block;text-align:center;background:#c0392b;color:#ffffff;font-size:12px;font-weight:700;padding:9px 14px;border-radius:3px;letter-spacing:.5px">
           S'inscrire maintenant →
         </div>
       </div>
@@ -384,10 +411,10 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <p style="font-size:12.5px;color:#9ca3af;line-height:1.6;margin-bottom:16px">
         Réserve un appel directement avec moi. On fait le point sur ta situation, tes objectifs et les marchés à suivre.
       </p>
-      <a href="mailto:contact@hugomacaire.com?subject=Demande%20d%27appel%20d%C3%A9couverte" style="display:block;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;text-decoration:none;letter-spacing:.3px;transition:background .18s" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">
-        📞 Réserver un appel gratuit
+      <a href="https://calendly.com/hugomacaire" target="_blank" rel="noopener" style="display:block;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;text-decoration:none;letter-spacing:.3px;transition:background .18s" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">
+        📅 Réserver un créneau →
       </a>
-      <div style="font-size:10.5px;color:#4b5563;text-align:center;margin-top:8px">Réponse sous 24h · Sans engagement</div>
+      <div style="font-size:10.5px;color:#4b5563;text-align:center;margin-top:8px">Calendrier live · Choisis ton créneau · Sans engagement</div>
     </div>
 
     <!-- Prochains Lives -->
@@ -848,6 +875,27 @@ function submitEmail(){
 }
 
 // INIT
+// MODE NUIT
+function toggleDark(){
+  const isDark=document.body.classList.toggle("dark");
+  try{localStorage.setItem("hm_dark",isDark?"1":"0");}catch{}
+  const btn=document.getElementById("dark-btn");
+  if(btn)btn.textContent=isDark?"☀️":"🌙";
+}
+function initDark(){
+  try{
+    const saved=localStorage.getItem("hm_dark");
+    // Respecter préférence système si pas de choix sauvegardé
+    const prefersDark=saved!==null?saved==="1":window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if(prefersDark){
+      document.body.classList.add("dark");
+      const btn=document.getElementById("dark-btn");
+      if(btn)btn.textContent="☀️";
+    }
+  }catch{}
+}
+initDark();
+
 async function init(){
   document.getElementById("hdr-date").textContent=
     new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -1022,4 +1070,3 @@ gateCheck();
 
 </body>
 </html>
-
