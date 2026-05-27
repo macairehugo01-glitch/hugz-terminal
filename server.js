@@ -530,7 +530,7 @@ app.get("/api/dashboard",async(req,res)=>{
           rGold,rSilver,rCopper,rOil,rBrent,rNatgas,
           rSectors,rResearch,rEquities
     ]=await Promise.all([
-      safe(()=>fredObs("DTWEXBGS",5)),safe(()=>fredObs("VIXCLS",5)),
+      safe(async()=>{const v=await safe(()=>yahooLast("DX-Y.NYB"));return v!=null&&v>80&&v<130?{v,d:new Date().toISOString().slice(0,10)}:fredObs("DTWEXBGS",5);}),safe(()=>fredObs("VIXCLS",5)),
       safe(()=>fredObs("DGS1MO",5)),safe(()=>fredObs("DGS3MO",5)),
       safe(()=>fredObs("DGS2",5)),safe(()=>fredObs("DGS10",5)),safe(()=>fredObs("DGS30",5)),
       safe(()=>fredObs("UNRATE",5)),safe(()=>fredObs("DFEDTARU",5)),
