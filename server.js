@@ -760,20 +760,20 @@ app.post("/api/articles/refresh",(_,res)=>{
    POST /api/newsletter       → inscription
    DELETE /api/newsletter/:email → désinscription
 ═══════════════════════════════════════════════════════ */
-const DATA_DIR  = process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data";
-const NL_FILE   = path.join(DATA_DIR,"newsletter.json");
+const NL_DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data";
+const NL_FILE_PATH = path.join(NL_DATA_DIR,"newsletter.json");
 
 function loadEmails(){
   try{
-    if(!fs.existsSync(DATA_DIR))fs.mkdirSync(DATA_DIR,{recursive:true});
-    if(!fs.existsSync(NL_FILE))return[];
-    return JSON.parse(fs.readFileSync(NL_FILE,"utf8"));
+    if(!fs.existsSync(NL_DATA_DIR))fs.mkdirSync(NL_DATA_DIR,{recursive:true});
+    if(!fs.existsSync(NL_FILE_PATH))return[];
+    return JSON.parse(fs.readFileSync(NL_FILE_PATH,"utf8"));
   }catch{return[];}
 }
 function saveEmails(list){
   try{
-    if(!fs.existsSync(DATA_DIR))fs.mkdirSync(DATA_DIR,{recursive:true});
-    fs.writeFileSync(NL_FILE,JSON.stringify(list,null,2),"utf8");
+    if(!fs.existsSync(NL_DATA_DIR))fs.mkdirSync(NL_DATA_DIR,{recursive:true});
+    fs.writeFileSync(NL_FILE_PATH,JSON.stringify(list,null,2),"utf8");
   }catch(e){console.error("[NL] Save error:",e.message);}
 }
 
@@ -1446,4 +1446,3 @@ app.listen(PORT,async()=>{
   }
   setTimeout(scheduleSentiment, 30*1000); // Premier run 30s après démarrage
 });
-
