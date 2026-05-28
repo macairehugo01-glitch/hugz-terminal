@@ -842,21 +842,34 @@ app.post("/api/articles/refresh",(_,res)=>{
 const STRIPE_KEY   = process.env.STRIPE_SECRET_KEY||"";
 const GS_SHEET_ID  = process.env.GOOGLE_SHEET_ID||"1LxrITyBFw2zteN2We2GHacLaDTFtMHtiCJs5SwIEVE8";
 
-// Lire la whitelist depuis Google Sheet (onglet Whitelist)
+// Lire la whitelist depuis Google Sheet via Apps Script
 async function readWhitelist(){
-  if(!GS_SHEET_ID)return[];
-  const tok = await gToken();
-  if(!tok)return[];
+  if(!SCRIPT_URL)return[];
   try{
     const r = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${GS_SHEET_ID}/values/Whitelist!A:A`,
-      {headers:{"Authorization":`Bearer ${tok}`}}
+      `${SCRIPT_URL}?token=${encodeURIComponent(SCRIPT_TOKEN)}&action=readWhitelist`,
+      {method:"GET", headers:{"Content-Type":"application/json"}}
     );
-    const rows = ((await r.json()).values||[]).slice(1);
-    return rows.map(r=>(r[0]||"").toLowerCase().trim()).filter(Boolean);
+    const d = await r.json();
+    if(d.emails) return d.emails.map(e=>e.toLowerCase().trim()).filter(Boolean);
+    return [];
   }catch(e){
     console.warn("[WHITELIST]",e.message?.slice(0,60));
-    return[];
+    // Fallback : lire directement via API Sheets si token Google dispo
+    if(!GS_SHEET_ID) return [];
+    const tok = await gToken();
+    if(!tok) return [];
+    try{
+      const r2 = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${GS_SHEET_ID}/values/Whitelist!A:A`,
+        {headers:{"Authorization":`Bearer ${tok}`}}
+      );
+      const rows = ((await r2.json()).values||[]).slice(1);
+      return rows.map(r=>(r[0]||"").toLowerCase().trim()).filter(Boolean);
+    }catch(e2){
+      console.warn("[WHITELIST fallback]",e2.message?.slice(0,60));
+      return [];
+    }
   }
 }
 
@@ -916,7 +929,7 @@ app.post("/api/booking/checkout",async(req,res)=>{
 ═══════════════════════════════════════════════════════ */
 const NL_DATA_DIR  = process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data";
 const NL_FILE_PATH = path.join(NL_DATA_DIR,"newsletter.json");
-const SCRIPT_URL   = process.env.GOOGLE_SCRIPT_URL||"https://script.google.com/macros/s/AKfycbxmMw-aRq0yjdGjoZt2TmoVOsj4PM4wDhN-VqJMPAf0JkYrpkubQEnBcvRE5aNXN2Z6/exec";
+const SCRIPT_URL   = process.env.GOOGLE_SCRIPT_URL||"https://script.google.com/macros/s/AKfycbwl3y8kddOhQWpFVLgfoBxrZ9Hk5L4UZBh0qD5IdX7muRRGuA7SEKLOhAx7jRHQorW1/exec";
 const SCRIPT_TOKEN = process.env.GOOGLE_SCRIPT_TOKEN||"hugomacaire2026";
 
 function ensureNlDir(){try{if(!fs.existsSync(NL_DATA_DIR))fs.mkdirSync(NL_DATA_DIR,{recursive:true});}catch{}}
