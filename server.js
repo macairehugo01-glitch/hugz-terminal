@@ -317,6 +317,9 @@ async function avCommo(func,lo,hi){
   return null;
 }
 
+// Stockage des dernières bonnes valeurs Yahoo (persist entre les refreshs)
+const LAST_GOOD={};
+
 async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
 
@@ -334,6 +337,7 @@ async function commo(sym,fredId,lo,hi,key){
   const tv=await twelvePrice(tdSym,lo,hi);
   if(tv!=null){
     console.log(`[COMMO] ${sym} TwelveData: ${tv}`);
+    LAST_GOOD[key]={value:tv,src:"TwelveData"};
     return cacheSet(key,{value:tv,src:"TwelveData"},TTL.yahoo);
   }
 
@@ -342,6 +346,7 @@ async function commo(sym,fredId,lo,hi,key){
     const av=await avCommo(avFunc,lo,hi);
     if(av!=null){
       console.log(`[COMMO] ${sym} AlphaVantage: ${av}`);
+      LAST_GOOD[key]={value:av,src:"AlphaVantage"};
       return cacheSet(key,{value:av,src:"AlphaVantage"},TTL.yahoo);
     }
   }
@@ -358,16 +363,27 @@ async function commo(sym,fredId,lo,hi,key){
       const v=meta?.regularMarketPrice??meta?.chartPreviousClose;
       if(v!=null&&v>=lo&&v<=hi){
         console.log(`[COMMO] ${sym} Yahoo/${host}: ${v}`);
+        LAST_GOOD[key]={value:v,src:"Yahoo"};
         return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
       }
     }catch(e){console.warn(`[COMMO] ${sym} Yahoo/${host}:`,e.message?.slice(0,30));}
   }
 
-  // Tentative 4 : FRED (J-1 à J-3)
-  const fv=await safe(()=>fredObs(fredId,5,TTL.fred_d));
-  if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi){
-    console.log(`[COMMO] ${sym} FRED: ${fv.v}`);
-    return cacheSet(key,{value:fv.v,src:"FRED"},TTL.fred_d);
+  // Tentative 4 : FRED (J-1 à J-3) — seulement si pas de lastGood
+  if(!LAST_GOOD[key]){
+    const fv=await safe(()=>fredObs(fredId,5,TTL.fred_d));
+    if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi){
+      console.log(`[COMMO] ${sym} FRED: ${fv.v}`);
+      LAST_GOOD[key]={value:fv.v,src:"FRED"};
+      return cacheSet(key,{value:fv.v,src:"FRED"},TTL.fred_d);
+    }
+  }
+
+  // Fallback : dernière valeur connue (même si le cache a expiré)
+  if(LAST_GOOD[key]){
+    const lg=LAST_GOOD[key];
+    console.log(`[COMMO] ${sym} lastGood: ${lg.value} (${lg.src})`);
+    return cacheSet(key,{value:lg.value,src:lg.src+"*"},TTL.yahoo);
   }
 
   console.warn(`[COMMO] ${sym} toutes sources échouées`);
@@ -655,9 +671,9 @@ app.get("/api/dashboard",async(req,res)=>{
       safe(async()=>{const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:12000});return toNum(d?.data?.amount);}),
       safe(()=>btcDomFn()),safe(()=>fngFn()),safe(()=>creditFn()),safe(()=>delinFn()),
       goldFn(),silverFn(),copperFn(),
-      safe(()=>commo("CL=F","DCOILWTICO",30,200,"oil5")),
-      safe(()=>commo("BZ=F","DCOILBRENTEU",30,200,"brent5")),
-      safe(()=>commo("NG=F","DHHNGSP",0.8,20,"natgas5")),
+      safe(()=>commo("CL=F","DCOILWTICO",55,105,"oil5")),    // WTI réaliste 55-105$
+      safe(()=>commo("BZ=F","DCOILBRENTEU",58,110,"brent5")), // Brent réaliste 58-110$
+      safe(()=>commo("NG=F","DHHNGSP",0.8,12,"natgas5")),     // NatGas réaliste
       safe(()=>allSectors(ut),[]),safe(()=>researchFn()),safe(()=>equitiesFn())
     ]);
 
