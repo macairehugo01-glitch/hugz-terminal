@@ -211,10 +211,10 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .live-btn:hover{background:var(--gold2)}
 
 /* TAGS */
-.tags-wgt{background:white;border:1px solid var(--line);border-radius:4px;padding:18px}
+.tags-wgt{background:var(--ink);border:none;border-radius:4px;overflow:hidden}
 .tags-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px}
-.tag{background:var(--paper2);border:1px solid var(--line);color:var(--muted);font-size:11px;padding:4px 9px;border-radius:2px;cursor:pointer;transition:all .18s;font-weight:500}
-.tag:hover{background:var(--ink);color:var(--gold2);border-color:var(--ink)}
+.tag{background:#1a1e28;border:1px solid #252a35;color:#9aa5b4;font-size:10.5px;padding:4px 9px;border-radius:2px;cursor:pointer;transition:all .18s;font-weight:500;font-family:'DM Mono',monospace}
+.tag:hover{background:#252a35;color:var(--gold2);border-color:var(--gold)}
 
 /* DEBRIEF */
 .debrief{background:#0d1117;padding:36px 28px;border-top:2px solid #252a35}
@@ -368,15 +368,15 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:800;color:white;line-height:1.25;margin-bottom:8px">Tu ne sais pas par où commencer ?</div>
       <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:14px">Réserve un appel directement avec moi.</p>
       <button onclick="openBookingCheck()" style="display:block;width:100%;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:10px;border-radius:3px;border:none;cursor:pointer">📅 Réserver un créneau →</button>
-      <div style="font-size:10px;color:#4b5563;text-align:center;margin-top:6px">Sans engagement</div>
+      <div style="font-size:10px;color:#6b7280;text-align:center;margin-top:6px">Sans engagement</div>
     </div>
 
     <!-- Tags dynamiques -->
     <div class="tags-wgt">
-      <div class="sec-hdr" style="margin-bottom:0;padding-bottom:8px;border-bottom-width:1px;border-color:var(--line)">
-        <span class="sec-ttl" style="font-size:15px">Thèmes</span>
+      <div class="wgt-hd">
+        <span class="wgt-ttl">Thèmes</span>
       </div>
-      <div class="tags-wrap" id="tags-wrap-dynamic">
+      <div class="tags-wrap" id="tags-wrap-dynamic" style="padding:14px;gap:6px">
         <span class="tag" onclick="filterCat(null,'tous')">Tous</span>
       </div>
     </div>
@@ -1022,15 +1022,19 @@ async function loadSentiment(){
     }
     const tEl=document.getElementById("st-tickers");
     if(tEl&&d.tickers?.length){
-      tEl.innerHTML=d.tickers.map(t=>{
+      // Label source réseaux sociaux
+      tEl.innerHTML=`<div style="font-family:'DM Mono',monospace;font-size:8.5px;color:#3d4555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #1a1e28">Réseaux sociaux financiers (StockTwits)</div>`+
+      d.tickers.map(t=>{
         const tc=t.score>=30?"#4ade80":t.score<=-30?"#f87171":"#facc15";
         const bullPct=t.bull||0;
         const name=t.label||t.sym||"—";
         const scoreStr=(t.score>0?"+":"")+t.score;
+        const arrow=bullPct>=60?"↑":bullPct<=40?"↓":"→";
+        const arrowCol=bullPct>=60?"#4ade80":bullPct<=40?"#f87171":"#facc15";
         return`<div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #1a1e28;gap:8px">
-          <span style="color:#c9d1d9;font-size:12px;font-weight:500;flex:1;min-width:0;white-space:nowrap">${name}</span>
-          <span style="color:${tc};font-family:'DM Mono',monospace;font-size:12px;font-weight:700;width:36px;text-align:right">${scoreStr}</span>
-          <span style="color:#6b7280;font-family:'DM Mono',monospace;font-size:10px;width:44px;text-align:right">${bullPct}% 🐂</span>
+          <span style="color:#c9d1d9;font-size:12px;font-weight:500;flex:1;white-space:nowrap">${name}</span>
+          <span style="color:${tc};font-family:'DM Mono',monospace;font-size:11px;font-weight:700;width:32px;text-align:right">${scoreStr}</span>
+          <span style="color:${arrowCol};font-size:14px;font-weight:900;width:16px;text-align:right;line-height:1">${arrow}</span>
         </div>`;
       }).join("");
     }
