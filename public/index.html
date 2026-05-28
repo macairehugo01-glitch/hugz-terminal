@@ -167,7 +167,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .li-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 
 /* SIDEBAR */
-.sidebar{display:flex;flex-direction:column;gap:20px}.sidebar-left{display:flex;flex-direction:column;gap:20px;position:sticky;top:96px;align-self:start}.sidebar-right{display:flex;flex-direction:column;gap:20px;position:sticky;top:96px;align-self:start}
+.sidebar{display:flex;flex-direction:column;gap:20px}.sidebar-left{display:flex;flex-direction:column;gap:20px}.sidebar-right{display:flex;flex-direction:column;gap:20px}
 .wgt{background:var(--ink);border-radius:4px;overflow:hidden;box-shadow:0 4px 20px rgba(10,12,16,.1)}
 .wgt-hd{padding:13px 17px;border-bottom:1px solid #252a35;display:flex;align-items:center;justify-content:space-between}
 .wgt-ttl{font-family:'DM Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold2)}
@@ -426,6 +426,12 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
       <div style="font-size:36px;margin-bottom:12px">📄</div>
       <div>Aucun article dans cette catégorie.</div>
+    </div>
+    <!-- Pagination -->
+    <div id="art-pagination" style="display:none;align-items:center;justify-content:center;gap:8px;padding:20px 0;margin-top:8px;border-top:1px solid var(--line)">
+      <button id="pg-prev" onclick="changePage(-1)" style="background:var(--ink);border:1px solid #252a35;color:#9aa5b4;font-family:'DM Mono',monospace;font-size:11px;padding:7px 14px;border-radius:3px;cursor:pointer;transition:all .18s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold2)'" onmouseout="this.style.borderColor='#252a35';this.style.color='#9aa5b4'">← Précédent</button>
+      <span id="pg-info" style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7280;padding:0 8px"></span>
+      <button id="pg-next" onclick="changePage(1)" style="background:var(--ink);border:1px solid #252a35;color:#9aa5b4;font-family:'DM Mono',monospace;font-size:11px;padding:7px 14px;border-radius:3px;cursor:pointer;transition:all .18s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold2)'" onmouseout="this.style.borderColor='#252a35';this.style.color='#9aa5b4'">Suivant →</button>
     </div>
   </main>
 
@@ -813,71 +819,94 @@ async function loadArticles(){
   renderArticles();
 }
 
+// PAGINATION
+const ART_PER_PAGE = 6;
+let curPage = 0;
+
+function changePage(dir){
+  curPage += dir;
+  renderArticles();
+  const m = document.querySelector('.main');
+  if(m) window.scrollTo({top: m.offsetTop - 100, behavior:'smooth'});
+}
+
 function renderArticles(){
-  // Comparaison insensible à la casse pour les catégories et tags
-  const filtered=curCat==="tous"?articles:articles.filter(a=>{
-    const cur=normCat(curCat);
-    // Match catégorie
+  const filtered = curCat==="tous" ? articles : articles.filter(a=>{
+    const cur = normCat(curCat);
     if(normCat(a.category)===cur) return true;
-    // Match tags — normaliser qu'ils soient string ou tableau
-    let tags=a.tags||[];
-    if(typeof tags==="string") tags=tags.replace(/[\[\]]/g,"").split(",").map(t=>t.trim());
+    let tags = a.tags||[];
+    if(typeof tags==="string") tags = tags.replace(/[\[\]]/g,"").split(",").map(t=>t.trim());
     return tags.some(t=>normCat(t)===cur);
   });
-  set("art-cnt",filtered.length+" article"+(filtered.length>1?"s":""));
 
-  const grid=document.getElementById("art-grid");
-  const empty=document.getElementById("art-empty");
+  set("art-cnt", filtered.length+" article"+(filtered.length>1?"s":""));
+  curPage = Math.max(0, curPage);
+
+  const grid  = document.getElementById("art-grid");
+  const empty = document.getElementById("art-empty");
+  const pgBar = document.getElementById("art-pagination");
+  const pgInfo= document.getElementById("pg-info");
+  const pgPrev= document.getElementById("pg-prev");
+  const pgNext= document.getElementById("pg-next");
 
   if(!filtered.length){
-    if(grid)grid.innerHTML="";
-    if(list)list.innerHTML="";
-    if(empty)empty.style.display="block";
+    if(grid) grid.innerHTML="";
+    if(empty) empty.style.display="block";
+    if(pgBar) pgBar.style.display="none";
     return;
   }
-  if(empty)empty.style.display="none";
+  if(empty) empty.style.display="none";
 
-  // Hero — premier article filtré avec sa photo
-  const first=filtered[0];
+  // Hero — toujours le premier article
+  const first = filtered[0];
   if(first){
-    const ec=catColor(first.category);
-    set("hero-cat",catEmoji(first.category)+" "+first.category+" · "+fdate(first.date),ec);
-    set("hero-ttl",first.title);
-    set("hero-exc",first.excerpt||"Cliquez pour lire l'analyse complète.");
-    set("hero-date",fdate(first.date));
-    set("hero-read",first.readTime?first.readTime+" min de lecture":"");
-    const heroImg=document.getElementById("hero-img-wrap");
+    const ec = catColor(first.category);
+    set("hero-cat", catEmoji(first.category)+" "+first.category+" · "+fdate(first.date), ec);
+    set("hero-ttl", first.title);
+    set("hero-exc", first.excerpt||"Cliquez pour lire l'analyse complète.");
+    set("hero-date", fdate(first.date));
+    set("hero-read", first.readTime ? first.readTime+" min de lecture" : "");
+    const heroImg = document.getElementById("hero-img-wrap");
     if(heroImg){
       if(first.cover){
         heroImg.innerHTML=`<img src="${esc(first.cover)}" alt="${esc(first.title)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9">`;
       }else{
-        const emoji=CAT_EMOJI[first.category]||"📈";
-        heroImg.innerHTML=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;background:linear-gradient(135deg,#1e3a5f,#0a1520 50%,#1a1500);opacity:.45">${emoji}</div>`;
+        heroImg.innerHTML=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;background:linear-gradient(135deg,#1e3a5f,#0a1520 50%,#1a1500);opacity:.45">${catEmoji(first.category)||"📈"}</div>`;
       }
     }
-    const heroEl=document.getElementById("hero");
-    if(heroEl)heroEl.onclick=()=>openArt(first.slug);
+    const heroEl = document.getElementById("hero");
+    if(heroEl) heroEl.onclick = ()=>openArt(first.slug);
   }
 
-  // Grille tous les articles en rectangles
-  // Si 1 seul article : l'afficher aussi dans la grille (pas uniquement en hero)
+  // Pagination articles 2+
+  const rest = filtered.slice(1);
+  const totalPages = Math.max(1, Math.ceil(rest.length / ART_PER_PAGE));
+  curPage = Math.min(curPage, totalPages-1);
+  const pageItems = rest.slice(curPage * ART_PER_PAGE, (curPage+1) * ART_PER_PAGE);
+
   if(grid){
-    const items=filtered.length===1?filtered:filtered.slice(1);
-    grid.style.display=items.length?"grid":"none";
-    grid.innerHTML=items.map(a=>{
-      const ec=catColor(a.category);
+    const items = filtered.length===1 ? filtered : pageItems;
+    grid.style.display = items.length ? "grid" : "none";
+    grid.innerHTML = items.map(a=>{
+      const ec = catColor(a.category);
       return`<div class="card" onclick="openArt('${a.slug}')">
         <div class="card-cat"><div class="cdot" style="background:${ec}"></div><span class="cname">${esc(a.category)}</span></div>
         <h3 class="card-ttl">${esc(a.title)}</h3>
         ${a.excerpt?`<p class="card-exc">${esc(a.excerpt)}</p>`:""}
         <div class="card-ft">
-          <span class="ft-auth">Hugo Macaire</span>
-          <span class="ft-sep">·</span>
+          <span class="ft-auth">Hugo Macaire</span><span class="ft-sep">·</span>
           <span class="ft-date">${fdate(a.date)}</span>
           ${a.readTime?`<span class="ft-sep">·</span><span class="ft-read">${a.readTime} min</span>`:""}
         </div>
       </div>`;
     }).join("");
+  }
+
+  if(pgBar){
+    pgBar.style.display = totalPages > 1 ? "flex" : "none";
+    if(pgInfo) pgInfo.textContent = `Page ${curPage+1} / ${totalPages}`;
+    if(pgPrev){ pgPrev.disabled = curPage===0; pgPrev.style.opacity = curPage===0?".4":"1"; }
+    if(pgNext){ pgNext.disabled = curPage>=totalPages-1; pgNext.style.opacity = curPage>=totalPages-1?".4":"1"; }
   }
 }
 
