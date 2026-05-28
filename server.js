@@ -714,7 +714,10 @@ function parseFrontmatter(content){
     const[,k,v]=m;
     // Tableaux [a, b, c]
     if(v.startsWith("[")&&v.endsWith("]")){
-      meta[k]=v.slice(1,-1).split(",").map(s=>s.trim().replace(/['"]/g,""));
+      meta[k]=v.slice(1,-1)
+        .split(",")
+        .map(s=>s.trim().replace(/^['"\s]+|['"\s]+$/g,""))
+        .filter(Boolean);
     }else{
       meta[k]=v.replace(/^['"]|['"]$/g,"").trim();
     }
