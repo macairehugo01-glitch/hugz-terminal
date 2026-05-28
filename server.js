@@ -39,7 +39,7 @@ const TTL={
   crypto:  60*1000,      // 1 min
   equity:  3*60*1000,    // 3 min
   sector: 10*60*1000,    // 10 min
-  yahoo:   5*60*1000,    // 5 min
+  yahoo:  30*60*1000,    // 30 min (évite rechargements fréquents → fallback FRED)
   fng:    25*60*1000,    // 25 min
   fred_d:  4*3600*1000,  // 4 h (données quotidiennes FRED)
   fred_m: 12*3600*1000   // 12 h (données mensuelles FRED)
@@ -1713,16 +1713,8 @@ app.listen(PORT,async()=>{
     console.log("[TG] ⚠️  Telegram non configuré — ajouter TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID dans Railway");
   }
 
-  // Démarrer le scheduler Reddit Sentiment (délai 30s pour laisser le serveur se stabiliser)
-  console.log(`[REDDIT] 🔄 Scheduler sentiment démarré — intervalle ${SENTIMENT_INTERVAL_H}h`);
-  console.log(`[REDDIT] Subreddits: ${ALL_SUBS.join(", ")}`);
-  if(REDDIT_CLIENT_ID){
-    console.log(`[REDDIT] Mode OAuth2 (clés configurées)`);
-  }else{
-    console.log(`[REDDIT] Mode public JSON (sans clés — ajouter REDDIT_CLIENT_ID pour plus de fiabilité)`);
-  }
-  // setTimeout(scheduleSentiment, 30*1000); // Reddit désactivé — en attente approbation API
-  // StockTwits — démarrage 30s après le serveur
+  // Reddit désactivé — en attente approbation API développeur
+  // StockTwits sentiment — démarrage 30s après le serveur
   console.log("[ST] 📊 Scheduler StockTwits démarré — intervalle 4h");
   setTimeout(scheduleStockTwits, 30*1000);
 });
