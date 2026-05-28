@@ -437,6 +437,33 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <div style="font-size:10.5px;color:#4b5563;text-align:center;margin-top:8px">Calendrier live · Choisis ton créneau · Sans engagement</div>
     </div>
 
+    <!-- Sentiment StockTwits -->
+    <div class="wgt" id="st-widget">
+      <div class="wgt-hd">
+        <span class="wgt-ttl">Sentiment Marché</span>
+        <span class="wgt-upd" id="st-upd">StockTwits</span>
+      </div>
+      <div style="padding:14px 17px">
+        <!-- Score composite -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:800;color:white" id="st-score">—</div>
+            <div style="font-size:10px;color:#9aa5b4;margin-top:2px" id="st-label">Chargement...</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;color:#6b7280;font-family:'DM Mono',monospace">COMPOSITE</div>
+            <div style="font-size:9px;color:#4b5563;margin-top:2px" id="st-time">—</div>
+          </div>
+        </div>
+        <!-- Barre -->
+        <div style="height:5px;background:#1a1e28;border-radius:3px;overflow:hidden;margin-bottom:12px">
+          <div id="st-bar" style="height:100%;width:50%;background:#9ca3af;border-radius:3px;transition:width .8s,background .5s"></div>
+        </div>
+        <!-- Tickers -->
+        <div id="st-tickers"></div>
+      </div>
+    </div>
+
     <!-- Prochains Lives -->
     <div class="lives-wgt">
       <div class="wgt-hd" style="background:var(--ink);border-bottom:1px solid #252a35">
@@ -1006,7 +1033,46 @@ async function init(){
     }catch{}
   },5*60*1000);
 }
+// STOCKTWITS SENTIMENT
+async function loadSentiment(){
+  try{
+    const r=await fetch("/api/sentiment");
+    const d=await r.json();
+    if(!d||d.status==="loading"){
+      set("st-label","Chargement...");
+      return;
+    }
+    const sc=d.compositeScore;
+    const col=sc==null?"#9ca3af":sc>=30?"#4ade80":sc<=-30?"#f87171":"#facc15";
+    set("st-score",sc!=null?(sc>0?"+":"")+sc:"—",col);
+    set("st-label",d.compositeLabel||"—");
+    if(d.updatedAt){
+      const ago=Math.round((Date.now()-new Date(d.updatedAt))/60000);
+      set("st-time",ago<2?"À l'instant":ago<60?ago+"min":Math.round(ago/60)+"h");
+    }
+    const bar=document.getElementById("st-bar");
+    if(bar&&sc!=null){
+      bar.style.width=Math.max(5,Math.min(95,(sc+100)/2))+"%";
+      bar.style.background=col;
+    }
+    const tEl=document.getElementById("st-tickers");
+    if(tEl&&d.tickers?.length){
+      tEl.innerHTML=d.tickers.map(t=>{
+        const tc=t.score>=30?"#4ade80":t.score<=-30?"#f87171":"#facc15";
+        const bull=t.total>0?Math.round(t.bull/t.total*100):0;
+        return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1a1e28;font-size:11px">
+          <span style="color:#9aa5b4">${t.label}</span>
+          <span style="color:${tc};font-family:'DM Mono',monospace;font-weight:600">${t.score>0?"+":""}${t.score}</span>
+          <span style="color:#6b7280;font-size:10px">${bull}% 🐂</span>
+        </div>`;
+      }).join("");
+    }
+  }catch(e){console.warn("[ST UI]",e.message);}
+}
+
 init();
+loadSentiment();
+setInterval(loadSentiment,15*60*1000);
 </script>
 <!-- ── POPUP EMAIL OBLIGATOIRE ─────────────────────────── -->
 <div id="email-gate" style="
