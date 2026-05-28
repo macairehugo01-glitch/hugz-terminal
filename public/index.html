@@ -359,9 +359,9 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
     <div class="tabs">
       <button class="tab on" onclick="filterCat(this,'tous')">Tous</button>
-      <button class="tab" onclick="filterCat(this,'Débrief Hebdo')">📅 Débrief</button>
-      <button class="tab" onclick="filterCat(this,'Analyse Actif')">🔍 Actif</button>
-      <button class="tab" onclick="filterCat(this,'Analyse Journalière')">⚡ Journalier</button>
+      <button class="tab" onclick="filterCat(this,'Debrief')">📅 Débrief</button>
+      <button class="tab" onclick="filterCat(this,'Analyse actif')">🔍 Actif</button>
+      <button class="tab" onclick="filterCat(this,'Journalière')">⚡ Journalier</button>
       <button class="tab" onclick="filterCat(this,'Macro')">🌐 Macro</button>
       <button class="tab" onclick="filterCat(this,'Crypto')">₿ Crypto</button>
     </div>
@@ -588,10 +588,21 @@ const CAT_COLORS={"Débrief Hebdo":"#f59e0b","Debrief Hebdo":"#f59e0b","debrief 
 const CAT_EMOJI={"Débrief Hebdo":"📅","Debrief Hebdo":"📅","debrief hebdo":"📅","Analyse Actif":"🔍","analyse actif":"🔍","Analyse Journalière":"⚡","analyse journaliere":"⚡","Analyse Journaliere":"⚡","Macro":"🌐","macro":"🌐","Crypto":"₿","crypto":"₿","Marchés":"📊","marches":"📊","Analyse":"📊"};
 
 // Normaliser une catégorie pour le matching
-function normCat(s){return(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();}
+function normCat(s){
+  const v=(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+  if(["debrief","debrief hebdo","debriefs"].includes(v))return"debrief hebdo";
+  if(["analyse actif","actif","analyse d'actif"].includes(v))return"analyse actif";
+  if(["journaliere","journalier","analyse journaliere","analyse journalier"].includes(v))return"analyse journaliere";
+  if(["macro","macroeconomie","macroeconomique"].includes(v))return"macro";
+  if(["crypto","cryptomonnaies","cryptos"].includes(v))return"crypto";
+  if(["marches","marche"].includes(v))return"marches";
+  return v;
+}
 // Couleur par catégorie normalisée
 const CAT_COL_NORM={"debrief hebdo":"#f59e0b","analyse actif":"#a78bfa","analyse journaliere":"#34d399","macro":"#22d3ee","crypto":"#818cf8","marches":"#f87171","analyse":"#f59e0b"};
 const CAT_EMO_NORM={"debrief hebdo":"📅","analyse actif":"🔍","analyse journaliere":"⚡","macro":"🌐","crypto":"₿","marches":"📊","analyse":"📊"};
+function catColor(c){return CAT_COL_NORM[normCat(c)]||"#f59e0b";}
+function catEmoji(c){return CAT_EMO_NORM[normCat(c)]||"📊";}
 function catColor(cat){return CAT_COL_NORM[normCat(cat)]||CAT_COLORS[cat]||"#f59e0b";}
 function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||CAT_EMOJI[cat]||"📊";}
 
