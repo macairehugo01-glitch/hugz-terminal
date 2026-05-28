@@ -110,7 +110,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .sb-c{font-family:'DM Mono',monospace;font-size:10px;font-weight:600}
 
 /* LAYOUT */
-.main{max-width:1280px;margin:0 auto;padding:36px 28px;display:grid;grid-template-columns:1fr 320px;gap:44px}
+.main{max-width:1400px;margin:0 auto;padding:36px 28px;display:grid;grid-template-columns:280px 1fr 280px;gap:32px}
 
 /* SEC HEADER */
 .sec-hdr{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid var(--ink)}
@@ -167,7 +167,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .li-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 
 /* SIDEBAR */
-.sidebar{display:flex;flex-direction:column;gap:26px}
+.sidebar{display:flex;flex-direction:column;gap:20px}.sidebar-left{display:flex;flex-direction:column;gap:20px}.sidebar-right{display:flex;flex-direction:column;gap:20px}
 .wgt{background:var(--ink);border-radius:4px;overflow:hidden;box-shadow:0 4px 20px rgba(10,12,16,.1)}
 .wgt-hd{padding:13px 17px;border-bottom:1px solid #252a35;display:flex;align-items:center;justify-content:space-between}
 .wgt-ttl{font-family:'DM Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold2)}
@@ -278,7 +278,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .empty-icon{font-size:36px;margin-bottom:12px}
 
 /* RESPONSIVE */
-@media(max-width:1024px){.main{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.hero-img{min-height:180px}.about-in{grid-template-columns:1fr;gap:24px}.db-grid{grid-template-columns:1fr}}
+@media(max-width:1200px){.main{grid-template-columns:1fr}.sidebar-left,.sidebar-right{display:none}.hero{grid-template-columns:1fr}.hero-img{min-height:180px}.about-in{grid-template-columns:1fr;gap:24px}.db-grid{grid-template-columns:1fr}}
 @media(max-width:640px){.grid{grid-template-columns:1fr}.hdr-in{grid-template-columns:auto 1fr auto}.hdr-nav{display:none}.main{padding:20px 16px}}
 </style>
 </head>
@@ -334,6 +334,56 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 
 <!-- MAIN -->
 <div class="main">
+
+  <!-- SIDEBAR GAUCHE -->
+  <div class="sidebar-left">
+
+    <!-- Sentiment StockTwits -->
+    <div class="wgt" id="st-widget">
+      <div class="wgt-hd">
+        <span class="wgt-ttl">Sentiment Marché</span>
+        <span class="wgt-upd" id="st-upd">StockTwits</span>
+      </div>
+      <div style="padding:14px 17px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:800;color:white" id="st-score">—</div>
+            <div style="font-size:11px;color:#9aa5b4;margin-top:4px;font-weight:500" id="st-label">Chargement...</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:8px;color:#6b7280;font-family:'DM Mono',monospace;letter-spacing:1.5px;text-transform:uppercase">Composite</div>
+            <div style="font-size:10px;color:#6b7280;margin-top:4px;font-family:'DM Mono',monospace" id="st-time">—</div>
+          </div>
+        </div>
+        <div style="height:5px;background:#1a1e28;border-radius:3px;overflow:hidden;margin-bottom:12px">
+          <div id="st-bar" style="height:100%;width:50%;background:#9ca3af;border-radius:3px;transition:width .8s,background .5s"></div>
+        </div>
+        <div id="st-tickers"></div>
+      </div>
+    </div>
+
+    <!-- Session personnalisée -->
+    <div style="background:linear-gradient(135deg,var(--ink),#1a2235);border:1px solid #252a35;border-radius:4px;padding:18px">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1.5px;color:var(--gold2);text-transform:uppercase;margin-bottom:8px">Session personnalisée</div>
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:800;color:white;line-height:1.25;margin-bottom:8px">Tu ne sais pas par où commencer ?</div>
+      <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:14px">Réserve un appel directement avec moi.</p>
+      <button onclick="openBookingCheck()" style="display:block;width:100%;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:10px;border-radius:3px;border:none;cursor:pointer">📅 Réserver un créneau →</button>
+      <div style="font-size:10px;color:#4b5563;text-align:center;margin-top:6px">Sans engagement</div>
+    </div>
+
+    <!-- Tags dynamiques -->
+    <div class="tags-wgt">
+      <div class="sec-hdr" style="margin-bottom:0;padding-bottom:8px;border-bottom-width:1px;border-color:var(--line)">
+        <span class="sec-ttl" style="font-size:15px">Thèmes</span>
+      </div>
+      <div class="tags-wrap" id="tags-wrap-dynamic">
+        <span class="tag" onclick="filterCat(null,'tous')">Tous</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONTENU CENTRAL -->
   <main>
     <!-- HERO -->
     <div class="hero" id="hero" onclick="void(0)">
@@ -380,9 +430,10 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
   </main>
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <!-- SIDEBAR DROITE -->
+  <div class="sidebar-right">
 
-    <!-- Signal -->
+    <!-- Signal de Marché -->
     <div class="wgt">
       <div class="wgt-hd"><span class="wgt-ttl">Signal de Marché</span><span class="wgt-upd" id="sig-upd">—</span></div>
       <div style="padding:18px 17px">
@@ -393,7 +444,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       </div>
     </div>
 
-    <!-- Marchés -->
+    <!-- Marchés Live -->
     <div class="wgt">
       <div class="wgt-hd">
         <span class="wgt-ttl">Marchés</span>
@@ -402,104 +453,18 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <div id="mkt-rows"></div>
     </div>
 
-
     <!-- Affiliation RaiseFX -->
     <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" rel="noopener sponsored" style="display:block;text-decoration:none">
       <div style="background:#1a0808;border:2px solid #c0392b;border-radius:4px;padding:16px;transition:border-color .18s" onmouseover="this.style.borderColor='#e74c3c'" onmouseout="this.style.borderColor='#c0392b'">
         <div style="font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:2px;color:#e74c3c;text-transform:uppercase;margin-bottom:10px">⚡ Partenaire</div>
-        <img src="/articles/images/logoraise.jpg" alt="RaiseFX"
-          style="height:32px;max-width:100%;object-fit:contain;display:block;margin-bottom:12px;border-radius:3px;background:white;padding:4px 8px"
-          onerror="this.style.display='none'">
-        <div style="font-size:14px;font-weight:800;color:#ffffff;line-height:1.4;margin-bottom:8px">
-          Tu veux profiter du marché ?
-        </div>
-        <div style="font-size:12px;color:#f5c6c6;line-height:1.55;margin-bottom:14px">
-          Inscris-toi sur RaiseFX et retrouve les meilleurs actifs à trader — crypto, forex, indices.
-        </div>
-        <div style="display:block;text-align:center;background:#c0392b;color:#ffffff;font-size:12px;font-weight:700;padding:9px 14px;border-radius:3px;letter-spacing:.5px">
-          S'inscrire maintenant →
-        </div>
+        <img src="/articles/images/logoraise.jpg" alt="RaiseFX" style="height:28px;max-width:100%;object-fit:contain;display:block;margin-bottom:10px;border-radius:3px;background:white;padding:4px 8px" onerror="this.style.display='none'">
+        <div style="font-size:13px;font-weight:800;color:#ffffff;line-height:1.4;margin-bottom:8px">Tu veux profiter du marché ?</div>
+        <div style="font-size:11px;color:#f5c6c6;line-height:1.5;margin-bottom:12px">Inscris-toi sur RaiseFX — crypto, forex, indices.</div>
+        <div style="display:block;text-align:center;background:#c0392b;color:#ffffff;font-size:11px;font-weight:700;padding:8px 12px;border-radius:3px">S'inscrire →</div>
       </div>
     </a>
 
-    <!-- Appel découverte -->
-    <div style="background:linear-gradient(135deg,var(--ink),#1a2235);border:1px solid #252a35;border-radius:4px;padding:22px 18px">
-      <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1.5px;color:var(--gold2);text-transform:uppercase;margin-bottom:10px">Session personnalisée</div>
-      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:800;color:white;line-height:1.25;margin-bottom:10px">
-        Tu ne sais pas par où commencer ?
-      </div>
-      <p style="font-size:12.5px;color:#9ca3af;line-height:1.6;margin-bottom:16px">
-        Réserve un appel directement avec moi. On fait le point sur ta situation, tes objectifs et les marchés à suivre.
-      </p>
-      <button onclick="openBookingCheck()" style="display:block;width:100%;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;border:none;cursor:pointer;letter-spacing:.3px;transition:background .18s" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">
-        📅 Réserver un créneau →
-      </button>
-      <div style="font-size:10.5px;color:#4b5563;text-align:center;margin-top:8px">Calendrier live · Choisis ton créneau · Sans engagement</div>
-    </div>
-
-    <!-- Sentiment StockTwits -->
-    <div class="wgt" id="st-widget">
-      <div class="wgt-hd">
-        <span class="wgt-ttl">Sentiment Marché</span>
-        <span class="wgt-upd" id="st-upd">StockTwits</span>
-      </div>
-      <div style="padding:14px 17px">
-        <!-- Score composite -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div>
-            <div style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:800;color:white" id="st-score">—</div>
-            <div style="font-size:10px;color:#9aa5b4;margin-top:2px" id="st-label">Chargement...</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:9px;color:#6b7280;font-family:'DM Mono',monospace">COMPOSITE</div>
-            <div style="font-size:9px;color:#4b5563;margin-top:2px" id="st-time">—</div>
-          </div>
-        </div>
-        <!-- Barre -->
-        <div style="height:5px;background:#1a1e28;border-radius:3px;overflow:hidden;margin-bottom:12px">
-          <div id="st-bar" style="height:100%;width:50%;background:#9ca3af;border-radius:3px;transition:width .8s,background .5s"></div>
-        </div>
-        <!-- Tickers -->
-        <div id="st-tickers"></div>
-      </div>
-    </div>
-
-    <!-- Prochains Lives -->
-    <div class="lives-wgt">
-      <div class="wgt-hd" style="background:var(--ink);border-bottom:1px solid #252a35">
-        <span class="wgt-ttl">Prochains Lives</span>
-        <span class="wgt-upd">YouTube</span>
-      </div>
-      <div id="lives-list">
-        <div class="live-item">
-          <div class="live-date-box"><div class="live-day">26</div><div class="live-month">Mai</div></div>
-          <div class="live-info">
-            <div class="live-title">Débrief Macro Hebdo</div>
-            <div class="live-time">20h00 · YouTube Live</div>
-          </div>
-          <a href="#" class="live-btn" target="_blank">→ Suivre</a>
-        </div>
-        <div class="live-item">
-          <div class="live-date-box"><div class="live-day">02</div><div class="live-month">Juin</div></div>
-          <div class="live-info">
-            <div class="live-title">Analyse BTC & Crypto</div>
-            <div class="live-time">19h30 · YouTube Live</div>
-          </div>
-          <a href="#" class="live-btn" target="_blank">→ Suivre</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="tags-wgt">
-      <div class="sec-hdr" style="margin-bottom:0;padding-bottom:8px;border-bottom-width:1px;border-color:var(--line)">
-        <span class="sec-ttl" style="font-size:15px">Thèmes</span>
-      </div>
-      <div class="tags-wrap" id="tags-wrap-dynamic">
-        <span class="tag" onclick="filterCat(null,'tous')">Tous</span>
-      </div>
-    </div>
-
-  </aside>
+  </div>
 </div>
 
 <!-- DÉBRIEF AUTO -->
@@ -1059,11 +1024,13 @@ async function loadSentiment(){
     if(tEl&&d.tickers?.length){
       tEl.innerHTML=d.tickers.map(t=>{
         const tc=t.score>=30?"#4ade80":t.score<=-30?"#f87171":"#facc15";
-        const bull=t.total>0?Math.round(t.bull/t.total*100):0;
-        return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1a1e28;font-size:11px">
-          <span style="color:#9aa5b4">${t.label}</span>
-          <span style="color:${tc};font-family:'DM Mono',monospace;font-weight:600">${t.score>0?"+":""}${t.score}</span>
-          <span style="color:#6b7280;font-size:10px">${bull}% 🐂</span>
+        const bullPct=t.bull||0;
+        const name=t.label||t.sym||"—";
+        const scoreStr=(t.score>0?"+":"")+t.score;
+        return`<div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #1a1e28;gap:8px">
+          <span style="color:#c9d1d9;font-size:12px;font-weight:500;flex:1;min-width:0;white-space:nowrap">${name}</span>
+          <span style="color:${tc};font-family:'DM Mono',monospace;font-size:12px;font-weight:700;width:36px;text-align:right">${scoreStr}</span>
+          <span style="color:#6b7280;font-family:'DM Mono',monospace;font-size:10px;width:44px;text-align:right">${bullPct}% 🐂</span>
         </div>`;
       }).join("");
     }
