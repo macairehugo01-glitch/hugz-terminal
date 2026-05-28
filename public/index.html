@@ -425,9 +425,9 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <p style="font-size:12.5px;color:#9ca3af;line-height:1.6;margin-bottom:16px">
         Réserve un appel directement avec moi. On fait le point sur ta situation, tes objectifs et les marchés à suivre.
       </p>
-      <a href="https://calendly.com/macairehugo01/30min" target="_blank" rel="noopener" style="display:block;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;text-decoration:none;letter-spacing:.3px;transition:background .18s" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">
+      <button onclick="openBookingCheck()" style="display:block;width:100%;text-align:center;background:var(--gold);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;border:none;cursor:pointer;letter-spacing:.3px;transition:background .18s" onmouseover="this.style.background='var(--gold2)'" onmouseout="this.style.background='var(--gold)'">
         📅 Réserver un créneau →
-      </a>
+      </button>
       <div style="font-size:10.5px;color:#4b5563;text-align:center;margin-top:8px">Calendrier live · Choisis ton créneau · Sans engagement</div>
     </div>
 
@@ -1119,6 +1119,137 @@ async function gateSubmit(){
 
 // Vérifier au chargement
 gateCheck();
+</script>
+
+<!-- ── POPUP VÉRIFICATION BOOKING ─────────────────────── -->
+<div id="booking-gate" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(10,12,16,.95);display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px)">
+  <div style="background:var(--ink2);border:1px solid #2a2e38;border-top:3px solid var(--gold);border-radius:6px;padding:40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.6)">
+
+    <!-- État 1 : formulaire email -->
+    <div id="bk-form">
+      <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:white;margin-bottom:8px">Réserver un appel</div>
+      <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:24px">
+        L'appel est <strong style="color:white">gratuit</strong> si tu es inscrit via mon lien RaiseFX.<br>
+        Sinon, il est disponible pour <strong style="color:var(--gold)">100€</strong>.
+      </p>
+      <input id="bk-email" type="email" placeholder="Ton email RaiseFX..."
+        style="width:100%;background:#0d1117;border:1px solid #2a2e38;color:white;padding:11px 14px;border-radius:4px;font-family:'DM Sans',sans-serif;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#2a2e38'"
+        onkeydown="if(event.key==='Enter')checkBooking()">
+      <div id="bk-error" style="color:#f87171;font-size:12px;margin-bottom:10px;display:none"></div>
+      <button onclick="checkBooking()" id="bk-btn"
+        style="width:100%;background:var(--gold);border:none;color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:4px;cursor:pointer;margin-bottom:10px">
+        Vérifier mon accès →
+      </button>
+      <button onclick="closeBooking()"
+        style="width:100%;background:transparent;border:1px solid #2a2e38;color:#6b7280;font-family:'DM Sans',sans-serif;font-size:12px;padding:8px;border-radius:4px;cursor:pointer">
+        Annuler
+      </button>
+    </div>
+
+    <!-- État 2 : accès refusé → paiement -->
+    <div id="bk-pay" style="display:none">
+      <div style="font-size:32px;margin-bottom:12px">🔒</div>
+      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:800;color:white;margin-bottom:8px">Email non trouvé</div>
+      <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:20px">
+        Cet email n'est pas dans ma liste RaiseFX.<br>
+        Tu peux quand même réserver pour <strong style="color:var(--gold)">100€</strong>.
+      </p>
+      <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank"
+        style="display:block;text-align:center;background:rgba(192,57,43,.15);border:1px solid #c0392b;color:#f5c6c6;font-size:12px;font-weight:600;padding:10px;border-radius:4px;text-decoration:none;margin-bottom:10px">
+        ✅ S'inscrire sur RaiseFX (accès gratuit)
+      </a>
+      <button onclick="payBooking()" id="pay-btn"
+        style="width:100%;background:var(--gold);border:none;color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:4px;cursor:pointer;margin-bottom:10px">
+        💳 Payer 100€ et réserver
+      </button>
+      <button onclick="showBkForm()"
+        style="width:100%;background:transparent;border:1px solid #2a2e38;color:#6b7280;font-family:'DM Sans',sans-serif;font-size:12px;padding:8px;border-radius:4px;cursor:pointer">
+        ← Réessayer avec un autre email
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── BOOKING GATE ───────────────────────────────────────────
+let _bkEmail = "";
+
+function openBookingCheck(){
+  const el = document.getElementById("booking-gate");
+  if(el){ el.style.display="flex"; document.body.style.overflow="hidden"; }
+  showBkForm();
+  setTimeout(()=>document.getElementById("bk-email")?.focus(), 100);
+}
+
+function closeBooking(){
+  const el = document.getElementById("booking-gate");
+  if(el){ el.style.display="none"; document.body.style.overflow=""; }
+}
+
+function showBkForm(){
+  document.getElementById("bk-form").style.display="block";
+  document.getElementById("bk-pay").style.display="none";
+  document.getElementById("bk-error").style.display="none";
+}
+
+async function checkBooking(){
+  const inp = document.getElementById("bk-email");
+  const err = document.getElementById("bk-error");
+  const btn = document.getElementById("bk-btn");
+  const email = (inp?.value||"").trim().toLowerCase();
+
+  if(!email||!email.includes("@")){
+    err.textContent="Entre un email valide.";
+    err.style.display="block";
+    return;
+  }
+  err.style.display="none";
+  _bkEmail = email;
+  if(btn){btn.textContent="Vérification...";btn.disabled=true;}
+
+  try{
+    const r = await fetch("/api/booking/check", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email})
+    });
+    const d = await r.json();
+    if(d.authorized){
+      // Email dans la whitelist → Calendly direct
+      closeBooking();
+      window.open("https://calendly.com/macairehugo01/30min","_blank");
+    }else{
+      // Non autorisé → afficher option paiement
+      document.getElementById("bk-form").style.display="none";
+      document.getElementById("bk-pay").style.display="block";
+    }
+  }catch(e){
+    err.textContent="Erreur de vérification. Réessaie.";
+    err.style.display="block";
+  }finally{
+    if(btn){btn.textContent="Vérifier mon accès →";btn.disabled=false;}
+  }
+}
+
+async function payBooking(){
+  const btn = document.getElementById("pay-btn");
+  if(btn){btn.textContent="Redirection...";btn.disabled=true;}
+  try{
+    const r = await fetch("/api/booking/checkout", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:_bkEmail})
+    });
+    const d = await r.json();
+    if(d.url) window.location.href = d.url;
+    else throw new Error(d.error||"Erreur");
+  }catch(e){
+    alert("Erreur paiement : "+e.message);
+    if(btn){btn.textContent="💳 Payer 100€ et réserver";btn.disabled=false;}
+  }
+}
 </script>
 
 </body>
