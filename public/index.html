@@ -754,19 +754,38 @@ function buildDebrief(d){
 
 // TAGS DYNAMIQUES depuis les articles
 function buildDynamicTags(){
+  const catSet=new Set();
   const tagSet=new Set();
-  // Catégories
-  articles.forEach(a=>{if(a.category)tagSet.add(a.category);});
-  // Tags de tous les articles
-  articles.forEach(a=>(a.tags||[]).forEach(t=>tagSet.add(t)));
+
+  articles.forEach(a=>{
+    // Catégories
+    if(a.category) catSet.add(a.category.trim());
+    // Tags — peuvent arriver comme string "[Fed, inflation]" ou tableau
+    let tags=a.tags||[];
+    if(typeof tags==="string"){
+      tags=tags.replace(/[\[\]]/g,"").split(",").map(t=>t.trim()).filter(Boolean);
+    }
+    tags.forEach(t=>{if(t) tagSet.add(t.trim());});
+  });
 
   const wrap=document.getElementById("tags-wrap-dynamic");
   if(!wrap)return;
-  // Toujours afficher "Tous" en premier
-  const allTags=["Tous",...Array.from(tagSet)];
-  wrap.innerHTML=allTags.map(t=>
-    `<span class="tag" onclick="filterCat(null,'${t==="Tous"?"tous":t}')">${t}</span>`
-  ).join("");
+
+  // Catégories en premier, puis tags
+  const cats=[...catSet].sort();
+  const tags=[...tagSet].sort();
+
+  wrap.innerHTML=
+    // Bouton Tous
+    `<span class="tag on" onclick="filterCat(this,'tous')">Tous</span>`+
+    // Catégories
+    cats.map(c=>
+      `<span class="tag" style="border-color:${catColor(c)};color:${catColor(c)}" onclick="filterCat(this,'${esc(c)}')">${esc(c)}</span>`
+    ).join("")+
+    // Tags
+    tags.map(t=>
+      `<span class="tag" onclick="filterCat(this,'${esc(t)}')">${esc(t)}</span>`
+    ).join("");
 }
 
 // ARTICLES
@@ -779,10 +798,13 @@ async function loadArticles(){
 function renderArticles(){
   // Comparaison insensible à la casse pour les catégories et tags
   const filtered=curCat==="tous"?articles:articles.filter(a=>{
-    const cat=normCat(a.category);
     const cur=normCat(curCat);
-    const tagMatch=(a.tags||[]).some(t=>normCat(t)===cur);
-    return cat===cur||tagMatch;
+    // Match catégorie
+    if(normCat(a.category)===cur) return true;
+    // Match tags — normaliser qu'ils soient string ou tableau
+    let tags=a.tags||[];
+    if(typeof tags==="string") tags=tags.replace(/[\[\]]/g,"").split(",").map(t=>t.trim());
+    return tags.some(t=>normCat(t)===cur);
   });
   set("art-cnt",filtered.length+" article"+(filtered.length>1?"s":""));
 
