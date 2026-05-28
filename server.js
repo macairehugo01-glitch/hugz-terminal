@@ -280,60 +280,90 @@ async function copperFn(){
   return cacheSet(k,{value:4.60,src:"Estimé*",stale:true},TTL.metals);
 }
 
-// Sources fiables par actif (pas Yahoo qui bloque les serveurs)
-const COMMO_SOURCES = {
-  "CL=F":  async()=>{
-    // WTI via Open-Meteo commodities (gratuit, pas de rate limit)
-    try{
-      const d=await fetchJSON("https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m",{timeout:8000});
-      // Open-Meteo ne fournit pas le pétrole — on utilise une autre source
-    }catch{}
-    // Tradier sandbox (public, pas de clé)
-    try{
-      const d=await fetchJSON("https://api.api-ninjas.com/v1/commodityprice?name=crude_oil",{timeout:8000,headers:{"X-Api-Key":"demo"}});
-      if(d?.[0]?.price)return d[0].price;
-    }catch{}
-    return null;
-  },
-};
+/* ═══════════════════════════════════════════
+   COMMODITÉS — Alpha Vantage (gratuit 25/j)
+   + Twelve Data backup (gratuit 8/min)
+   Variables Railway :
+     ALPHA_VANTAGE_KEY → clé gratuite sur alphavantage.co
+     TWELVE_DATA_KEY   → clé gratuite sur twelvedata.com
+═══════════════════════════════════════════ */
+const AV_KEY  = process.env.ALPHA_VANTAGE_KEY||"";
+const TD_KEY  = process.env.TWELVE_DATA_KEY||"";
+
+// Twelve Data — fonctionne sans clé en mode démo (limité)
+async function twelvePrice(symbol,lo,hi){
+  try{
+    const key=TD_KEY?`&apikey=${TD_KEY}`:"";
+    const url=`https://api.twelvedata.com/price?symbol=${encodeURIComponent(symbol)}&format=JSON${key}`;
+    const d=await fetchJSON(url,{timeout:10000});
+    const v=parseFloat(d?.price);
+    if(!isNaN(v)&&v>=lo&&v<=hi)return v;
+  }catch(e){console.warn(`[TD] ${symbol}:`,e.message?.slice(0,40));}
+  return null;
+}
+
+// Alpha Vantage — commodités (nécessite clé gratuite)
+async function avCommo(func,lo,hi){
+  if(!AV_KEY)return null;
+  try{
+    const url=`https://www.alphavantage.co/query?function=${func}&interval=daily&apikey=${AV_KEY}`;
+    const d=await fetchJSON(url,{timeout:12000});
+    // Prendre la dernière valeur
+    const data=d?.data;
+    if(!Array.isArray(data)||!data.length)return null;
+    const v=parseFloat(data[0]?.value);
+    if(!isNaN(v)&&v>=lo&&v<=hi)return v;
+  }catch(e){console.warn(`[AV] ${func}:`,e.message?.slice(0,40));}
+  return null;
+}
 
 async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
 
-  // Tentative 1 : Yahoo v8 direct (fonctionne parfois)
-  try{
-    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d&includePrePost=false`;
-    const d=await fetchJSON(url,{timeout:10000,headers:{
-      "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      "Accept":"application/json,text/plain,*/*",
-      "Accept-Language":"en-US,en;q=0.9",
-      "Origin":"https://finance.yahoo.com",
-      "Referer":"https://finance.yahoo.com/"
-    }});
-    const meta=d?.chart?.result?.[0]?.meta;
-    const v=meta?.regularMarketPrice??meta?.chartPreviousClose??meta?.previousClose;
-    if(v!=null&&v>=lo&&v<=hi){
-      console.log(`[COMMO] ${sym} Yahoo direct: ${v}`);
-      return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
-    }
-  }catch(e){console.warn(`[COMMO] ${sym} Yahoo:`,e.message?.slice(0,40));}
+  // Symboles Twelve Data pour les futures
+  const tdSym={
+    "CL=F":"WTI/USD","BZ=F":"UKOIL/USD","NG=F":"NG1!","HG=F":"COPPER/USD"
+  }[sym]||sym;
 
-  // Tentative 2 : Yahoo query2
-  try{
-    const url=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`;
-    const d=await fetchJSON(url,{timeout:10000,headers:{
-      "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      "Accept":"application/json"
-    }});
-    const meta=d?.chart?.result?.[0]?.meta;
-    const v=meta?.regularMarketPrice??meta?.chartPreviousClose;
-    if(v!=null&&v>=lo&&v<=hi){
-      console.log(`[COMMO] ${sym} Yahoo q2: ${v}`);
-      return cacheSet(key,{value:v,src:"Yahoo2"},TTL.yahoo);
-    }
-  }catch(e){console.warn(`[COMMO] ${sym} Yahoo2:`,e.message?.slice(0,40));}
+  // Symboles Alpha Vantage pour les commodités
+  const avFunc={
+    "CL=F":"WTI","BZ=F":"BRENT","NG=F":"NATURAL_GAS","HG=F":"COPPER"
+  }[sym];
 
-  // Tentative 3 : FRED (données J-1 à J-3 mais fiables)
+  // Tentative 1 : Twelve Data
+  const tv=await twelvePrice(tdSym,lo,hi);
+  if(tv!=null){
+    console.log(`[COMMO] ${sym} TwelveData: ${tv}`);
+    return cacheSet(key,{value:tv,src:"TwelveData"},TTL.yahoo);
+  }
+
+  // Tentative 2 : Alpha Vantage
+  if(avFunc){
+    const av=await avCommo(avFunc,lo,hi);
+    if(av!=null){
+      console.log(`[COMMO] ${sym} AlphaVantage: ${av}`);
+      return cacheSet(key,{value:av,src:"AlphaVantage"},TTL.yahoo);
+    }
+  }
+
+  // Tentative 3 : Yahoo (parfois ça passe)
+  for(const host of["query1","query2"]){
+    try{
+      const url=`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d&includePrePost=false`;
+      const d=await fetchJSON(url,{timeout:8000,headers:{
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124",
+        "Accept":"application/json","Referer":"https://finance.yahoo.com/"
+      }});
+      const meta=d?.chart?.result?.[0]?.meta;
+      const v=meta?.regularMarketPrice??meta?.chartPreviousClose;
+      if(v!=null&&v>=lo&&v<=hi){
+        console.log(`[COMMO] ${sym} Yahoo/${host}: ${v}`);
+        return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
+      }
+    }catch(e){console.warn(`[COMMO] ${sym} Yahoo/${host}:`,e.message?.slice(0,30));}
+  }
+
+  // Tentative 4 : FRED (J-1 à J-3)
   const fv=await safe(()=>fredObs(fredId,5,TTL.fred_d));
   if(fv?.v!=null&&fv.v>=lo&&fv.v<=hi){
     console.log(`[COMMO] ${sym} FRED: ${fv.v}`);
@@ -1569,31 +1599,94 @@ async function scheduleSentiment(){
   setTimeout(scheduleSentiment, SENTIMENT_INTERVAL_H*3600*1000);
 }
 
-/* ── Route API ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   SENTIMENT — StockTwits (gratuit, pas de clé requise)
+   Tickers : SPY, BTC.X, GLD, CL1! (WTI), NVDA
+   Retourne ratio Bull/Bear natif de StockTwits
+═══════════════════════════════════════════════════════ */
+const ST_TICKERS=[
+  {sym:"SPY",  label:"S&P 500",  cat:"equities"},
+  {sym:"BTC.X",label:"Bitcoin",  cat:"crypto"},
+  {sym:"GLD",  label:"Or",       cat:"commodities"},
+  {sym:"USO",  label:"Pétrole",  cat:"commodities"},
+  {sym:"QQQ",  label:"Nasdaq",   cat:"equities"},
+];
+
+let _stCache=null, _stTs=0;
+const ST_TTL=4*3600*1000; // 4h
+
+async function fetchStockTwits(sym){
+  try{
+    const url=`https://api.stocktwits.com/api/2/streams/symbol/${encodeURIComponent(sym)}.json`;
+    const d=await fetchJSON(url,{timeout:10000,headers:{
+      "User-Agent":"Mozilla/5.0 (compatible; MacroTerminal/1.0)"
+    }});
+    const symbol=d?.symbol;
+    if(!symbol)return null;
+    const bull=symbol.sentiment?.bullish||0;
+    const bear=symbol.sentiment?.bearish||0;
+    const total=bull+bear;
+    const score=total>0?Math.round((bull/total)*200-100):0; // -100 à +100
+    const label=score>=30?"Haussier":score<=-30?"Baissier":"Neutre";
+    return{sym,label:symbol.title||sym,bull,bear,total,score,label};
+  }catch(e){
+    console.warn(`[ST] ${sym}:`,e.message?.slice(0,40));
+    return null;
+  }
+}
+
+async function runStockTwitsSentiment(){
+  console.log("[ST] Récupération sentiment StockTwits...");
+  const results=[];
+  for(const t of ST_TICKERS){
+    const r=await fetchStockTwits(t.sym);
+    if(r)results.push({...t,...r});
+    await new Promise(r=>setTimeout(r,500)); // 500ms entre chaque
+  }
+  // Score composite pondéré
+  const weights={equities:0.5,crypto:0.3,commodities:0.2};
+  let weighted=0,tw=0;
+  results.forEach(r=>{
+    const w=weights[r.cat]||0.1;
+    weighted+=r.score*w; tw+=w;
+  });
+  const composite=tw>0?Math.round(weighted/tw):null;
+  const compLabel=composite==null?"N/D":
+    composite>=30?"Haussier":composite<=-30?"Baissier":"Neutre";
+
+  _stCache={
+    status:"ok",
+    updatedAt:new Date().toISOString(),
+    compositeScore:composite,
+    compositeLabel:compLabel,
+    source:"StockTwits",
+    tickers:results,
+    nextUpdate:new Date(Date.now()+ST_TTL).toISOString()
+  };
+  _stTs=Date.now();
+  console.log(`[ST] ✅ Composite: ${composite} — ${compLabel} (${results.length}/${ST_TICKERS.length} tickers OK)`);
+  return _stCache;
+}
+
+// Scheduler 4h
+async function scheduleStockTwits(){
+  try{await runStockTwitsSentiment();}
+  catch(e){console.error("[ST]",e.message);}
+  setTimeout(scheduleStockTwits,ST_TTL);
+}
+
 app.get("/api/sentiment",async(req,res)=>{
-  // Forcer refresh si demandé (?refresh=1) ou cache expiré
-  const expired=Date.now()-_sentimentTs>SENTIMENT_INTERVAL_H*3600*1000;
-  if((req.query.refresh==="1"||expired)&&!_sentimentCache){
-    // Lancer en background, retourner placeholder
-    scheduleSentiment().catch(()=>{});
-    return res.json({
-      status:"loading",
-      message:`Première analyse en cours... (${SENTIMENT_INTERVAL_H}h d'intervalle)`,
-      compositeScore:null,
-      compositeLabel:"Calcul en cours",
-      updatedAt:null
-    });
+  const expired=Date.now()-_stTs>ST_TTL;
+  if(!_stCache||expired){
+    scheduleStockTwits().catch(()=>{});
+    return res.json({status:"loading",compositeScore:null,compositeLabel:"Chargement...",source:"StockTwits"});
   }
-  if(!_sentimentCache){
-    return res.json({status:"not_ready",compositeScore:null,compositeLabel:"N/D"});
-  }
-  res.json({status:"ok",..._sentimentCache});
+  res.json(_stCache);
 });
 
-// Route pour forcer un refresh manuel
 app.post("/api/sentiment/refresh",async(req,res)=>{
-  res.json({ok:true,message:"Analyse Reddit lancée en arrière-plan..."});
-  try{await runSentimentAnalysis();}catch(e){console.error("[REDDIT]",e.message);}
+  res.json({ok:true,message:"Sentiment StockTwits en cours..."});
+  try{await runStockTwitsSentiment();}catch(e){console.error("[ST]",e.message);}
 });
 
 // Route journal
@@ -1628,5 +1721,8 @@ app.listen(PORT,async()=>{
   }else{
     console.log(`[REDDIT] Mode public JSON (sans clés — ajouter REDDIT_CLIENT_ID pour plus de fiabilité)`);
   }
-  setTimeout(scheduleSentiment, 30*1000); // Premier run 30s après démarrage
+  // setTimeout(scheduleSentiment, 30*1000); // Reddit désactivé — en attente approbation API
+  // StockTwits — démarrage 30s après le serveur
+  console.log("[ST] 📊 Scheduler StockTwits démarré — intervalle 4h");
+  setTimeout(scheduleStockTwits, 30*1000);
 });
