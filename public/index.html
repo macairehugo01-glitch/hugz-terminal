@@ -41,6 +41,8 @@ body.dark .art-body code{background:#161b24;border-color:#21262d;color:#7dd3fc}
 body.dark .art-body a{color:#60a5fa}
 body.dark .art-body{color:#c9d1d9}
 body.dark .overlay{background:#0d1117;color:#e6edf3}
+body.dark .art-main-title{color:#e6edf3}
+.art-main-title{color:var(--ink)}
 body.dark .overlay h1{color:#e6edf3}
 /* Tabs & nav en mode nuit — rester lisibles sur fond clair de leur zone */
 body.dark .tab{color:#9ca3af}
@@ -568,7 +570,13 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 <!-- ARTICLE OVERLAY -->
 <div class="overlay" id="overlay">
   <div class="overlay-in">
-    <button class="back-btn" onclick="closeArt()">← Retour aux analyses</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
+      <button class="back-btn" style="margin-bottom:0" onclick="closeArt()">← Retour aux analyses</button>
+      <button onclick="toggleDark()" id="dark-btn-art" title="Mode nuit"
+        style="background:transparent;border:1px solid var(--line);color:var(--muted);padding:4px 9px;border-radius:3px;cursor:pointer;font-size:13px;transition:all .18s">
+        🌙
+      </button>
+    </div>
     <div id="overlay-content"></div>
   </div>
 </div>
@@ -911,7 +919,7 @@ async function openArt(slug){
         ${a.readTime?`<span style="font-size:10px;color:var(--muted)">· ${a.readTime} min</span>`:""}
         ${tags}
       </div>
-      <h1 style="font-family:'Playfair Display',serif;font-size:28px;font-weight:800;color:var(--ink);line-height:1.2;margin-bottom:16px">${esc(a.title)}</h1>
+      <h1 class="art-main-title" style="font-family:'Playfair Display',serif;font-size:28px;font-weight:800;line-height:1.2;margin-bottom:16px">${esc(a.title)}</h1>
       ${a.excerpt?`<div style="font-size:16px;color:var(--muted);line-height:1.6;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--line)">${esc(a.excerpt)}</div>`:""}
       ${a.cover?`<img src="${esc(a.cover)}" alt="" style="width:100%;max-height:340px;object-fit:cover;border-radius:5px;margin-bottom:26px">`:""}
       <div class="art-body">${a.html}</div>
@@ -943,18 +951,22 @@ function submitEmail(){
 function toggleDark(){
   const isDark=document.body.classList.toggle("dark");
   try{localStorage.setItem("hm_dark",isDark?"1":"0");}catch{}
-  const btn=document.getElementById("dark-btn");
-  if(btn)btn.textContent=isDark?"☀️":"🌙";
+  const emoji=isDark?"☀️":"🌙";
+  ["dark-btn","dark-btn-art"].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn)btn.textContent=emoji;
+  });
 }
 function initDark(){
   try{
     const saved=localStorage.getItem("hm_dark");
-    // Respecter préférence système si pas de choix sauvegardé
     const prefersDark=saved!==null?saved==="1":window.matchMedia("(prefers-color-scheme: dark)").matches;
     if(prefersDark){
       document.body.classList.add("dark");
-      const btn=document.getElementById("dark-btn");
-      if(btn)btn.textContent="☀️";
+      ["dark-btn","dark-btn-art"].forEach(id=>{
+        const btn=document.getElementById(id);
+        if(btn)btn.textContent="☀️";
+      });
     }
   }catch{}
 }
