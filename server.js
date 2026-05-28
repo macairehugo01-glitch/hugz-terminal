@@ -832,11 +832,87 @@ app.post("/api/articles/refresh",(_,res)=>{
 });
 
 /* ═══════════════════════════════════════════════════════
-   NEWSLETTER — Google Apps Script → Google Sheets
+   BOOKING — Vérification whitelist + Stripe
+   Variables Railway :
+     STRIPE_SECRET_KEY  → sk_live_...
+     GOOGLE_SHEET_ID    → ID du Google Sheet
+     GOOGLE_SCRIPT_URL  → URL Apps Script
+     GOOGLE_SCRIPT_TOKEN→ token secret
+═══════════════════════════════════════════════════════ */
+const STRIPE_KEY   = process.env.STRIPE_SECRET_KEY||"";
+const GS_SHEET_ID  = process.env.GOOGLE_SHEET_ID||"1LxrITyBFw2zteN2We2GHacLaDTFtMHtiCJs5SwIEVE8";
+
+// Lire la whitelist depuis Google Sheet (onglet Whitelist)
+async function readWhitelist(){
+  if(!GS_SHEET_ID)return[];
+  const tok = await gToken();
+  if(!tok)return[];
+  try{
+    const r = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${GS_SHEET_ID}/values/Whitelist!A:A`,
+      {headers:{"Authorization":`Bearer ${tok}`}}
+    );
+    const rows = ((await r.json()).values||[]).slice(1);
+    return rows.map(r=>(r[0]||"").toLowerCase().trim()).filter(Boolean);
+  }catch(e){
+    console.warn("[WHITELIST]",e.message?.slice(0,60));
+    return[];
+  }
+}
+
+// Route : vérifier si email est dans la whitelist
+app.post("/api/booking/check",async(req,res)=>{
+  const email = String(req.body?.email||"").trim().toLowerCase();
+  if(!email) return res.status(400).json({error:"Email requis"});
+  const list = await readWhitelist();
+  const authorized = list.includes(email);
+  console.log(`[BOOKING] ${email} → ${authorized?"✅ autorisé":"❌ non autorisé"}`);
+  res.json({authorized});
+});
+
+// Route : créer une session Stripe Checkout 100€
+app.post("/api/booking/checkout",async(req,res)=>{
+  if(!STRIPE_KEY) return res.status(500).json({error:"Stripe non configuré"});
+  const email = String(req.body?.email||"").trim().toLowerCase();
+  try{
+    // Appel API Stripe directement (sans SDK)
+    const params = new URLSearchParams({
+      "payment_method_types[]":        "card",
+      "line_items[0][price_data][currency]":          "eur",
+      "line_items[0][price_data][product_data][name]":"Appel stratégie 30min — Hugo Macaire",
+      "line_items[0][price_data][product_data][description]":"Analyse personnalisée de ta situation et de tes objectifs sur les marchés.",
+      "line_items[0][price_data][unit_amount]":        "10000",
+      "line_items[0][quantity]":                       "1",
+      "mode":                                          "payment",
+      "customer_email":                                email,
+      "success_url":                                   "https://calendly.com/macairehugo01/30min",
+      "cancel_url":                                    `${req.headers.origin||"https://hugomacaire.com"}/?booking=cancelled`,
+      "metadata[type]":                                "booking",
+      "metadata[email]":                               email,
+    });
+    const r = await fetch("https://api.stripe.com/v1/checkout/sessions",{
+      method:"POST",
+      headers:{
+        "Authorization":`Bearer ${STRIPE_KEY}`,
+        "Content-Type":"application/x-www-form-urlencoded"
+      },
+      body:params.toString()
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error?.message||"Stripe error");
+    console.log(`[STRIPE] Session créée pour ${email}: ${d.id}`);
+    res.json({url:d.url});
+  }catch(e){
+    console.error("[STRIPE]",e.message);
+    res.status(500).json({error:e.message});
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
    Variables Railway :
      GOOGLE_SCRIPT_URL   → URL du script déployé
      GOOGLE_SCRIPT_TOKEN → token secret
-     ADMIN_KEY           → mot de passe admin pour lire la liste
+     ADMIN_KEY           → mot de passe admin
 ═══════════════════════════════════════════════════════ */
 const NL_DATA_DIR  = process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data";
 const NL_FILE_PATH = path.join(NL_DATA_DIR,"newsletter.json");
