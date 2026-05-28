@@ -564,8 +564,16 @@ function buildSummary(d,risk){
 }
 
 /* ═══════════════════════════════════════════
-   CLAUDE HAIKU
+   CLAUDE HAIKU — limité à 1 briefing auto/jour
 ═══════════════════════════════════════════ */
+let _haikuDailyCalls=0, _haikuDayKey="";
+function haikuDailyOk(type="auto"){
+  if(type==="manual")return true;
+  const today=new Date().toISOString().slice(0,10);
+  if(_haikuDayKey!==today){_haikuDayKey=today;_haikuDailyCalls=0;}
+  if(_haikuDailyCalls>=1)return false;
+  _haikuDailyCalls++;return true;
+}
 async function callClaude(question,ctx,maxTokens=260){
   if(!CLAUDE_KEY)throw new Error("ANTHROPIC_KEY manquante");
   const d=ctx||{},risk=calcRisk(d);
@@ -690,6 +698,8 @@ app.get("/api/dashboard",async(req,res)=>{
     const risk=calcRisk(data);
     data.riskAnalysis=risk;
     data.localSummary=buildSummary(data,risk);
+    // Mettre à jour le sentiment composite depuis les données live
+    buildSentimentCache(data);
     res.json({updatedAt:new Date().toISOString(),sources:{fred:"FRED St. Louis",market:"Coinbase·Yahoo(crumb)·Frankfurter·Alt.me"},data});
   }catch(err){
     console.error("DASHBOARD ERROR:",err);
@@ -1051,6 +1061,10 @@ app.post("/api/ai",async(req,res)=>{
 app.post("/api/ai/summary",async(req,res)=>{
   const dash=req.body?.dashboard||null;
   if(!dash?.data)return res.json({text:"Indisponible."});
+  if(!haikuDailyOk("auto")){
+    // Quota journalier atteint → retourner le résumé local
+    return res.json({text:buildSummary(dash.data,calcRisk(dash.data)),note:"Quota IA journalier atteint"});
+  }
   try{res.json({text:await callClaude(
     "Briefing 5 points chiffrés : 1) Régime Risk-ON/OFF + signal dominant 2) Taux US et crédit HY/IG 3) Actifs réels (or, Cu/Au, pétrole) 4) Macro (CPI, emploi, NFCI, WEI) 5) Signal alerte ou opportunité notable.",
     dash.data,420)});}
@@ -1600,10 +1614,11 @@ async function scheduleSentiment(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   SENTIMENT — StockTwits (gratuit, pas de clé requise)
-   Tickers : SPY, BTC.X, GLD, CL1! (WTI), NVDA
-   Retourne ratio Bull/Bear natif de StockTwits
+   SENTIMENT — StockTwits via proxy Cloudflare Worker
+   Proxy : https://billowing-bird-7d55.macairehugo01.workers.dev
+   Variable Railway : STOCKTWITS_PROXY (optionnel)
 ═══════════════════════════════════════════════════════ */
+const ST_PROXY = process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
 const ST_TICKERS=[
   {sym:"SPY",  label:"S&P 500",  cat:"equities"},
   {sym:"BTC.X",label:"Bitcoin",  cat:"crypto"},
@@ -1617,18 +1632,18 @@ const ST_TTL=4*3600*1000; // 4h
 
 async function fetchStockTwits(sym){
   try{
-    const url=`https://api.stocktwits.com/api/2/streams/symbol/${encodeURIComponent(sym)}.json`;
-    const d=await fetchJSON(url,{timeout:10000,headers:{
-      "User-Agent":"Mozilla/5.0 (compatible; MacroTerminal/1.0)"
-    }});
+    const url=`${ST_PROXY}?sym=${encodeURIComponent(sym)}`;
+    const d=await fetchJSON(url,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0"}});
     const symbol=d?.symbol;
     if(!symbol)return null;
     const bull=symbol.sentiment?.bullish||0;
     const bear=symbol.sentiment?.bearish||0;
     const total=bull+bear;
-    const score=total>0?Math.round((bull/total)*200-100):0; // -100 à +100
+    if(total===0)return null;
+    const score=Math.round((bull/total)*200-100);
     const label=score>=30?"Haussier":score<=-30?"Baissier":"Neutre";
-    return{sym,label:symbol.title||sym,bull,bear,total,score,label};
+    console.log(`[ST] ${sym}: bull=${bull} bear=${bear} score=${score}`);
+    return{sym,bull,bear,total,score,label};
   }catch(e){
     console.warn(`[ST] ${sym}:`,e.message?.slice(0,40));
     return null;
@@ -1636,39 +1651,41 @@ async function fetchStockTwits(sym){
 }
 
 async function runStockTwitsSentiment(){
-  console.log("[ST] Récupération sentiment StockTwits...");
+  console.log("[ST] Récupération sentiment StockTwits via proxy Cloudflare...");
   const results=[];
   for(const t of ST_TICKERS){
     const r=await fetchStockTwits(t.sym);
-    if(r)results.push({...t,...r});
-    await new Promise(r=>setTimeout(r,500)); // 500ms entre chaque
+    if(r)results.push({...r,label:t.label,cat:t.cat});
+    else results.push({sym:t.sym,label:t.label,cat:t.cat,score:0,bull:0,bear:0,total:0,label2:"N/D"});
+    await new Promise(r=>setTimeout(r,600));
   }
-  // Score composite pondéré
   const weights={equities:0.5,crypto:0.3,commodities:0.2};
   let weighted=0,tw=0;
-  results.forEach(r=>{
+  results.filter(r=>r.total>0).forEach(r=>{
     const w=weights[r.cat]||0.1;
-    weighted+=r.score*w; tw+=w;
+    weighted+=r.score*w;tw+=w;
   });
   const composite=tw>0?Math.round(weighted/tw):null;
-  const compLabel=composite==null?"N/D":
-    composite>=30?"Haussier":composite<=-30?"Baissier":"Neutre";
-
+  const compLabel=composite==null?"N/D":composite>=30?"Haussier":composite<=-30?"Baissier":"Neutre";
   _stCache={
     status:"ok",
     updatedAt:new Date().toISOString(),
     compositeScore:composite,
     compositeLabel:compLabel,
     source:"StockTwits",
-    tickers:results,
-    nextUpdate:new Date(Date.now()+ST_TTL).toISOString()
+    tickers:results.map(t=>({
+      label:t.label,score:t.score,
+      bull:t.total>0?Math.round(t.bull/t.total*100):0,
+      total:t.total
+    }))
   };
   _stTs=Date.now();
-  console.log(`[ST] ✅ Composite: ${composite} — ${compLabel} (${results.length}/${ST_TICKERS.length} tickers OK)`);
+  console.log(`[ST] ✅ Composite: ${composite} — ${compLabel} (${results.filter(r=>r.total>0).length}/${ST_TICKERS.length} OK)`);
   return _stCache;
 }
 
-// Scheduler 4h
+function buildSentimentCache(){}
+
 async function scheduleStockTwits(){
   try{await runStockTwitsSentiment();}
   catch(e){console.error("[ST]",e.message);}
