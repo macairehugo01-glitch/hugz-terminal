@@ -32,11 +32,15 @@ body.dark main{color:#e6edf3}
 body.dark .art-body p{color:#c9d1d9}
 body.dark .art-body li{color:#c9d1d9}
 body.dark .art-body h1,body.dark .art-body h2,body.dark .art-body h3{color:#e6edf3;border-bottom-color:#21262d}
-body.dark .art-body blockquote{background:#111620;color:#8b949e}
+body.dark .art-body h4{color:var(--gold2)}
+body.dark .art-body strong{color:#ffffff}
+body.dark .art-body em{color:var(--gold2)}
+body.dark .art-body blockquote{background:#111620;color:#9aa5b4;border-left-color:var(--gold)}
 body.dark .art-body hr{border-top-color:#21262d}
 body.dark .art-body code{background:#161b24;border-color:#21262d;color:#7dd3fc}
-body.dark .overlay{background:#0d1117;color:#e6edf3}
+body.dark .art-body a{color:#60a5fa}
 body.dark .art-body{color:#c9d1d9}
+body.dark .overlay{background:#0d1117;color:#e6edf3}
 body.dark .overlay h1{color:#e6edf3}
 /* Tabs & nav en mode nuit — rester lisibles sur fond clair de leur zone */
 body.dark .tab{color:#9ca3af}
@@ -856,9 +860,10 @@ function renderArticles(){
     if(heroEl)heroEl.onclick=()=>openArt(first.slug);
   }
 
-  // Grille tous les articles (sauf hero) en rectangles
+  // Grille tous les articles en rectangles
+  // Si 1 seul article : l'afficher aussi dans la grille (pas uniquement en hero)
   if(grid){
-    const items=filtered.slice(1);
+    const items=filtered.length===1?filtered:filtered.slice(1);
     grid.style.display=items.length?"grid":"none";
     grid.innerHTML=items.map(a=>{
       const ec=catColor(a.category);
