@@ -110,7 +110,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .sb-c{font-family:'DM Mono',monospace;font-size:10px;font-weight:600}
 
 /* LAYOUT */
-.main{max-width:1400px;margin:0 auto;padding:36px 28px;display:grid;grid-template-columns:280px 1fr 280px;gap:32px}
+.main{max-width:1400px;margin:0 auto;padding:36px 28px;display:grid;grid-template-columns:280px 1fr 280px;gap:32px;align-items:start}
 
 /* SEC HEADER */
 .sec-hdr{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid var(--ink)}
@@ -167,7 +167,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .li-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 
 /* SIDEBAR */
-.sidebar{display:flex;flex-direction:column;gap:20px}.sidebar-left{display:flex;flex-direction:column;gap:20px}.sidebar-right{display:flex;flex-direction:column;gap:20px}
+.sidebar{display:flex;flex-direction:column;gap:20px}.sidebar-left{display:flex;flex-direction:column;gap:20px;position:sticky;top:96px;max-height:calc(100vh - 110px);overflow-y:auto;scrollbar-width:none}.sidebar-left::-webkit-scrollbar{display:none}.sidebar-right{display:flex;flex-direction:column;gap:20px;position:sticky;top:96px;max-height:calc(100vh - 110px);overflow-y:auto;scrollbar-width:none}.sidebar-right::-webkit-scrollbar{display:none}
 .wgt{background:var(--ink);border-radius:4px;overflow:hidden;box-shadow:0 4px 20px rgba(10,12,16,.1)}
 .wgt-hd{padding:13px 17px;border-bottom:1px solid #252a35;display:flex;align-items:center;justify-content:space-between}
 .wgt-ttl{font-family:'DM Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold2)}
@@ -384,7 +384,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
   </div>
 
   <!-- CONTENU CENTRAL -->
-  <main>
+  <main style="min-height:0">
     <!-- HERO -->
     <div class="hero" id="hero" onclick="void(0)">
       <div class="hero-img" id="hero-img-wrap">
