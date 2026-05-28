@@ -589,13 +589,17 @@ const CAT_EMOJI={"Débrief Hebdo":"📅","Debrief Hebdo":"📅","debrief hebdo":
 
 // Normaliser une catégorie pour le matching
 function normCat(s){
-  const v=(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
-  if(["debrief","debrief hebdo","debriefs"].includes(v))return"debrief hebdo";
-  if(["analyse actif","actif","analyse d'actif"].includes(v))return"analyse actif";
-  if(["journaliere","journalier","analyse journaliere","analyse journalier"].includes(v))return"analyse journaliere";
+  // Supprimer les accents caractère par caractère (compatible tous navigateurs)
+  const v=(s||"").toLowerCase()
+    .replace(/[àáâãäå]/g,"a").replace(/[èéêë]/g,"e").replace(/[ìíîï]/g,"i")
+    .replace(/[òóôõö]/g,"o").replace(/[ùúûü]/g,"u").replace(/[ç]/g,"c")
+    .replace(/[ñ]/g,"n").replace(/'/g,"'").trim();
+  if(["debrief","debrief hebdo","debriefs","debriefs hebdo"].includes(v))return"debrief hebdo";
+  if(["analyse actif","actif","analyse d'actif","analyse d'actif"].includes(v))return"analyse actif";
+  if(["journaliere","journalier","analyse journaliere","analyse journalier","journaliere"].includes(v))return"analyse journaliere";
   if(["macro","macroeconomie","macroeconomique"].includes(v))return"macro";
   if(["crypto","cryptomonnaies","cryptos"].includes(v))return"crypto";
-  if(["marches","marche"].includes(v))return"marches";
+  if(["marches","marche","marché","marchés"].includes(v))return"marches";
   return v;
 }
 // Couleur par catégorie normalisée
