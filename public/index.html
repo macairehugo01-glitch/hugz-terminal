@@ -422,12 +422,10 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <button class="tab" onclick="filterCat(this,'Crypto')">₿ Crypto</button>
     </div>
 
-    <div id="art-scroll-wrap" style="max-height:900px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#252a35 transparent;border-radius:4px">
-      <div class="grid" id="art-grid"></div>
-      <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
-        <div style="font-size:36px;margin-bottom:12px">📄</div>
-        <div>Aucun article dans cette catégorie.</div>
-      </div>
+    <div class="grid" id="art-grid"></div>
+    <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
+      <div style="font-size:36px;margin-bottom:12px">📄</div>
+      <div>Aucun article dans cette catégorie.</div>
     </div>
   </main>
 
@@ -1024,7 +1022,7 @@ async function loadSentiment(){
     const tEl=document.getElementById("st-tickers");
     if(tEl&&d.tickers?.length){
       // Label source réseaux sociaux
-      tEl.innerHTML=`<div style="font-family:'DM Mono',monospace;font-size:8.5px;color:#3d4555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #1a1e28">Réseaux sociaux financiers (StockTwits)</div>`+
+      tEl.innerHTML=`<div style="font-family:'DM Mono',monospace;font-size:8.5px;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #252a35">Réseaux sociaux financiers (StockTwits)</div>`+
       d.tickers.map(t=>{
         const tc=t.score>=30?"#4ade80":t.score<=-30?"#f87171":"#facc15";
         const bullPct=t.bull||0;
