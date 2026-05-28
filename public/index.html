@@ -422,10 +422,12 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <button class="tab" onclick="filterCat(this,'Crypto')">₿ Crypto</button>
     </div>
 
-    <div class="grid" id="art-grid"></div>
-    <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
-      <div style="font-size:36px;margin-bottom:12px">📄</div>
-      <div>Aucun article dans cette catégorie.</div>
+    <div id="art-scroll-wrap" style="max-height:900px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#252a35 transparent;border-radius:4px">
+      <div class="grid" id="art-grid"></div>
+      <div id="art-empty" style="display:none;padding:48px;text-align:center;color:var(--muted)">
+        <div style="font-size:36px;margin-bottom:12px">📄</div>
+        <div>Aucun article dans cette catégorie.</div>
+      </div>
     </div>
   </main>
 
