@@ -41,18 +41,39 @@ const TTL={
   sector: 10*60*1000,       // 10 min
   yahoo:  30*60*1000,       // 30 min
   fng:    25*60*1000,       // 25 min
-  fred_d: 24*3600*1000,     // 24h  (taux, VIX, HY — changent 1x/jour max)
-  fred_m:  7*24*3600*1000   // 7j   (CPI, NFCI, JOLTS — changent 1x/semaine ou mois)
+  fred_d: 24*3600*1000,     // 24h
+  fred_m:  7*24*3600*1000   // 7j
 };
 
-// Délai entre appels FRED pour éviter le rate limit (100 req/jour gratuit)
-const FRED_DELAY_MS = 200; // 200ms entre chaque appel
+// Queue FRED pour éviter le rate limit — 1 requête toutes les 500ms max
+const FRED_DELAY_MS = 500;
 let _lastFredCall = 0;
 async function fredThrottle(){
   const now = Date.now();
   const wait = Math.max(0, _lastFredCall + FRED_DELAY_MS - now);
   if(wait > 0) await sleep(wait);
   _lastFredCall = Date.now();
+}
+
+// Retry FRED sur 429 avec backoff exponentiel
+async function fredFetch(url){
+  for(let attempt=0; attempt<3; attempt++){
+    await fredThrottle();
+    try{
+      const d = await fetchJSON(url, {timeout:15000});
+      if(d?.error_code===429||d?.error_message?.includes("429")){
+        const wait = (attempt+1)*2000; // 2s, 4s, 6s
+        console.warn(`[FRED] 429 — retry dans ${wait/1000}s`);
+        await sleep(wait);
+        continue;
+      }
+      return d;
+    }catch(e){
+      if(attempt<2){ await sleep((attempt+1)*1000); continue; }
+      throw e;
+    }
+  }
+  return null;
 }
 
 /* ═══════════════════════════════════════════
@@ -193,11 +214,11 @@ async function yahooLast(sym){
 ═══════════════════════════════════════════ */
 async function fredObs(id,lim=10,ttl=TTL.fred_d){
   const k=`f5_${id}`;const c=cacheGet(k);if(c!==undefined)return c;
-  await fredThrottle(); // espacer les appels FRED
   const url=`https://api.stlouisfed.org/fred/series/observations`+
     `?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(FRED_KEY)}`+
     `&sort_order=desc&limit=${lim}&file_type=json`;
-  const d=await fetchJSON(url,{timeout:15000});
+  const d=await fredFetch(url);
+  if(!d) return cacheSet(k,{v:null,d:null},60*1000); // retry dans 1min si échec
   const obs=Array.isArray(d?.observations)?d.observations.find(o=>o.value!=="."&&o.value!==""):null;
   return cacheSet(k,{v:toNum(obs?.value),d:obs?.date||null},ttl);
 }
