@@ -684,48 +684,54 @@ async function callClaude(question,ctx,maxTokens=260){
 app.get("/api/dashboard",async(req,res)=>{
   try{
     const ut=req.query.ut||"1M";
-    const[rDxy,rVix,r1m,r3m,r2y,r10y,r30y,rUnr,rFed,
-          cpiAll,coreCpiAll,pceCpiAll,
-          rEur,rBtc,rEth,rBtcDom,rFng,rCredit,rDelin,
-          rGold,rSilver,rCopper,rOil,rBrent,rNatgas,
-          rSectors,rResearch,rEquities
-    ]=await Promise.all([
-      safe(async()=>{
-        // DXY spot — essayer Yahoo avec bons headers
-        const dxyHeaders={
-          "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-          "Accept":"application/json,text/plain,*/*",
-          "Accept-Language":"en-US,en;q=0.9",
-          "Referer":"https://finance.yahoo.com/"
-        };
-        for(const host of["query1","query2"]){
-          try{
-            const u=`https://${host}.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d&includePrePost=false`;
-            const d=await fetchJSON(u,{timeout:10000,headers:dxyHeaders});
-            const meta=d?.chart?.result?.[0]?.meta;
-            const v=meta?.regularMarketPrice??meta?.chartPreviousClose??meta?.previousClose;
-            if(v!=null&&v>80&&v<130){console.log(`[DXY] ${host}: ${v}`);return{v,d:new Date().toISOString().slice(0,10)};}
-          }catch(e){console.warn(`[DXY] ${host}:`,e.message?.slice(0,40));}
-        }
-        // Fallback FRED TWI (pas le DXY spot mais mieux que rien)
-        const fv=await fredObs("DTWEXBGS",5);
-        console.warn(`[DXY] Fallback FRED: ${fv?.v}`);
-        return fv;
-      }),safe(()=>fredObs("VIXCLS",5)),
-      safe(()=>fredObs("DGS1MO",5)),safe(()=>fredObs("DGS3MO",5)),
-      safe(()=>fredObs("DGS2",5)),safe(()=>fredObs("DGS10",5)),safe(()=>fredObs("DGS30",5)),
-      safe(()=>fredObs("UNRATE",5)),safe(()=>fredObs("DFEDTARU",5)),
-      safe(()=>fredAll("CPIAUCSL"),[]),safe(()=>fredAll("CPILFESL"),[]),safe(()=>fredAll("PCEPILFE"),[]),
+
+
+    // ── Appels NON-FRED en parallèle (rapides) ─────────────
+    const [
+      rEur,rBtc,rEth,rBtcDom,rFng,
+      rGold,rSilver,rCopper,rOil,rBrent,rNatgas,
+      rSectors,rEquities
+    ] = await Promise.all([
       safe(()=>eurusdFn()),
       safe(async()=>{const d=await fetchJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot",{timeout:12000});return{value:toNum(d?.data?.amount),ts:new Date().toISOString()};}),
       safe(async()=>{const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:12000});return toNum(d?.data?.amount);}),
-      safe(()=>btcDomFn()),safe(()=>fngFn()),safe(()=>creditFn()),safe(()=>delinFn()),
+      safe(()=>btcDomFn()),safe(()=>fngFn()),
       goldFn(),silverFn(),copperFn(),
-      safe(()=>commo("CL=F","DCOILWTICO",55,105,"oil5")),    // WTI réaliste 55-105$
-      safe(()=>commo("BZ=F","DCOILBRENTEU",58,110,"brent5")), // Brent réaliste 58-110$
-      safe(()=>commo("NG=F","DHHNGSP",0.8,12,"natgas5")),     // NatGas réaliste
-      safe(()=>allSectors(ut),[]),safe(()=>researchFn()),safe(()=>equitiesFn())
+      safe(()=>commo("CL=F","DCOILWTICO",55,105,"oil5")),
+      safe(()=>commo("BZ=F","DCOILBRENTEU",58,110,"brent5")),
+      safe(()=>commo("NG=F","DHHNGSP",0.8,12,"natgas5")),
+      safe(()=>allSectors(ut),[]),safe(()=>equitiesFn())
     ]);
+
+    // ── Appels FRED séquentiels (file d'attente) ──────────
+    const rDxy    = await safe(async()=>{
+      const dxyHeaders={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36","Accept":"application/json,text/plain,*/*","Accept-Language":"en-US,en;q=0.9","Referer":"https://finance.yahoo.com/"};
+      for(const host of["query1","query2"]){
+        try{
+          const u=`https://${host}.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d&includePrePost=false`;
+          const d=await fetchJSON(u,{timeout:10000,headers:dxyHeaders});
+          const meta=d?.chart?.result?.[0]?.meta;
+          const v=meta?.regularMarketPrice??meta?.chartPreviousClose??meta?.previousClose;
+          if(v!=null&&v>80&&v<130){console.log(`[DXY] ${host}: ${v}`);return{v,d:new Date().toISOString().slice(0,10)};}
+        }catch(e){console.warn(`[DXY] ${host}:`,e.message?.slice(0,40));}
+      }
+      const fv=await fredObs("DTWEXBGS",5);
+      console.warn(`[DXY] Fallback FRED: ${fv?.v}`);return fv;
+    });
+    const rVix    = await safe(()=>fredObs("VIXCLS",5));
+    const r1m     = await safe(()=>fredObs("DGS1MO",5));
+    const r3m     = await safe(()=>fredObs("DGS3MO",5));
+    const r2y     = await safe(()=>fredObs("DGS2",5));
+    const r10y    = await safe(()=>fredObs("DGS10",5));
+    const r30y    = await safe(()=>fredObs("DGS30",5));
+    const rUnrate = await safe(()=>fredObs("UNRATE",5));
+    const rFed    = await safe(()=>fredObs("DFEDTARU",5));
+    const cpiAll     = await safe(()=>fredAll("CPIAUCSL"),[]);
+    const coreCpiAll = await safe(()=>fredAll("CPILFESL"),[]);
+    const pceCpiAll  = await safe(()=>fredAll("PCEPILFE"),[]);
+    const rCredit = await safe(()=>creditFn());
+    const rDelin  = await safe(()=>delinFn());
+    const rResearch = await safe(()=>researchFn());
 
     const us1m=toNum(r1m?.v),us3m=toNum(r3m?.v);
     const us2y=toNum(r2y?.v),us10y=toNum(r10y?.v),us30y=toNum(r30y?.v);
@@ -740,7 +746,7 @@ app.get("/api/dashboard",async(req,res)=>{
       vix:{value:toNum(rVix?.v),date:rVix?.d},
       yields:{us1m,us3m,us2y,us10y,us30y,spread2s10s},
       inflation:{cpiYoY:calcYoY(cpiAll),coreCpi:calcYoY(coreCpiAll),pceCore:calcYoY(pceCpiAll),date:cpiLast?.date||null},
-      labor:{unemploymentRate:toNum(rUnr?.v),date:rUnr?.d},
+      labor:{unemploymentRate:toNum(rUnrate?.v),date:rUnr?.d},
       fed:{upperBound:toNum(rFed?.v),date:rFed?.d},
       fx:{eurusd:rEur},
       crypto:{btcusd:rBtc,btcDominance:rBtcDom,ethusd:typeof rEth==="number"?rEth:rEth?.value??null},
