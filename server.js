@@ -45,35 +45,48 @@ const TTL={
   fred_m:  7*24*3600*1000   // 7j
 };
 
-// Queue FRED pour éviter le rate limit — 1 requête toutes les 500ms max
-const FRED_DELAY_MS = 500;
-let _lastFredCall = 0;
-async function fredThrottle(){
-  const now = Date.now();
-  const wait = Math.max(0, _lastFredCall + FRED_DELAY_MS - now);
-  if(wait > 0) await sleep(wait);
-  _lastFredCall = Date.now();
+// File d'attente FRED — tous les appels passent par là en séquentiel
+const FRED_QUEUE = [];
+let FRED_RUNNING = false;
+
+async function fredEnqueue(fn){
+  return new Promise((resolve, reject) => {
+    FRED_QUEUE.push({fn, resolve, reject});
+    if(!FRED_RUNNING) fredRunQueue();
+  });
 }
 
-// Retry FRED sur 429 avec backoff exponentiel
-async function fredFetch(url){
-  for(let attempt=0; attempt<3; attempt++){
-    await fredThrottle();
-    try{
-      const d = await fetchJSON(url, {timeout:15000});
-      if(d?.error_code===429||d?.error_message?.includes("429")){
-        const wait = (attempt+1)*2000; // 2s, 4s, 6s
-        console.warn(`[FRED] 429 — retry dans ${wait/1000}s`);
-        await sleep(wait);
-        continue;
-      }
-      return d;
-    }catch(e){
-      if(attempt<2){ await sleep((attempt+1)*1000); continue; }
-      throw e;
-    }
+async function fredRunQueue(){
+  if(FRED_RUNNING || FRED_QUEUE.length === 0) return;
+  FRED_RUNNING = true;
+  while(FRED_QUEUE.length > 0){
+    const {fn, resolve, reject} = FRED_QUEUE.shift();
+    try{ resolve(await fn()); }
+    catch(e){ reject(e); }
+    await sleep(600); // 600ms entre chaque appel = ~100 req/min max
   }
-  return null;
+  FRED_RUNNING = false;
+}
+
+async function fredFetch(url){
+  return fredEnqueue(async () => {
+    for(let attempt=0; attempt<3; attempt++){
+      try{
+        const d = await fetchJSON(url, {timeout:15000});
+        if(d?.error_code===429){
+          const wait = (attempt+1)*3000;
+          console.warn(`[FRED] 429 — retry dans ${wait/1000}s`);
+          await sleep(wait);
+          continue;
+        }
+        return d;
+      }catch(e){
+        if(attempt<2){ await sleep((attempt+1)*1000); continue; }
+        throw e;
+      }
+    }
+    return null;
+  });
 }
 
 /* ═══════════════════════════════════════════
