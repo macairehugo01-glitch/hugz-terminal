@@ -105,7 +105,7 @@ async function fredRunQueue(){
     const {fn, resolve, reject} = FRED_QUEUE.shift();
     try{ resolve(await fn()); }
     catch(e){ reject(e); }
-    await sleep(600); // 600ms entre chaque appel = ~100 req/min max
+    await sleep(1200); // 1.2s entre chaque = 50 req/min max (limite FRED 120/min)
   }
   FRED_RUNNING = false;
 }
@@ -1807,7 +1807,7 @@ async function scheduleStockTwits(){
 app.get("/api/sentiment",async(req,res)=>{
   const expired=Date.now()-_stTs>ST_TTL;
   if(!_stCache||expired){
-    scheduleStockTwits().catch(()=>{});
+    if(!_stTs) scheduleStockTwits().catch(()=>{}); // seulement si jamais chargé
     return res.json({status:"loading",compositeScore:null,compositeLabel:"Chargement...",source:"StockTwits"});
   }
   res.json(_stCache);
