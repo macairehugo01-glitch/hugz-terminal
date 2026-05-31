@@ -35,15 +35,25 @@ function cacheGet(k){
 function cacheSet(k,v,ttl){CACHE.set(k,{v,t:Date.now(),ttl});return v;}
 
 const TTL={
-  metals:  3*60*1000,    // 3 min
-  crypto:  60*1000,      // 1 min
-  equity:  3*60*1000,    // 3 min
-  sector: 10*60*1000,    // 10 min
-  yahoo:  30*60*1000,    // 30 min (évite rechargements fréquents → fallback FRED)
-  fng:    25*60*1000,    // 25 min
-  fred_d:  4*3600*1000,  // 4 h (données quotidiennes FRED)
-  fred_m: 12*3600*1000   // 12 h (données mensuelles FRED)
+  metals:  3*60*1000,       // 3 min
+  crypto:  60*1000,         // 1 min
+  equity:  3*60*1000,       // 3 min
+  sector: 10*60*1000,       // 10 min
+  yahoo:  30*60*1000,       // 30 min
+  fng:    25*60*1000,       // 25 min
+  fred_d: 24*3600*1000,     // 24h  (taux, VIX, HY — changent 1x/jour max)
+  fred_m:  7*24*3600*1000   // 7j   (CPI, NFCI, JOLTS — changent 1x/semaine ou mois)
 };
+
+// Délai entre appels FRED pour éviter le rate limit (100 req/jour gratuit)
+const FRED_DELAY_MS = 200; // 200ms entre chaque appel
+let _lastFredCall = 0;
+async function fredThrottle(){
+  const now = Date.now();
+  const wait = Math.max(0, _lastFredCall + FRED_DELAY_MS - now);
+  if(wait > 0) await sleep(wait);
+  _lastFredCall = Date.now();
+}
 
 /* ═══════════════════════════════════════════
    UTILS
@@ -183,6 +193,7 @@ async function yahooLast(sym){
 ═══════════════════════════════════════════ */
 async function fredObs(id,lim=10,ttl=TTL.fred_d){
   const k=`f5_${id}`;const c=cacheGet(k);if(c!==undefined)return c;
+  await fredThrottle(); // espacer les appels FRED
   const url=`https://api.stlouisfed.org/fred/series/observations`+
     `?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(FRED_KEY)}`+
     `&sort_order=desc&limit=${lim}&file_type=json`;
@@ -290,12 +301,14 @@ async function copperFn(){
 const AV_KEY  = process.env.ALPHA_VANTAGE_KEY||"";
 const TD_KEY  = process.env.TWELVE_DATA_KEY||"";
 
-// Twelve Data — fonctionne sans clé en mode démo (limité)
+// Twelve Data — symboles corrects pour le plan gratuit
 async function twelvePrice(symbol,lo,hi){
   try{
     const key=TD_KEY?`&apikey=${TD_KEY}`:"";
+    // Twelve Data utilise des symboles différents pour les futures
     const url=`https://api.twelvedata.com/price?symbol=${encodeURIComponent(symbol)}&format=JSON${key}`;
     const d=await fetchJSON(url,{timeout:10000});
+    if(d?.code===404||d?.status==="error")return null; // symbole non supporté
     const v=parseFloat(d?.price);
     if(!isNaN(v)&&v>=lo&&v<=hi)return v;
   }catch(e){console.warn(`[TD] ${symbol}:`,e.message?.slice(0,40));}
@@ -323,9 +336,12 @@ const LAST_GOOD={};
 async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
 
-  // Symboles Twelve Data pour les futures
+  // Symboles Twelve Data corrects (plan gratuit)
   const tdSym={
-    "CL=F":"WTI/USD","BZ=F":"UKOIL/USD","NG=F":"NG1!","HG=F":"COPPER/USD"
+    "CL=F":"CL1",      // WTI Crude futures
+    "BZ=F":"BZ1",      // Brent futures  
+    "NG=F":"NG1",      // NatGas futures
+    "HG=F":"HG1"       // Copper futures
   }[sym]||sym;
 
   // Symboles Alpha Vantage pour les commodités
@@ -1750,4 +1766,37 @@ app.listen(PORT,async()=>{
   // StockTwits sentiment — démarrage 30s après le serveur
   console.log("[ST] 📊 Scheduler StockTwits démarré — intervalle 4h");
   setTimeout(scheduleStockTwits, 30*1000);
+
+  // ── Scheduler publications FRED ─────────────────────────
+  // NFCI    : mercredi ~8h30 EST → 14h30 UTC
+  // JOLTS   : mardi    ~10h EST  → 16h UTC
+  // CPI     : mercredi ~8h30 EST → 14h30 UTC
+  function msUntilNext(dayOfWeek, hourUTC){
+    const now = new Date();
+    const target = new Date(now);
+    target.setUTCHours(hourUTC, 30, 0, 0);
+    const diffDays = (dayOfWeek - now.getUTCDay() + 7) % 7 || 7;
+    target.setUTCDate(now.getUTCDate() + diffDays);
+    return target - now;
+  }
+
+  function scheduleFredRefresh(name, fredIds, dayOfWeek, hourUTC){
+    const ms = msUntilNext(dayOfWeek, hourUTC);
+    const nextDate = new Date(Date.now() + ms);
+    console.log(`[FRED] ${name} refresh programmé → ${nextDate.toUTCString()}`);
+    setTimeout(async function run(){
+      console.log(`[FRED] 🔄 Refresh programmé : ${name}`);
+      fredIds.forEach(id => {
+        const k = `f5_${id}`;
+        CACHE.delete(k); // vider le cache pour forcer le refresh
+      });
+      console.log(`[FRED] ✅ Cache ${name} vidé — sera rechargé au prochain dashboard`);
+      setTimeout(run, 7*24*3600*1000); // relancer dans 7 jours
+    }, ms);
+  }
+
+  // NFCI + CPI : mercredi 14h UTC
+  scheduleFredRefresh("NFCI+CPI", ["NFCI","CPIAUCSL","CPILFESL","PCEPILFE"], 3, 14);
+  // JOLTS : mardi 16h UTC
+  scheduleFredRefresh("JOLTS", ["JTSJOL","JTShire","JTSSEP"], 2, 16);
 });
