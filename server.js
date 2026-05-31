@@ -45,6 +45,48 @@ const TTL={
   fred_m:  7*24*3600*1000   // 7j
 };
 
+/* ═══════════════════════════════════════════
+   PERSISTANCE FRED — stockage disque /data/fred_cache.json
+   Survit aux redémarrages Railway
+═══════════════════════════════════════════ */
+const FRED_CACHE_FILE = path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH||"/data", "fred_cache.json");
+
+function fredCacheLoad(){
+  try{
+    if(!fs.existsSync(FRED_CACHE_FILE)) return {};
+    const raw = JSON.parse(fs.readFileSync(FRED_CACHE_FILE, "utf8"));
+    let loaded = 0;
+    const now = Date.now();
+    for(const [k, entry] of Object.entries(raw)){
+      // Ne charger que les entrées non expirées
+      if(entry && entry.v !== undefined && entry.expires > now){
+        CACHE.set(k, {v: entry.v, t: entry.t, ttl: entry.expires - entry.t});
+        loaded++;
+      }
+    }
+    console.log(`[FRED] 📦 Cache disque chargé: ${loaded} entrées valides`);
+  }catch(e){ console.warn("[FRED] Cache disque illisible:", e.message?.slice(0,50)); }
+}
+
+function fredCacheSave(){
+  try{
+    const dir = path.dirname(FRED_CACHE_FILE);
+    if(!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive:true});
+    const toSave = {};
+    for(const [k, entry] of CACHE.entries()){
+      // Sauvegarder uniquement les données FRED (clés f5_ et fa5_)
+      if((k.startsWith("f5_") || k.startsWith("fa5_") || 
+          k==="cred5" || k==="delin5" || k==="res5") && entry.v !== undefined){
+        toSave[k] = {v: entry.v, t: entry.t, expires: entry.t + entry.ttl};
+      }
+    }
+    fs.writeFileSync(FRED_CACHE_FILE, JSON.stringify(toSave, null, 2), "utf8");
+  }catch(e){ console.warn("[FRED] Erreur sauvegarde cache:", e.message?.slice(0,50)); }
+}
+
+// Sauvegarder le cache FRED toutes les 30min
+setInterval(fredCacheSave, 30*60*1000);
+
 // File d'attente FRED — tous les appels passent par là en séquentiel
 const FRED_QUEUE = [];
 let FRED_RUNNING = false;
@@ -79,6 +121,8 @@ async function fredFetch(url){
           await sleep(wait);
           continue;
         }
+        // Sauvegarder sur disque après chaque succès
+        if(d?.observations) setTimeout(fredCacheSave, 500);
         return d;
       }catch(e){
         if(attempt<2){ await sleep((attempt+1)*1000); continue; }
@@ -1785,6 +1829,9 @@ app.listen(PORT,async()=>{
   console.log(`  Or: FRED GOLDAMGBD228NLBM [2000,5000] → Coinbase XAU-USD → Yahoo GC=F`);
   console.log(`  Secteurs: Yahoo v8 crumb, batches 3×800ms`);
   console.log(`  Auto loans: DRAUTONSA → DTCTHFNM → fallback 1.74%`);
+
+  // Charger le cache FRED depuis le disque (survit aux redémarrages)
+  fredCacheLoad();
   console.log("  Warming up Yahoo crumb...");
   await safe(()=>refreshCrumb());
   console.log(`  Crumb: ${_crumb?_crumb.slice(0,8)+"...":"FAILED"}`);
