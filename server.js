@@ -466,22 +466,18 @@ function fngFallback(vix,sp){
 }
 async function creditFn(){
   const k="cred5";const c=cacheGet(k);if(c!==undefined)return c;
-  const[hy,ig]=await Promise.all([
-    safe(async()=>{const r=await fredObs("BAMLH0A0HYM2",10,TTL.fred_d);return(r?.v>0&&r.v<30)?r.v:null;}),
-    safe(async()=>{const r=await fredObs("BAMLC0A0CM",10,TTL.fred_d);return(r?.v>0&&r.v<10)?r.v:null;})
-  ]);
+  const hy=await safe(async()=>{const r=await fredObs("BAMLH0A0HYM2",10,TTL.fred_d);return(r?.v>0&&r.v<30)?r.v:null;});
+  const ig=await safe(async()=>{const r=await fredObs("BAMLC0A0CM",10,TTL.fred_d);return(r?.v>0&&r.v<10)?r.v:null;});
   return cacheSet(k,{hy,ig,ratio:(hy&&ig&&ig!==0)?hy/ig:null},TTL.fred_d);
 }
 async function delinFn(){
   const k="delin5";const c=cacheGet(k);if(c!==undefined)return c;
-  const[cc,re,reL,conL,autoL,autoAlt]=await Promise.all([
-    safe(()=>fredObs("DRCCLACBS",5,TTL.fred_m)),
-    safe(()=>fredObs("DRSFRMACBS",5,TTL.fred_m)),
-    safe(()=>fredObs("DRSREACBS",5,TTL.fred_m)),
-    safe(()=>fredObs("DRCLACBS",5,TTL.fred_m)),
-    safe(()=>fredObs("DTCTHFNM",5,TTL.fred_m)),
-    safe(()=>fredObs("DRAUTONSA",5,TTL.fred_m))
-  ]);
+  const cc     = await safe(()=>fredObs("DRCCLACBS",5,TTL.fred_m));
+  const re     = await safe(()=>fredObs("DRSFRMACBS",5,TTL.fred_m));
+  const reL    = await safe(()=>fredObs("DRSREACBS",5,TTL.fred_m));
+  const conL   = await safe(()=>fredObs("DRCLACBS",5,TTL.fred_m));
+  const autoL  = await safe(()=>fredObs("DTCTHFNM",5,TTL.fred_m));
+  const autoAlt= await safe(()=>fredObs("DRAUTONSA",5,TTL.fred_m));
   const autoRaw=autoAlt?.v??autoL?.v;
   const autoV=(autoRaw!=null&&autoRaw>0.3&&autoRaw<10)?autoRaw:null;
   return cacheSet(k,{
@@ -492,11 +488,11 @@ async function delinFn(){
 }
 async function researchFn(){
   const k="res5";const c=cacheGet(k);if(c!==undefined)return c;
-  const[nfci,ted,wei,conf,jolts]=await Promise.all([
-    safe(()=>fredObs("NFCI",5,TTL.fred_d)),safe(()=>fredObs("TEDRATE",5,TTL.fred_d)),
-    safe(()=>fredObs("WEI",5,TTL.fred_d)),safe(()=>fredObs("UMCSENT",5,TTL.fred_m)),
-    safe(()=>fredObs("JTSJOL",5,TTL.fred_m))
-  ]);
+  const nfci = await safe(()=>fredObs("NFCI",5,TTL.fred_d));
+  const ted  = await safe(()=>fredObs("TEDRATE",5,TTL.fred_d));
+  const wei  = await safe(()=>fredObs("WEI",5,TTL.fred_d));
+  const conf = await safe(()=>fredObs("UMCSENT",5,TTL.fred_m));
+  const jolts= await safe(()=>fredObs("JTSJOL",5,TTL.fred_m));
   console.log("[RES] NFCI:",nfci?.v,"TED:",ted?.v,"WEI:",wei?.v,"CONF:",conf?.v,"JOLTS:",jolts?.v);
   return cacheSet(k,{nfci,ted,wei,conf,jolts},TTL.fred_d);
 }
@@ -746,7 +742,7 @@ app.get("/api/dashboard",async(req,res)=>{
       vix:{value:toNum(rVix?.v),date:rVix?.d},
       yields:{us1m,us3m,us2y,us10y,us30y,spread2s10s},
       inflation:{cpiYoY:calcYoY(cpiAll),coreCpi:calcYoY(coreCpiAll),pceCore:calcYoY(pceCpiAll),date:cpiLast?.date||null},
-      labor:{unemploymentRate:toNum(rUnrate?.v),date:rUnr?.d},
+      labor:{unemploymentRate:toNum(rUnrate?.v),date:rUnrate?.d},
       fed:{upperBound:toNum(rFed?.v),date:rFed?.d},
       fx:{eurusd:rEur},
       crypto:{btcusd:rBtc,btcDominance:rBtcDom,ethusd:typeof rEth==="number"?rEth:rEth?.value??null},
