@@ -87,6 +87,31 @@ function fredCacheSave(){
 // Sauvegarder le cache FRED toutes les 30min
 setInterval(fredCacheSave, 30*60*1000);
 
+// Circuit breaker FRED — coupe les appels après trop de 429
+let _fredBreaker = {open: false, failures: 0, openUntil: 0};
+
+function fredBreakerCheck(){
+  if(_fredBreaker.open && Date.now() > _fredBreaker.openUntil){
+    _fredBreaker.open = false;
+    _fredBreaker.failures = 0;
+    console.log("[FRED] 🔄 Circuit breaker reset — reprise des appels");
+  }
+  return !_fredBreaker.open;
+}
+
+function fredBreakerFail(){
+  _fredBreaker.failures++;
+  if(_fredBreaker.failures >= 3){
+    _fredBreaker.open = true;
+    _fredBreaker.openUntil = Date.now() + 60*60*1000; // 1h de pause
+    console.warn(`[FRED] ⛔ Circuit breaker OUVERT — pause 1h (quota épuisé)`);
+  }
+}
+
+function fredBreakerSuccess(){
+  _fredBreaker.failures = 0;
+}
+
 // File d'attente FRED — tous les appels passent par là en séquentiel
 const FRED_QUEUE = [];
 let FRED_RUNNING = false;
@@ -111,17 +136,22 @@ async function fredRunQueue(){
 }
 
 async function fredFetch(url){
+  // Circuit breaker — si ouvert, retourner null immédiatement
+  if(!fredBreakerCheck()){
+    return null;
+  }
   return fredEnqueue(async () => {
     for(let attempt=0; attempt<3; attempt++){
       try{
         const d = await fetchJSON(url, {timeout:15000});
-        if(d?.error_code===429){
+        if(d?.error_code===429 || (d?.status_code===429)){
+          fredBreakerFail();
           const wait = (attempt+1)*3000;
           console.warn(`[FRED] 429 — retry dans ${wait/1000}s`);
           await sleep(wait);
           continue;
         }
-        // Sauvegarder sur disque après chaque succès
+        fredBreakerSuccess();
         if(d?.observations) setTimeout(fredCacheSave, 500);
         return d;
       }catch(e){
@@ -129,6 +159,7 @@ async function fredFetch(url){
         throw e;
       }
     }
+    fredBreakerFail();
     return null;
   });
 }
