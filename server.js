@@ -564,32 +564,45 @@ function calcYoY(obs){
 ═══════════════════════════════════════════ */
 async function goldFn(){
   const k="gold5";const c=cacheGet(k);if(c!==undefined)return c;
-  // FRED GOLDAMGBD228NLBM — London PM fixing, USD/troy oz
-  // Cette série est fiable et retourne une valeur récente (lag 1-2 jours)
+
+  // 1. Stooq — GC.F (gold futures, très fiable)
+  try{
+    const d=await fetchJSON("https://stooq.com/q/l/?s=xauusd&f=sd2t2ohlcv&h&e=json",{timeout:8000});
+    const v=parseFloat(d?.symbols?.[0]?.close||d?.symbols?.[0]?.open);
+    if(v>2000&&v<8000){
+      console.log("[GOLD] Stooq:",v);
+      return cacheSet(k,{value:v,src:"Stooq XAU"},TTL.metals);
+    }
+  }catch(e){console.warn("[GOLD] Stooq:",e.message?.slice(0,40));}
+
+  // 2. Frankfurter — XAU/USD via taux de change
+  try{
+    const d=await fetchJSON("https://api.frankfurter.app/latest?from=XAU&to=USD",{timeout:8000});
+    const v=toNum(d?.rates?.USD);
+    if(v>2000&&v<8000){
+      console.log("[GOLD] Frankfurter:",v);
+      return cacheSet(k,{value:v,src:"Frankfurter XAU"},TTL.metals);
+    }
+  }catch(e){console.warn("[GOLD] Frankfurter:",e.message?.slice(0,40));}
+
+  // 3. FRED (si circuit breaker ouvert, utilise stale)
   const fg=await safe(()=>fredObs("GOLDAMGBD228NLBM",5,TTL.fred_d));
-  if(fg?.v!=null&&fg.v>2000&&fg.v<5000){
-    console.log("[GOLD] FRED:",fg.v,"date:",fg.d);
+  if(fg?.v!=null&&fg.v>2000&&fg.v<8000){
+    console.log("[GOLD] FRED:",fg.v);
     return cacheSet(k,{value:fg.v,src:"FRED London",date:fg.d},TTL.fred_d);
   }
-  // Coinbase XAU-USD — forcer USD avec headers
+
+  // 4. Coinbase
   const cxau=await safe(async()=>{
-    const d=await fetchJSON("https://api.coinbase.com/v2/prices/XAU-USD/spot",{
-      headers:{"Accept-Language":"en-US","CB-VERSION":"2016-02-18"},
-      timeout:12000
-    });
+    const d=await fetchJSON("https://api.coinbase.com/v2/prices/XAU-USD/spot",{timeout:8000});
     return toNum(d?.data?.amount);
   });
-  if(cxau!=null&&cxau>2000&&cxau<5000){
+  if(cxau!=null&&cxau>2000&&cxau<8000){
     console.log("[GOLD] Coinbase:",cxau);
     return cacheSet(k,{value:cxau,src:"Coinbase XAU"},TTL.metals);
   }
-  // Yahoo GC=F
-  const yg=await safe(()=>yahooLast("GC=F"));
-  if(yg!=null&&yg>2000&&yg<5000){
-    console.log("[GOLD] Yahoo GC=F:",yg);
-    return cacheSet(k,{value:yg,src:"Yahoo GC=F"},TTL.yahoo);
-  }
-  console.warn("[GOLD] All sources failed — FRED:",fg?.v,"CB:",cxau,"YH:",yg);
+
+  console.warn("[GOLD] All sources failed");
   return cacheSet(k,{value:null,src:"N/A"},TTL.metals);
 }
 
