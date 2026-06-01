@@ -110,8 +110,19 @@ async function bgRefresh(){
     const ut = "1M";
     console.log("[BG] 🔄 Refresh...");
 
-    // BTC/ETH via CoinGecko (gratuit, 30 req/min, pas de clé)
+    // BTC/ETH — Binance (primary, 1200 req/min, pas de clé) + CoinGecko fallback
     if(!cacheGet("btc5")||!cacheGet("eth5")) await safe(async()=>{
+      try{
+        const [btcR,ethR]=await Promise.all([
+          fetchJSON("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",{timeout:6000}),
+          fetchJSON("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",{timeout:6000})
+        ]);
+        const btc=parseFloat(btcR?.price), eth=parseFloat(ethR?.price);
+        if(btc>0){cacheSet("btc5",{value:btc,ts:new Date().toISOString()},TTL.crypto);console.log(`[BNB] BTC: $${btc}`);}
+        if(eth>0){cacheSet("eth5",eth,TTL.crypto);console.log(`[BNB] ETH: $${eth}`);}
+        return;
+      }catch(e){console.warn("[BNB]",e.message?.slice(0,40));}
+      // Fallback CoinGecko
       const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",{timeout:10000});
       if(d?.bitcoin?.usd){cacheSet("btc5",{value:d.bitcoin.usd,ts:new Date().toISOString()},TTL.crypto);console.log(`[CG] BTC: $${d.bitcoin.usd}`);}
       if(d?.ethereum?.usd){cacheSet("eth5",d.ethereum.usd,TTL.crypto);console.log(`[CG] ETH: $${d.ethereum.usd}`);}
@@ -144,9 +155,10 @@ async function bgRefresh(){
       }
     }
 
-    // Taux US via Treasury.gov (gratuit, sans limite) + VIX via Yahoo
-    const [treasData] = await Promise.allSettled([
+    // Taux US via Treasury.gov + CPI via BLS.gov + VIX via Yahoo (tous gratuits, sans limite)
+    const [treasData, blsCpiData] = await Promise.allSettled([
       treasuryRates(),
+      cpiFromBLS(),
       vixFromCBOE(),
     ]);
     // Injecter les taux Treasury dans le cache FRED si FRED est bloqué
@@ -159,6 +171,10 @@ async function bgRefresh(){
       if(t.us1m!=null)  cacheSet("f5_DGS1MO", {v:t.us1m, d}, TTL.fred_d);
       if(t.us3m!=null)  cacheSet("f5_DGS3MO", {v:t.us3m, d}, TTL.fred_d);
       if(t.us1y!=null)  cacheSet("f5_DGS1",   {v:t.us1y, d}, TTL.fred_d);
+    }
+    // Stocker CPI BLS
+    if(blsCpiData.status==="fulfilled" && blsCpiData.value){
+      cacheSet("bls_cpi", blsCpiData.value, TTL.fred_m);
     }
 
     if(fredBreakerCheck()){
@@ -198,6 +214,31 @@ async function bgRefresh(){
    BLS.gov       → CPI
    CBOE          → VIX
 ═══════════════════════════════════════════════════════ */
+
+// BLS.gov — CPI sans clé, sans limite
+// Retourne CPI YoY calculé depuis les 13 derniers mois
+async function cpiFromBLS(){
+  const k="bls_cpi"; const c=cacheGet(k); if(c) return c;
+  try{
+    // BLS API publique — série CUUR0000SA0 = CPI All Urban Consumers
+    const url="https://api.bls.gov/publicAPI/v2/timeseries/data/CUUR0000SA0?startyear="+(new Date().getFullYear()-1)+"&endyear="+new Date().getFullYear();
+    const d=await fetchJSON(url,{timeout:10000});
+    const series=d?.Results?.series?.[0]?.data;
+    if(!Array.isArray(series)||series.length<13) return null;
+    // Trier par date
+    series.sort((a,b)=>b.year!==a.year?b.year-a.year:b.period.localeCompare(a.period));
+    const latest=parseFloat(series[0]?.value);
+    const yearAgo=parseFloat(series[12]?.value);
+    if(!latest||!yearAgo) return null;
+    const yoy=((latest-yearAgo)/yearAgo*100).toFixed(2);
+    console.log(`[BLS] CPI YoY: ${yoy}% (${series[0].periodName} ${series[0].year})`);
+    const result={yoy:parseFloat(yoy), latest, date:`${series[0].year}-${series[0].period.replace("M","")}`};
+    return cacheSet(k, result, TTL.fred_m);
+  }catch(e){
+    console.warn("[BLS]",e.message?.slice(0,50));
+    return null;
+  }
+}
 
 // Treasury.gov — taux du jour, gratuit, pas de limite
 async function treasuryRates(){
@@ -761,6 +802,21 @@ async function btcDomFn(){
 ═══════════════════════════════════════════ */
 async function equitiesFn(){
   const k="eq5";const c=cacheGet(k);if(c!==undefined)return c;
+  // Stooq.com — alternative à Yahoo pour les indices
+  try{
+    const [spR,ndR,djR]=await Promise.all([
+      fetchJSON("https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
+      fetchJSON("https://stooq.com/q/l/?s=%5endq&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
+      fetchJSON("https://stooq.com/q/l/?s=%5edji&f=sd2t2ohlcv&h&e=json",{timeout:8000})
+    ]);
+    const spx=parseFloat(spR?.symbols?.[0]?.close||spR?.symbols?.[0]?.open);
+    const ndx=parseFloat(ndR?.symbols?.[0]?.close||ndR?.symbols?.[0]?.open);
+    const dji=parseFloat(djR?.symbols?.[0]?.close||djR?.symbols?.[0]?.open);
+    if(spx>0&&ndx>0){
+      console.log(`[STOOQ] SPX:${spx} NDX:${ndx} DJI:${dji}`);
+      return cacheSet(k,{spx,ndx,dji},TTL.equity);
+    }
+  }catch(e){console.warn("[STOOQ]",e.message?.slice(0,40));}
   async function idx(sym){
     const closes=await safe(()=>yahooChart(sym,"5d","1d",20000));
     if(!closes||closes.length<2)return null;
