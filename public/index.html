@@ -1116,7 +1116,7 @@ async function checkRaiseAccess(slug){
   try{
     const r=await fetch("/api/booking/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
     const d=await r.json();
-    if(d.whitelisted){
+    if(d.whitelisted||d.authorized){
       if(msg){msg.style.color="#4ade80";msg.textContent="✅ Accès confirmé ! Chargement...";}
       setTimeout(async()=>{
         // Afficher l'article complet
