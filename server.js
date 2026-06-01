@@ -1201,7 +1201,10 @@ async function readWhitelist(){
       {method:"GET", headers:{"Content-Type":"application/json"}}
     );
     const d = await r.json();
+    console.log("[WHITELIST] Réponse Apps Script:", JSON.stringify(d).slice(0,200));
     if(d.emails) return d.emails.map(e=>e.toLowerCase().trim()).filter(Boolean);
+    // Apps Script retourne peut-être un autre format
+    if(Array.isArray(d)) return d.map(e=>String(e).toLowerCase().trim()).filter(Boolean);
     return [];
   }catch(e){
     console.warn("[WHITELIST]",e.message?.slice(0,60));
