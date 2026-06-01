@@ -1360,12 +1360,15 @@ async function saveToSheets(email, source){
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({email, source: source||"site"})
     });
-    const d = await r.json();
+    const text = await r.text();
+    console.log(`[SHEETS] Réponse brute: ${text.slice(0,100)}`);
+    let d;
+    try{ d=JSON.parse(text); }catch{ d={ok:false,error:"JSON invalide"}; }
     if(d.ok){
       console.log(`[SHEETS] ${email} enregistré`);
       return true;
     }
-    console.warn("[SHEETS] Refus:", d.error);
+    console.warn("[SHEETS] Refus:", d.error||text.slice(0,50));
     return false;
   }catch(e){
     console.warn("[SHEETS]", e.message?.slice(0,60));
