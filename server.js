@@ -991,15 +991,11 @@ app.get("/api/dashboard",async(req,res)=>{
   try{
     const ut=req.query.ut||"1M";
 
-    // Si le cache background n'est pas encore prêt, déclencher un refresh
-    if(!_lastBgRefresh && !_bgRefreshing){
-      bgRefresh().catch(()=>{});
-      return res.json({updatedAt:new Date().toISOString(),loading:true,data:{}});
-    }
+    // Déclencher bgRefresh si pas encore fait
+    if(!_lastBgRefresh && !_bgRefreshing) bgRefresh().catch(()=>{});
 
-    // Lire depuis le cache — cacheGetStale retourne même les données expirées
-    // Garantit qu'on a toujours quelque chose à afficher
-    const g = k => cacheGetStale(k); // raccourci
+    // Toujours servir depuis le cache (fallbacks déjà chargés au démarrage)
+    const g = k => cacheGetStale(k);
     const rEur    = g("eur5");
     const rBtc    = g("btc5");
     const rEth    = g("eth5");
@@ -2100,7 +2096,7 @@ app.listen(PORT,async()=>{
 
   // Valeurs de secours — affichées jusqu'au prochain bgRefresh réussi
   // Ces valeurs disparaissent dès qu'une vraie valeur est récupérée (TTL court)
-  const FALLBACK_TTL = 6*3600*1000; // 6h — remplacées dès que bgRefresh réussit
+  const FALLBACK_TTL = 2*60*1000; // 2min — remplacées rapidement par bgRefresh
   function setFallback(k, v){ if(!cacheGetStale(k)) cacheSet(k, v, FALLBACK_TTL); }
 
   setFallback("btc5", {value:73622, ts:new Date().toISOString()});
