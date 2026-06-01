@@ -1040,8 +1040,10 @@ async function openArt(slug){
     const data=await r.json();
     if(!data.ok){ct.innerHTML="<div style='padding:60px;text-align:center;color:var(--muted)'>Article introuvable.</div>";return;}
     const a=data.article;
+    const isActif = normCat(a.category)==="analyseactif"||normCat(a.category)==="actif";
     const tags=(a.tags||[]).map(t=>`<span style="font-size:10px;color:var(--muted);padding:2px 8px;border:1px solid var(--line);border-radius:2px">${t}</span>`).join("");
-    ct.innerHTML=`
+
+    const articleHeader=`
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <span style="font-size:9.5px;font-weight:600;padding:2px 8px;border-radius:2px;background:rgba(201,146,42,.1);color:var(--gold);border:1px solid rgba(201,146,42,.25);letter-spacing:.5px;text-transform:uppercase">${a.category}</span>
         <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${fdate(a.date)}</span>
@@ -1050,13 +1052,88 @@ async function openArt(slug){
       </div>
       <h1 class="art-main-title" style="font-family:'Playfair Display',serif;font-size:28px;font-weight:800;line-height:1.2;margin-bottom:16px">${esc(a.title)}</h1>
       ${a.excerpt?`<div style="font-size:16px;color:var(--muted);line-height:1.6;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--line)">${esc(a.excerpt)}</div>`:""}
-      ${a.cover?`<img src="${esc(a.cover)}" alt="" style="width:100%;max-height:340px;object-fit:cover;border-radius:5px;margin-bottom:26px">`:""}
-      <div class="art-body">${a.html}</div>
-      <div style="margin-top:40px;padding-top:22px;border-top:1px solid var(--line);text-align:center">
-        <button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>
-      </div>`;
+      ${a.cover?`<img src="${esc(a.cover)}" alt="" style="width:100%;max-height:340px;object-fit:cover;border-radius:5px;margin-bottom:26px">`:""}`;
+
+    if(isActif){
+      // Paywall RaiseFX
+      ct.innerHTML=articleHeader+`
+        <div style="position:relative;overflow:hidden;border-radius:6px">
+          <div style="filter:blur(4px);pointer-events:none;user-select:none;max-height:220px;overflow:hidden;opacity:.6">
+            <div class="art-body">${a.html}</div>
+          </div>
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 0%,var(--ink) 60%);display:flex;align-items:flex-end;justify-content:center;padding-bottom:0"></div>
+        </div>
+        <div id="raise-gate" style="background:#0d1117;border:1px solid #c0392b;border-radius:6px;padding:32px 24px;text-align:center;margin-top:0">
+          <div style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:2px;color:#e74c3c;text-transform:uppercase;margin-bottom:12px">⚡ Contenu réservé</div>
+          <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:white;margin-bottom:10px">Article réservé aux clients RaiseFX</div>
+          <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:24px">Accédez à toutes les analyses actif en ouvrant un compte chez RaiseFX via le lien ci-dessous.</p>
+          <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank"
+            style="display:inline-block;background:#c0392b;color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:12px 24px;border-radius:4px;text-decoration:none;margin-bottom:16px;transition:background .2s"
+            onmouseover="this.style.background='#e74c3c'" onmouseout="this.style.background='#c0392b'">
+            Rejoindre RaiseFX →
+          </a>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:20px">Déjà client ? Vérifiez votre accès avec votre email.</div>
+          <div style="display:flex;gap:8px;max-width:400px;margin:0 auto">
+            <input id="raise-email" type="email" placeholder="votre@email.com"
+              style="flex:1;background:#1a1e28;border:1px solid #252a35;color:#e6edf3;padding:10px 14px;border-radius:4px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none"
+              onkeydown="if(event.key==='Enter')checkRaiseAccess('${slug}')"/>
+            <button onclick="checkRaiseAccess('${slug}')"
+              style="background:#252a35;border:1px solid #374151;color:#9ca3af;padding:10px 16px;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap;transition:all .2s"
+              onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold2)'" onmouseout="this.style.borderColor='#374151';this.style.color='#9ca3af'">
+              Vérifier l'accès
+            </button>
+          </div>
+          <div id="raise-msg" style="font-size:12px;margin-top:10px;min-height:18px"></div>
+        </div>
+        <div style="margin-top:24px;text-align:center">
+          <button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>
+        </div>`;
+    } else {
+      ct.innerHTML=articleHeader+`
+        <div class="art-body">${a.html}</div>
+        <div style="margin-top:40px;padding-top:22px;border-top:1px solid var(--line);text-align:center">
+          <button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>
+        </div>`;
+    }
     document.title=a.title+" — Hugo Macaire";
   }catch(e){ct.innerHTML="<div style='padding:60px;text-align:center;color:var(--muted)'>Erreur: "+e.message+"</div>";}
+}
+
+// Vérification accès RaiseFX via whitelist Google Sheets
+async function checkRaiseAccess(slug){
+  const email=document.getElementById("raise-email")?.value?.trim();
+  const msg=document.getElementById("raise-msg");
+  if(!email||!email.includes("@")){if(msg)msg.style.color="#f87171",msg.textContent="Email invalide.";return;}
+  if(msg){msg.style.color="#9ca3af";msg.textContent="Vérification en cours...";}
+  try{
+    const r=await fetch("/api/booking/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.whitelisted){
+      if(msg){msg.style.color="#4ade80";msg.textContent="✅ Accès confirmé ! Chargement...";}
+      setTimeout(async()=>{
+        // Afficher l'article complet
+        const r2=await fetch("/api/articles/"+encodeURIComponent(slug));
+        const data=await r2.json();
+        if(!data.ok)return;
+        const a=data.article;
+        const ct=document.getElementById("overlay-content");
+        const gate=document.getElementById("raise-gate");
+        if(gate) gate.style.display="none";
+        // Remplacer le contenu flouté par le vrai
+        const blurred=ct.querySelector("[style*='blur']");
+        if(blurred){
+          const newDiv=document.createElement("div");
+          newDiv.className="art-body";
+          newDiv.innerHTML=a.html;
+          blurred.parentNode.replaceChild(newDiv,blurred);
+        }
+      },800);
+    } else {
+      if(msg){msg.style.color="#f87171";msg.textContent="Email non trouvé dans la base RaiseFX. Vérifiez votre inscription.";}
+    }
+  }catch(e){
+    if(msg){msg.style.color="#f87171";msg.textContent="Erreur de vérification. Réessayez.";}
+  }
 }
 
 function closeArt(){
