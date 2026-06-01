@@ -1033,6 +1033,7 @@ app.get("/api/dashboard",async(req,res)=>{
     const spread2s10s=(us2y!=null&&us10y!=null)?(us10y-us2y)*100:null;
     const sentiment=rFng||fngFallback(toNum(rVix?.v),spread2s10s);
     const cpiLast=lastValid(cpiAll);
+    const blsCpi=cacheGetStale("bls_cpi"); // CPI depuis BLS.gov (sans FRED)
     const gold=rGold?.value,copper=rCopper?.value;
     const cuau=(copper&&gold&&gold>0)?(copper/gold*1000):null;
 
@@ -1040,13 +1041,23 @@ app.get("/api/dashboard",async(req,res)=>{
       dxyProxy:{value:toNum(rDxy?.v),date:rDxy?.d},
       vix:{value:toNum(rVix?.v),date:rVix?.d},
       yields:{us1m,us3m,us2y,us10y,us30y,spread2s10s},
-      inflation:{cpiYoY:calcYoY(cpiAll),coreCpi:calcYoY(coreCpiAll),pceCore:calcYoY(pceCpiAll),date:cpiLast?.date||null},
+      inflation:{
+        cpiYoY:blsCpi?.yoy??calcYoY(cpiAll),   // BLS en priorité, FRED fallback
+        coreCpi:calcYoY(coreCpiAll),
+        pceCore:calcYoY(pceCpiAll),
+        date:blsCpi?.date||cpiLast?.date||null
+      },
       labor:{unemploymentRate:toNum(rUnrate?.v),date:rUnrate?.d},
       fed:{upperBound:toNum(rFed?.v),date:rFed?.d},
       fx:{eurusd:rEur},
       crypto:{btcusd:rBtc,btcDominance:rBtcDom,ethusd:typeof rEth==="number"?rEth:rEth?.value??null},
       commodities:{gold:rGold,silver:rSilver,copper:rCopper,oil:rOil,brent:rBrent,natgas:rNatgas},
-      credit:rCredit,sentiment,delinquency:rDelin,research:rResearch,equities:rEquities,
+      credit:rCredit,sentiment,delinquency:rDelin,research:rResearch,
+      equities:{
+        spx:{price:rEquities?.spx??null, chgPct:rEquities?.spxChg??null},
+        ndx:{price:rEquities?.ndx??null, chgPct:rEquities?.ndxChg??null},
+        dji:{price:rEquities?.dji??null, chgPct:rEquities?.djiChg??null},
+      },
       cds:[
         {c:"USA",v:62,r:"FAIBLE"},{c:"Allemagne",v:28,r:"FAIBLE"},{c:"France",v:84,r:"FAIBLE"},
         {c:"Italie",v:168,r:"MODÉRÉ"},{c:"Espagne",v:71,r:"FAIBLE"},{c:"Grèce",v:112,r:"MODÉRÉ"},
