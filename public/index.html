@@ -1126,15 +1126,26 @@ async function checkRaiseAccess(slug){
         const a=data.article;
         const ct=document.getElementById("overlay-content");
         const gate=document.getElementById("raise-gate");
-        if(gate) gate.style.display="none";
-        // Remplacer le contenu flouté par le vrai
-        const blurred=ct.querySelector("[style*='blur']");
-        if(blurred){
+        if(gate) gate.remove();
+        // Trouver et remplacer tout le bloc flouté + overlay
+        const blurWrap=ct.querySelector("[style*='blur(4px)']")?.closest("[style*='overflow:hidden']")
+          || ct.querySelector("[style*='blur']")?.parentNode;
+        if(blurWrap){
           const newDiv=document.createElement("div");
           newDiv.className="art-body";
           newDiv.innerHTML=a.html;
-          blurred.parentNode.replaceChild(newDiv,blurred);
+          blurWrap.replaceWith(newDiv);
+        } else {
+          // Fallback : remplacer tout le contenu après le header
+          const existing=ct.querySelector(".art-body");
+          if(existing){ existing.style.filter="none"; existing.style.maxHeight="none"; existing.style.opacity="1"; existing.style.pointerEvents="auto"; }
+          else { const d=document.createElement("div"); d.className="art-body"; d.innerHTML=a.html; ct.appendChild(d); }
         }
+        // Ajouter bouton retour
+        const retour=document.createElement("div");
+        retour.style.cssText="margin-top:40px;padding-top:22px;border-top:1px solid var(--line);text-align:center";
+        retour.innerHTML=`<button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>`;
+        ct.appendChild(retour);
       },800);
     } else {
       if(msg){msg.style.color="#f87171";msg.textContent="Email non trouvé dans la base RaiseFX. Vérifiez votre inscription.";}
