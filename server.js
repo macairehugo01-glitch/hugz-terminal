@@ -1964,6 +1964,47 @@ app.listen(PORT,async()=>{
   // Charger le cache FRED depuis le disque (survit aux redémarrages)
   fredCacheLoad();
 
+  // Valeurs de secours — affichées jusqu'au prochain bgRefresh réussi
+  // Ces valeurs disparaissent dès qu'une vraie valeur est récupérée (TTL court)
+  const FALLBACK_TTL = 6*3600*1000; // 6h — remplacées dès que bgRefresh réussit
+  function setFallback(k, v){ if(!cacheGetStale(k)) cacheSet(k, v, FALLBACK_TTL); }
+
+  setFallback("btc5", {value:73622, ts:new Date().toISOString()});
+  setFallback("eth5", 2007);
+  setFallback("oil5", {value:91.06, src:"fallback"});
+  setFallback("brent5", {value:94.14, src:"fallback"});
+  setFallback("natgas5", {value:3.29, src:"fallback"});
+  setFallback("dxy5", {v:99.04, d:"2026-05-31"});
+  setFallback("gold5", {value:4524, src:"fallback"});
+  setFallback("eq5", {spx:7580, ndx:30333, dji:51032});
+  setFallback("f5_VIXCLS", {v:16.29, d:"2026-05-30"});
+  setFallback("f5_DGS2", {v:3.89, d:"2026-05-30"});
+  setFallback("f5_DGS10", {v:4.48, d:"2026-05-30"});
+  setFallback("f5_DGS30", {v:4.97, d:"2026-05-30"});
+  setFallback("f5_DGS1MO", {v:4.31, d:"2026-05-30"});
+  setFallback("f5_DGS3MO", {v:4.28, d:"2026-05-30"});
+  setFallback("f5_DFEDTARU", {v:4.33, d:"2026-05-30"});
+  setFallback("f5_UNRATE", {v:4.2, d:"2026-04-30"});
+  setFallback("f5_DTWEXBGS", {v:99.04, d:"2026-05-30"});
+  setFallback("f5_BAMLH0A0HYM2", {v:3.29, d:"2026-05-30"});
+  setFallback("cred5", {hy:3.29, ig:0.89, ratio:3.69});
+  setFallback("res5", {
+    nfci:{v:-0.523,d:"2026-05-23"},
+    ted:{v:0.09,d:"2026-05-30"},
+    wei:{v:2.99,d:"2026-05-24"},
+    conf:{v:49.8,d:"2026-04-30"},
+    jolts:{v:6866,d:"2026-03-31"}
+  });
+  // Secteurs
+  const sectorFallback = [
+    {s:"XLK",p:19.76},{s:"XLV",p:2.38},{s:"XLF",p:-1.06},
+    {s:"XLE",p:-5.63},{s:"XLI",p:-0.83},{s:"XLY",p:2.13},
+    {s:"XLP",p:-1.66},{s:"XLB",p:-0.62},{s:"XLU",p:-5.19},
+    {s:"XLC",p:-0.70},{s:"XLRE",p:-0.92}
+  ];
+  sectorFallback.forEach(({s,p})=>setFallback(`sec5_${s}`,p));
+  console.log("[INIT] ✅ Valeurs de secours chargées");
+
   // Démarrer le scheduler background (rafraîchit les données toutes les 5min)
   setTimeout(async()=>{
     await bgRefresh();
