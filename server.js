@@ -112,17 +112,7 @@ async function bgRefresh(){
 
     // BTC/ETH — Binance (primary, 1200 req/min, pas de clé) + CoinGecko fallback
     if(!cacheGet("btc5")||!cacheGet("eth5")) await safe(async()=>{
-      try{
-        const [btcR,ethR]=await Promise.all([
-          fetchJSON("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",{timeout:6000}),
-          fetchJSON("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",{timeout:6000})
-        ]);
-        const btc=parseFloat(btcR?.price), eth=parseFloat(ethR?.price);
-        if(btc>0){cacheSet("btc5",{value:btc,ts:new Date().toISOString()},TTL.crypto);console.log(`[BNB] BTC: $${btc}`);}
-        if(eth>0){cacheSet("eth5",eth,TTL.crypto);console.log(`[BNB] ETH: $${eth}`);}
-        return;
-      }catch(e){console.warn("[BNB]",e.message?.slice(0,40));}
-      // Fallback CoinGecko
+      // CoinGecko (Binance bloqué depuis Railway - HTTP 451)
       const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",{timeout:10000});
       if(d?.bitcoin?.usd){cacheSet("btc5",{value:d.bitcoin.usd,ts:new Date().toISOString()},TTL.crypto);console.log(`[CG] BTC: $${d.bitcoin.usd}`);}
       if(d?.ethereum?.usd){cacheSet("eth5",d.ethereum.usd,TTL.crypto);console.log(`[CG] ETH: $${d.ethereum.usd}`);}
@@ -565,25 +555,35 @@ function calcYoY(obs){
 async function goldFn(){
   const k="gold5";const c=cacheGet(k);if(c!==undefined)return c;
 
-  // 1. Stooq — GC.F (gold futures, très fiable)
+  // 1. Stooq — GC=F futures (symbole correct)
   try{
-    const d=await fetchJSON("https://stooq.com/q/l/?s=xauusd&f=sd2t2ohlcv&h&e=json",{timeout:8000});
+    const d=await fetchJSON("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=json",{timeout:8000});
     const v=parseFloat(d?.symbols?.[0]?.close||d?.symbols?.[0]?.open);
     if(v>2000&&v<8000){
-      console.log("[GOLD] Stooq:",v);
-      return cacheSet(k,{value:v,src:"Stooq XAU"},TTL.metals);
+      console.log("[GOLD] Stooq GC.F:",v);
+      return cacheSet(k,{value:v,src:"Stooq GC.F"},TTL.metals);
     }
   }catch(e){console.warn("[GOLD] Stooq:",e.message?.slice(0,40));}
 
-  // 2. Frankfurter — XAU/USD via taux de change
+  // 2. CoinGecko — or en USD (gratuit, fiable)
   try{
-    const d=await fetchJSON("https://api.frankfurter.app/latest?from=XAU&to=USD",{timeout:8000});
+    const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=gold&vs_currencies=usd",{timeout:8000});
+    const v=toNum(d?.gold?.usd);
+    if(v>2000&&v<8000){
+      console.log("[GOLD] CoinGecko:",v);
+      return cacheSet(k,{value:v,src:"CoinGecko"},TTL.metals);
+    }
+  }catch(e){console.warn("[GOLD] CoinGecko:",e.message?.slice(0,40));}
+
+  // 3. Open Exchange Rates — XAU gratuit
+  try{
+    const d=await fetchJSON("https://open.er-api.com/v6/latest/XAU",{timeout:8000});
     const v=toNum(d?.rates?.USD);
     if(v>2000&&v<8000){
-      console.log("[GOLD] Frankfurter:",v);
-      return cacheSet(k,{value:v,src:"Frankfurter XAU"},TTL.metals);
+      console.log("[GOLD] OpenER:",v);
+      return cacheSet(k,{value:v,src:"OpenER XAU"},TTL.metals);
     }
-  }catch(e){console.warn("[GOLD] Frankfurter:",e.message?.slice(0,40));}
+  }catch(e){console.warn("[GOLD] OpenER:",e.message?.slice(0,40));}
 
   // 3. FRED (si circuit breaker ouvert, utilise stale)
   const fg=await safe(()=>fredObs("GOLDAMGBD228NLBM",5,TTL.fred_d));
