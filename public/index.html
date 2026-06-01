@@ -843,7 +843,7 @@ function buildSignal(d){
     el.style.fontSize="20px";
   }
   set("sig-sub","Score "+sc+"/100 · "+risk.details?.length+" signaux analysés");
-  set("sig-upd",new Date(D.updatedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+  set("sig-upd",new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
   const bar=document.getElementById("sig-bar");
   if(bar){bar.style.width=sc+"%";bar.style.background=rc}
   const rows=[
@@ -1071,22 +1071,22 @@ async function openArt(slug){
           </div>
           <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 0%,var(--ink) 60%);display:flex;align-items:flex-end;justify-content:center;padding-bottom:0"></div>
         </div>
-        <div id="raise-gate" style="background:#0d1117;border:1px solid #c0392b;border-radius:6px;padding:32px 24px;text-align:center;margin-top:0">
+        <div id="raise-gate" style="background:var(--paper2);border:1px solid #c0392b;border-radius:6px;padding:32px 24px;text-align:center;margin-top:0">
           <div style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:2px;color:#e74c3c;text-transform:uppercase;margin-bottom:12px">⚡ Contenu réservé</div>
-          <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:white;margin-bottom:10px">Article réservé aux clients RaiseFX</div>
-          <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:24px">Accédez à toutes les analyses actif en ouvrant un compte chez RaiseFX via le lien ci-dessous.</p>
+          <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:var(--ink);margin-bottom:10px">Article réservé aux clients RaiseFX</div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:24px">Accédez à toutes les analyses actif en ouvrant un compte chez RaiseFX via le lien ci-dessous.</p>
           <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank"
             style="display:inline-block;background:#c0392b;color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:12px 24px;border-radius:4px;text-decoration:none;margin-bottom:16px;transition:background .2s"
             onmouseover="this.style.background='#e74c3c'" onmouseout="this.style.background='#c0392b'">
             Rejoindre RaiseFX →
           </a>
-          <div style="font-size:11px;color:#6b7280;margin-bottom:20px">Déjà client ? Vérifiez votre accès avec votre email.</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:20px">Déjà client ? Vérifiez votre accès avec votre email.</div>
           <div style="display:flex;gap:8px;max-width:400px;margin:0 auto">
             <input id="raise-email" type="email" placeholder="votre@email.com"
-              style="flex:1;background:#1a1e28;border:1px solid #252a35;color:#e6edf3;padding:10px 14px;border-radius:4px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none"
+              style="flex:1;background:var(--paper);border:1px solid var(--line);color:var(--ink);padding:10px 14px;border-radius:4px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none"
               onkeydown="if(event.key==='Enter')checkRaiseAccess('${slug}')"/>
             <button onclick="checkRaiseAccess('${slug}')"
-              style="background:#252a35;border:1px solid #374151;color:#9ca3af;padding:10px 16px;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap;transition:all .2s"
+              style="background:var(--paper2);border:1px solid var(--line);color:var(--muted);padding:10px 16px;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap;transition:all .2s"
               onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold2)'" onmouseout="this.style.borderColor='#374151';this.style.color='#9ca3af'">
               Vérifier l'accès
             </button>
