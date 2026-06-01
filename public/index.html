@@ -1040,7 +1040,7 @@ async function openArt(slug){
     const data=await r.json();
     if(!data.ok){ct.innerHTML="<div style='padding:60px;text-align:center;color:var(--muted)'>Article introuvable.</div>";return;}
     const a=data.article;
-    const isActif = normCat(a.category)==="analyseactif"||normCat(a.category)==="actif";
+    const isActif = ["analyse actif","analyseactif","actif","analyse d'actif"].includes(normCat(a.category));
     const tags=(a.tags||[]).map(t=>`<span style="font-size:10px;color:var(--muted);padding:2px 8px;border:1px solid var(--line);border-radius:2px">${t}</span>`).join("");
 
     const articleHeader=`
