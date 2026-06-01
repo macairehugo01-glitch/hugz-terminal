@@ -153,6 +153,23 @@ async function bgRefresh(){
       }
     }
 
+    // Taux US via Treasury.gov (gratuit, sans limite) + VIX via Yahoo
+    const [treasData] = await Promise.allSettled([
+      treasuryRates(),
+      vixFromCBOE(),
+    ]);
+    // Injecter les taux Treasury dans le cache FRED si FRED est bloqué
+    if(treasData.status==="fulfilled" && treasData.value){
+      const t=treasData.value;
+      const d=t.date||new Date().toISOString().slice(0,10);
+      if(t.us2y!=null)  cacheSet("f5_DGS2",   {v:t.us2y, d}, TTL.fred_d);
+      if(t.us10y!=null) cacheSet("f5_DGS10",  {v:t.us10y,d}, TTL.fred_d);
+      if(t.us30y!=null) cacheSet("f5_DGS30",  {v:t.us30y,d}, TTL.fred_d);
+      if(t.us1m!=null)  cacheSet("f5_DGS1MO", {v:t.us1m, d}, TTL.fred_d);
+      if(t.us3m!=null)  cacheSet("f5_DGS3MO", {v:t.us3m, d}, TTL.fred_d);
+      if(t.us1y!=null)  cacheSet("f5_DGS1",   {v:t.us1y, d}, TTL.fred_d);
+    }
+
     // FRED — seulement si circuit breaker fermé ET cache expiré
     if(fredBreakerCheck()){
       const fredCalls=[
@@ -180,6 +197,61 @@ async function bgRefresh(){
     console.log("[BG] ✅ OK");
   }catch(e){ console.warn("[BG]", e.message?.slice(0,50)); }
   finally{ _bgRefreshing = false; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SOURCES ALTERNATIVES — sans rate limit, sans clé API
+   Treasury.gov  → taux US (DGS2, DGS10, DGS30)
+   BLS.gov       → CPI
+   CBOE          → VIX
+═══════════════════════════════════════════════════════ */
+
+// Treasury.gov — taux du jour, gratuit, pas de limite
+async function treasuryRates(){
+  const k="treas5"; const c=cacheGet(k); if(c) return c;
+  try{
+    // Treasury publie un XML quotidien
+    const url="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv";
+    const res=await fetch(url,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0"}});
+    const text=await res.text();
+    const lines=text.trim().split("\n");
+    if(lines.length<2) return null;
+    // Dernière ligne = données les plus récentes
+    const last=lines[lines.length-1].split(",");
+    const headers=lines[0].split(",");
+    const idx=(h)=>headers.findIndex(x=>x.includes(h));
+    const get=(h)=>{const i=idx(h);return i>=0?parseFloat(last[i]):null;};
+    const date=last[0]?.replace(/"/g,"");
+    const r={
+      us1m:get("1 Mo"), us2m:get("2 Mo"), us3m:get("3 Mo"),
+      us6m:get("6 Mo"), us1y:get("1 Yr"), us2y:get("2 Yr"),
+      us3y:get("3 Yr"), us5y:get("5 Yr"), us7y:get("7 Yr"),
+      us10y:get("10 Yr"), us20y:get("20 Yr"), us30y:get("30 Yr"),
+      date
+    };
+    console.log(`[TREASURY] ✅ ${date} — 10Y: ${r.us10y}%`);
+    return cacheSet(k,r,TTL.fred_d);
+  }catch(e){
+    console.warn("[TREASURY]",e.message?.slice(0,50));
+    return null;
+  }
+}
+
+// CBOE VIX — données publiques sans clé
+async function vixFromCBOE(){
+  const k="f5_VIXCLS"; if(cacheGet(k)) return cacheGetStale(k);
+  try{
+    const url="https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/_SPX.json";
+    // Alternative: utiliser Yahoo pour VIX
+    const u="https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=1d";
+    const d=await fetchJSON(u,{timeout:8000});
+    const v=d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if(v&&v>0&&v<100){
+      console.log(`[VIX] Yahoo: ${v}`);
+      return cacheSet(k,{v,d:new Date().toISOString().slice(0,10)},TTL.fred_d);
+    }
+  }catch(e){ console.warn("[VIX]",e.message?.slice(0,40)); }
+  return null;
 }
 
 // Circuit breaker FRED — coupe les appels après trop de 429
@@ -1977,6 +2049,11 @@ app.listen(PORT,async()=>{
   setFallback("dxy5", {v:99.04, d:"2026-05-31"});
   setFallback("gold5", {value:4524, src:"fallback"});
   setFallback("eq5", {spx:7580, ndx:30333, dji:51032});
+  setFallback("cop5", {value:4.65, src:"fallback"}); // Cuivre HG=F
+  setFallback("sil5", {value:32.8, src:"fallback"});  // Argent
+  setFallback("dom5", 57.3);                           // BTC dominance
+  setFallback("eur5", 1.1082);                         // EUR/USD
+  setFallback("fng5", {value:49, label:"Neutre"});     // Fear & Greed
   setFallback("f5_VIXCLS", {v:16.29, d:"2026-05-30"});
   setFallback("f5_DGS2", {v:3.89, d:"2026-05-30"});
   setFallback("f5_DGS10", {v:4.48, d:"2026-05-30"});
