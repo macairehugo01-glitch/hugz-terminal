@@ -32,17 +32,27 @@ function cacheGet(k){
   if(Date.now()-e.t>e.ttl){CACHE.delete(k);return undefined;}
   return e.v;
 }
-function cacheSet(k,v,ttl){CACHE.set(k,{v,t:Date.now(),ttl});return v;}
+// Retourne la valeur même expirée (pour lastGood/fallback)
+function cacheGetStale(k){
+  const e=CACHE.get(k);
+  return e?.v;
+}
+// TTL infini — données persistées jusqu'au prochain bgRefresh
+const TTL_PERSIST = 365*24*3600*1000;
+function cacheSet(k,v,ttl){CACHE.set(k,{v,t:Date.now(),ttl:ttl||TTL_PERSIST});return v;}
 
+// TTL = durée de validité des données
+// Le bgRefresh tourne toutes les 5min mais ne rappelle les APIs
+// que si le TTL est expiré. Les visiteurs ne font JAMAIS d'appels API directs.
 const TTL={
-  metals:  5*60*1000,       // 5 min
-  crypto:  5*60*1000,       // 5 min (réduit appels Coinbase)
-  equity:  5*60*1000,       // 5 min
-  sector: 10*60*1000,       // 10 min
-  yahoo:  30*60*1000,       // 30 min
-  fng:    25*60*1000,       // 25 min
-  fred_d: 24*3600*1000,     // 24h
-  fred_m:  7*24*3600*1000   // 7j
+  metals:  5*60*1000,         // 5 min  — or, argent, cuivre
+  crypto:  2*60*1000,         // 2 min  — BTC, ETH
+  equity:  5*60*1000,         // 5 min  — SPX, NDX
+  sector: 30*60*1000,         // 30 min — secteurs
+  yahoo:  30*60*1000,         // 30 min — WTI, DXY
+  fng:    30*60*1000,         // 30 min — Fear & Greed
+  fred_d: 24*3600*1000,       // 24h    — VIX, taux
+  fred_m:  7*24*3600*1000     // 7j     — CPI, NFCI, JOLTS
 };
 
 /* ═══════════════════════════════════════════
@@ -98,63 +108,76 @@ async function bgRefresh(){
   _bgRefreshing = true;
   try{
     const ut = "1M";
-    console.log("[BG] 🔄 Refresh données...");
+    console.log("[BG] 🔄 Refresh...");
 
-    // BTC/ETH avec cache explicite
-    await safe(async()=>{
-      const d=await fetchJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot",{timeout:8000});
-      const v=toNum(d?.data?.amount);
-      if(v) cacheSet("btc5",{value:v,ts:new Date().toISOString()},TTL.crypto);
-    });
-    await safe(async()=>{
-      const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:8000});
-      const v=toNum(d?.data?.amount);
-      if(v) cacheSet("eth5",v,TTL.crypto);
-    });
-
-    // Non-FRED en parallèle
+    // Ces fonctions ont leur propre cacheGet interne
+    // Elles n'appellent l'API que si le TTL est expiré
     await Promise.allSettled([
-      eurusdFn(), goldFn(), silverFn(), copperFn(),
-      btcDomFn(), fngFn(), equitiesFn(), allSectors(ut),
+      eurusdFn(),
+      goldFn(),
+      silverFn(),
+      copperFn(),
+      btcDomFn(),
+      fngFn(),
+      equitiesFn(),
+      allSectors(ut),
       commo("CL=F","DCOILWTICO",55,105,"oil5"),
       commo("BZ=F","DCOILBRENTEU",58,110,"brent5"),
       commo("NG=F","DHHNGSP",0.8,12,"natgas5"),
+      // BTC
+      (async()=>{
+        if(cacheGet("btc5")) return;
+        const d=await fetchJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot",{timeout:8000});
+        const v=toNum(d?.data?.amount);
+        if(v) cacheSet("btc5",{value:v,ts:new Date().toISOString()},TTL.crypto);
+      })(),
+      // ETH
+      (async()=>{
+        if(cacheGet("eth5")) return;
+        const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:8000});
+        const v=toNum(d?.data?.amount);
+        if(v) cacheSet("eth5",v,TTL.crypto);
+      })(),
     ]);
 
-    // DXY Yahoo
-    await safe(async()=>{
+    // DXY
+    if(!cacheGet("dxy5")&&!cacheGet("f5_DTWEXBGS")){
       for(const host of["query1","query2"]){
         try{
           const u=`https://${host}.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d`;
           const d=await fetchJSON(u,{timeout:8000});
           const meta=d?.chart?.result?.[0]?.meta;
           const v=meta?.regularMarketPrice??meta?.chartPreviousClose;
-          if(v&&v>80&&v<130){ cacheSet("dxy5",{v,d:new Date().toISOString().slice(0,10)},TTL.yahoo); return; }
+          if(v&&v>80&&v<130){ cacheSet("dxy5",{v,d:new Date().toISOString().slice(0,10)},TTL.yahoo); break; }
         }catch{}
       }
-    });
+    }
 
-    // FRED séquentiel seulement si circuit breaker fermé
+    // FRED — seulement si circuit breaker fermé ET cache expiré
     if(fredBreakerCheck()){
-      await safe(()=>fredObs("VIXCLS",5));
-      await safe(()=>fredObs("DGS1MO",5));
-      await safe(()=>fredObs("DGS3MO",5));
-      await safe(()=>fredObs("DGS2",5));
-      await safe(()=>fredObs("DGS10",5));
-      await safe(()=>fredObs("DGS30",5));
-      await safe(()=>fredObs("UNRATE",5));
-      await safe(()=>fredObs("DFEDTARU",5));
-      await safe(()=>fredAll("CPIAUCSL",[]));
-      await safe(()=>fredAll("CPILFESL",[]));
-      await safe(()=>fredAll("PCEPILFE",[]));
-      await safe(()=>creditFn());
-      await safe(()=>delinFn());
-      await safe(()=>researchFn());
-      fredCacheSave();
+      const fredCalls=[
+        ["VIXCLS",TTL.fred_d],["DGS1MO",TTL.fred_d],["DGS3MO",TTL.fred_d],
+        ["DGS2",TTL.fred_d],["DGS10",TTL.fred_d],["DGS30",TTL.fred_d],
+        ["UNRATE",TTL.fred_d],["DFEDTARU",TTL.fred_d]
+      ];
+      let fredCalled=0;
+      for(const [id,ttl] of fredCalls){
+        if(!cacheGet(`f5_${id}`)){
+          await safe(()=>fredObs(id,5,ttl));
+          fredCalled++;
+        }
+      }
+      if(!cacheGet("fa5_CPIAUCSL")){ await safe(()=>fredAll("CPIAUCSL",[])); fredCalled++; }
+      if(!cacheGet("fa5_CPILFESL")){ await safe(()=>fredAll("CPILFESL",[])); fredCalled++; }
+      if(!cacheGet("fa5_PCEPILFE")){ await safe(()=>fredAll("PCEPILFE",[])); fredCalled++; }
+      if(!cacheGet("cred5")){ await safe(()=>creditFn()); fredCalled++; }
+      if(!cacheGet("delin5")){ await safe(()=>delinFn()); fredCalled++; }
+      if(!cacheGet("res5")){ await safe(()=>researchFn()); fredCalled++; }
+      if(fredCalled>0){ console.log(`[BG] FRED: ${fredCalled} séries rafraîchies`); fredCacheSave(); }
     }
 
     _lastBgRefresh = Date.now();
-    console.log("[BG] ✅ Refresh terminé");
+    console.log("[BG] ✅ OK");
   }catch(e){ console.warn("[BG]", e.message?.slice(0,50)); }
   finally{ _bgRefreshing = false; }
 }
@@ -834,36 +857,38 @@ app.get("/api/dashboard",async(req,res)=>{
       return res.json({updatedAt:new Date().toISOString(),loading:true,data:{}});
     }
 
-    // Lire depuis le cache — aucun appel API direct
-    const rEur    = cacheGet("eur5");
-    const rBtc    = cacheGet("btc5");
-    const rEth    = cacheGet("eth5");
-    const rBtcDom = cacheGet("dom5");
-    const rFng    = cacheGet("fng5");
-    const rGold   = cacheGet("gold5");
-    const rSilver = cacheGet("sil5");
-    const rCopper = cacheGet("cop5");
-    const rOil    = cacheGet("oil5");
-    const rBrent  = cacheGet("brent5");
-    const rNatgas = cacheGet("natgas5");
-    const rEquities = cacheGet("eq5");
-    const rCredit = cacheGet("cred5");
-    const rDelin  = cacheGet("delin5");
-    const rResearch = cacheGet("res5");
+    // Lire depuis le cache — cacheGetStale retourne même les données expirées
+    // Garantit qu'on a toujours quelque chose à afficher
+    const g = k => cacheGetStale(k); // raccourci
+    const rEur    = g("eur5");
+    const rBtc    = g("btc5");
+    const rEth    = g("eth5");
+    const rBtcDom = g("dom5");
+    const rFng    = g("fng5");
+    const rGold   = g("gold5");
+    const rSilver = g("sil5");
+    const rCopper = g("cop5");
+    const rOil    = g("oil5");
+    const rBrent  = g("brent5");
+    const rNatgas = g("natgas5");
+    const rEquities = g("eq5");
+    const rCredit = g("cred5");
+    const rDelin  = g("delin5");
+    const rResearch = g("res5");
 
-    // FRED depuis cache
-    const rDxy    = cacheGet("f5_DTWEXBGS") ?? cacheGet("dxy5");
-    const rVix    = cacheGet("f5_VIXCLS");
-    const r1m     = cacheGet("f5_DGS1MO");
-    const r3m     = cacheGet("f5_DGS3MO");
-    const r2y     = cacheGet("f5_DGS2");
-    const r10y    = cacheGet("f5_DGS10");
-    const r30y    = cacheGet("f5_DGS30");
-    const rUnrate = cacheGet("f5_UNRATE");
-    const rFed    = cacheGet("f5_DFEDTARU");
-    const cpiAll     = cacheGet("fa5_CPIAUCSL") ?? [];
-    const coreCpiAll = cacheGet("fa5_CPILFESL") ?? [];
-    const pceCpiAll  = cacheGet("fa5_PCEPILFE") ?? [];
+    // FRED depuis cache (stale ok — données changent peu)
+    const rDxy    = g("dxy5") ?? g("f5_DTWEXBGS");
+    const rVix    = g("f5_VIXCLS");
+    const r1m     = g("f5_DGS1MO");
+    const r3m     = g("f5_DGS3MO");
+    const r2y     = g("f5_DGS2");
+    const r10y    = g("f5_DGS10");
+    const r30y    = g("f5_DGS30");
+    const rUnrate = g("f5_UNRATE");
+    const rFed    = g("f5_DFEDTARU");
+    const cpiAll     = g("fa5_CPIAUCSL") ?? [];
+    const coreCpiAll = g("fa5_CPILFESL") ?? [];
+    const pceCpiAll  = g("fa5_PCEPILFE") ?? [];
 
     const rSectors = await safe(()=>allSectors(ut),[]);
 
