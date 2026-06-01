@@ -309,7 +309,7 @@ function fredBreakerCheck(){
 
 function fredBreakerFail(){
   _fredBreaker.failures++;
-  if(_fredBreaker.failures >= 3){
+  if(_fredBreaker.failures >= 1){ // ouvrir dès le premier 429
     _fredBreaker.open = true;
     _fredBreaker.openUntil = Date.now() + 60*60*1000; // 1h de pause
     console.warn(`[FRED] ⛔ Circuit breaker OUVERT — pause 1h (quota épuisé)`);
@@ -2123,19 +2123,25 @@ app.listen(PORT,async()=>{
   const FALLBACK_TTL = 2*60*1000; // 2min — remplacées rapidement par bgRefresh
   function setFallback(k, v){ if(!cacheGetStale(k)) cacheSet(k, v, FALLBACK_TTL); }
 
-  setFallback("btc5", {value:73622, ts:new Date().toISOString()});
-  setFallback("eth5", 2007);
-  setFallback("oil5", {value:91.06, src:"fallback"});
-  setFallback("brent5", {value:94.14, src:"fallback"});
-  setFallback("natgas5", {value:3.29, src:"fallback"});
-  setFallback("dxy5", {v:99.04, d:"2026-05-31"});
-  setFallback("gold5", {value:4524, src:"fallback"});
-  setFallback("eq5", {spx:7580, ndx:30333, dji:51032});
-  setFallback("cop5", {value:4.65, src:"fallback"}); // Cuivre HG=F
-  setFallback("sil5", {value:32.8, src:"fallback"});  // Argent
-  setFallback("dom5", 57.3);                           // BTC dominance
-  setFallback("eur5", 1.1082);                         // EUR/USD
-  setFallback("fng5", {value:49, label:"Neutre"});     // Fear & Greed
+  // Fallbacks UNIQUEMENT pour données statiques (FRED) — pas les données live
+  // Les données live (BTC, Or, SPX, WTI) seront chargées par bgRefresh immédiatement
+  setFallback("f5_VIXCLS", {v:16.29, d:"2026-05-30"});
+  setFallback("f5_DGS2", {v:3.89, d:"2026-05-30"});
+  setFallback("f5_DGS10", {v:4.45, d:"2026-05-29"});
+  setFallback("f5_DGS30", {v:4.97, d:"2026-05-30"});
+  setFallback("f5_DGS1MO", {v:4.31, d:"2026-05-30"});
+  setFallback("f5_DGS3MO", {v:4.28, d:"2026-05-30"});
+  setFallback("f5_DFEDTARU", {v:4.33, d:"2026-05-30"});
+  setFallback("f5_UNRATE", {v:4.2, d:"2026-04-30"});
+  setFallback("f5_DTWEXBGS", {v:99.04, d:"2026-05-30"});
+  setFallback("cred5", {hy:3.29, ig:0.89, ratio:3.69});
+  setFallback("res5", {
+    nfci:{v:-0.523,d:"2026-05-23"},
+    ted:{v:0.09,d:"2026-05-30"},
+    wei:{v:2.99,d:"2026-05-24"},
+    conf:{v:49.8,d:"2026-04-30"},
+    jolts:{v:6866,d:"2026-03-31"}
+  });
   setFallback("f5_VIXCLS", {v:16.29, d:"2026-05-30"});
   setFallback("f5_DGS2", {v:3.89, d:"2026-05-30"});
   setFallback("f5_DGS10", {v:4.48, d:"2026-05-30"});
@@ -2165,10 +2171,12 @@ app.listen(PORT,async()=>{
   console.log("[INIT] ✅ Valeurs de secours chargées");
 
   // Démarrer le scheduler background (rafraîchit les données toutes les 5min)
-  setTimeout(async()=>{
-    await bgRefresh();
+  // Lancer bgRefresh immédiatement puis toutes les 5min
+  bgRefresh().then(()=>{
     setInterval(bgRefresh, BG_INTERVAL);
-  }, 5000); // 5s après démarrage
+  }).catch(()=>{
+    setInterval(bgRefresh, BG_INTERVAL);
+  });
   console.log("  Warming up Yahoo crumb...");
   await safe(()=>refreshCrumb());
   console.log(`  Crumb: ${_crumb?_crumb.slice(0,8)+"...":"FAILED"}`);
@@ -2185,7 +2193,7 @@ app.listen(PORT,async()=>{
   // Reddit désactivé — en attente approbation API développeur
   // StockTwits sentiment — démarrage 30s après le serveur
   console.log("[ST] 📊 Scheduler StockTwits démarré — intervalle 4h");
-  setTimeout(scheduleStockTwits, 30*1000);
+  scheduleStockTwits(); // démarrage immédiat
 
   // ── Scheduler publications FRED ─────────────────────────
   // NFCI    : mercredi ~8h30 EST → 14h30 UTC
