@@ -524,11 +524,10 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
     </div>
     <div class="tabs">
       <button class="tab on" onclick="filterCat(this,'tous')">Tous</button>
-      <button class="tab" onclick="filterCat(this,'Debrief')">📅 Débrief</button>
-      <button class="tab" onclick="filterCat(this,'Analyse actif')">🔍 Actif</button>
-      <button class="tab" onclick="filterCat(this,'Journalière')">⚡ Journalier</button>
-      <button class="tab" onclick="filterCat(this,'Macro')">🌐 Macro</button>
-      <button class="tab" onclick="filterCat(this,'Crypto')">₿ Crypto</button>
+      <button class="tab" onclick="filterCat(this,'debrief')">📅 Débrief</button>
+      <button class="tab" onclick="filterCat(this,'macro')">🌐 Macro</button>
+      <button class="tab" onclick="filterCat(this,'crypto')">₿ Crypto</button>
+      <button class="tab" onclick="filterCat(this,'actif')">🔍 Actif</button>
     </div>
 
     <div class="grid" id="art-grid"></div>
@@ -705,28 +704,37 @@ const esc=(s)=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(
 const CAT_COLORS={"Débrief Hebdo":"#f59e0b","Debrief Hebdo":"#f59e0b","debrief hebdo":"#f59e0b","Analyse Actif":"#a78bfa","analyse actif":"#a78bfa","Analyse Journalière":"#34d399","analyse journaliere":"#34d399","Analyse Journaliere":"#34d399","Macro":"#22d3ee","macro":"#22d3ee","Crypto":"#818cf8","crypto":"#818cf8","Marchés":"#f87171","marches":"#f87171","Analyse":"#f59e0b"};
 const CAT_EMOJI={"Débrief Hebdo":"📅","Debrief Hebdo":"📅","debrief hebdo":"📅","Analyse Actif":"🔍","analyse actif":"🔍","Analyse Journalière":"⚡","analyse journaliere":"⚡","Analyse Journaliere":"⚡","Macro":"🌐","macro":"🌐","Crypto":"₿","crypto":"₿","Marchés":"📊","marches":"📊","Analyse":"📊"};
 
-// Normaliser une catégorie pour le matching
+// Mots-clés actifs — détection auto depuis le titre
+const ACTIF_KW=["bitcoin","btc","ethereum","eth","nvidia","nvda","apple","aapl",
+  "tesla","tsla","solana","sol","bnb","xrp","microsoft","msft","amazon","amzn",
+  "google","meta","hyperliquid","hype","chainlink","link"];
+
+function detectCatFromTitle(t){
+  if(!t) return null;
+  const s=t.toLowerCase().replace(/[àáâãäå]/g,"a").replace(/[èéêë]/g,"e")
+    .replace(/[ùúûü]/g,"u").replace(/[ç]/g,"c");
+  return ACTIF_KW.some(k=>s.includes(k))?"actif":null;
+}
+
 function normCat(s){
-  // Supprimer les accents caractère par caractère (compatible tous navigateurs)
+  if(!s)return"";
   const v=(s||"").toLowerCase()
     .replace(/[àáâãäå]/g,"a").replace(/[èéêë]/g,"e").replace(/[ìíîï]/g,"i")
     .replace(/[òóôõö]/g,"o").replace(/[ùúûü]/g,"u").replace(/[ç]/g,"c")
-    .replace(/[ñ]/g,"n").replace(/'/g,"'").trim();
-  if(["debrief","debrief hebdo","debriefs","debriefs hebdo"].includes(v))return"debrief hebdo";
-  if(["analyse actif","actif","analyse d'actif","analyse d'actif"].includes(v))return"analyse actif";
-  if(["journaliere","journalier","analyse journaliere","analyse journalier","journaliere"].includes(v))return"analyse journaliere";
-  if(["macro","macroeconomie","macroeconomique"].includes(v))return"macro";
-  if(["crypto","cryptomonnaies","cryptos"].includes(v))return"crypto";
-  if(["marches","marche","marché","marchés"].includes(v))return"marches";
+    .replace(/[ñ]/g,"n").replace(/['']/g," ").replace(/[^a-z0-9 ]/g,"")
+    .replace(/ +/g," ").trim();
+  if(["debrief","debrief hebdo","debriefs","journalier","journaliere",
+      "journaliers","analyse journaliere","analyse journalier"].includes(v))return"debrief";
+  if(["actif","analyse actif","analyse d actif","analyseactif"].includes(v))return"actif";
+  if(["macro","macroeconomie","macroeconomique","focus macro"].includes(v))return"macro";
+  if(["crypto","cryptomonnaie","cryptomonnaies","cryptos"].includes(v))return"crypto";
   return v;
 }
-// Couleur par catégorie normalisée
-const CAT_COL_NORM={"debrief hebdo":"#f59e0b","analyse actif":"#a78bfa","analyse journaliere":"#34d399","macro":"#22d3ee","crypto":"#818cf8","marches":"#f87171","analyse":"#f59e0b"};
-const CAT_EMO_NORM={"debrief hebdo":"📅","analyse actif":"🔍","analyse journaliere":"⚡","macro":"🌐","crypto":"₿","marches":"📊","analyse":"📊"};
-function catColor(c){return CAT_COL_NORM[normCat(c)]||"#f59e0b";}
-function catEmoji(c){return CAT_EMO_NORM[normCat(c)]||"📊";}
-function catColor(cat){return CAT_COL_NORM[normCat(cat)]||CAT_COLORS[cat]||"#f59e0b";}
-function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||CAT_EMOJI[cat]||"📊";}
+
+const CAT_COL_NORM={"debrief":"#f59e0b","actif":"#a78bfa","macro":"#22d3ee","crypto":"#818cf8"};
+const CAT_EMO_NORM={"debrief":"📅","actif":"🔍","macro":"🌐","crypto":"₿"};
+function catColor(cat){return CAT_COL_NORM[normCat(cat)]||"#f59e0b";}
+function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||"📊";}
 
 // TICKER
 function buildTicker(d){
@@ -1040,7 +1048,7 @@ async function openArt(slug){
     const data=await r.json();
     if(!data.ok){ct.innerHTML="<div style='padding:60px;text-align:center;color:var(--muted)'>Article introuvable.</div>";return;}
     const a=data.article;
-    const isActif = ["analyse actif","analyseactif","actif","analyse d'actif"].includes(normCat(a.category));
+    const isActif = normCat(a.category)==="actif" || detectCatFromTitle(a.title)==="actif";
     const tags=(a.tags||[]).map(t=>`<span style="font-size:10px;color:var(--muted);padding:2px 8px;border:1px solid var(--line);border-radius:2px">${t}</span>`).join("");
 
     const articleHeader=`
