@@ -110,8 +110,13 @@ async function bgRefresh(){
     const ut = "1M";
     console.log("[BG] 🔄 Refresh...");
 
-    // Ces fonctions ont leur propre cacheGet interne
-    // Elles n'appellent l'API que si le TTL est expiré
+    // BTC/ETH via CoinGecko (gratuit, 30 req/min, pas de clé)
+    if(!cacheGet("btc5")||!cacheGet("eth5")) await safe(async()=>{
+      const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",{timeout:10000});
+      if(d?.bitcoin?.usd){cacheSet("btc5",{value:d.bitcoin.usd,ts:new Date().toISOString()},TTL.crypto);console.log(`[CG] BTC: $${d.bitcoin.usd}`);}
+      if(d?.ethereum?.usd){cacheSet("eth5",d.ethereum.usd,TTL.crypto);console.log(`[CG] ETH: $${d.ethereum.usd}`);}
+    });
+
     await Promise.allSettled([
       eurusdFn(),
       goldFn(),
@@ -124,20 +129,6 @@ async function bgRefresh(){
       commo("CL=F","DCOILWTICO",55,105,"oil5"),
       commo("BZ=F","DCOILBRENTEU",58,110,"brent5"),
       commo("NG=F","DHHNGSP",0.8,12,"natgas5"),
-      // BTC
-      (async()=>{
-        if(cacheGet("btc5")) return;
-        const d=await fetchJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot",{timeout:8000});
-        const v=toNum(d?.data?.amount);
-        if(v) cacheSet("btc5",{value:v,ts:new Date().toISOString()},TTL.crypto);
-      })(),
-      // ETH
-      (async()=>{
-        if(cacheGet("eth5")) return;
-        const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:8000});
-        const v=toNum(d?.data?.amount);
-        if(v) cacheSet("eth5",v,TTL.crypto);
-      })(),
     ]);
 
     // DXY
@@ -211,7 +202,8 @@ async function treasuryRates(){
   const k="treas5"; const c=cacheGet(k); if(c) return c;
   try{
     // Treasury publie un XML quotidien
-    const url="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv";
+    const year=new Date().getFullYear();
+    const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/${year}/all?type=daily_treasury_yield_curve&field_tdr_date_value=${year}&page&_format=csv`;
     const res=await fetch(url,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0"}});
     const text=await res.text();
     const lines=text.trim().split("\n");
