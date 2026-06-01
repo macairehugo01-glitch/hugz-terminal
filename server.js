@@ -555,36 +555,44 @@ function calcYoY(obs){
 async function goldFn(){
   const k="gold5";const c=cacheGet(k);if(c!==undefined)return c;
 
-  // 1. Stooq — GC=F futures (symbole correct)
+  // 1. Stooq GC=F — futures or
   try{
-    const d=await fetchJSON("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=json",{timeout:8000});
-    const v=parseFloat(d?.symbols?.[0]?.close||d?.symbols?.[0]?.open);
-    if(v>2000&&v<8000){
-      console.log("[GOLD] Stooq GC.F:",v);
-      return cacheSet(k,{value:v,src:"Stooq GC.F"},TTL.metals);
+    const txt=await fetch("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:AbortSignal.timeout(8000)});
+    const csv=await txt.text();
+    const lines=csv.trim().split("\n");
+    if(lines.length>=2){
+      const vals=lines[1].split(",");
+      const v=parseFloat(vals[5]||vals[4]); // close ou open
+      if(v>2000&&v<8000){
+        console.log("[GOLD] Stooq CSV:",v);
+        return cacheSet(k,{value:v,src:"Stooq GC.F"},TTL.metals);
+      }
     }
-  }catch(e){console.warn("[GOLD] Stooq:",e.message?.slice(0,40));}
+  }catch(e){console.warn("[GOLD] Stooq CSV:",e.message?.slice(0,40));}
 
-  // 2. ExchangeRate API — XAU/USD gratuit
+  // 2. metals-api.com via proxy Cloudflare
   try{
-    const d=await fetchJSON("https://api.exchangerate.host/latest?base=XAU&symbols=USD",{timeout:8000});
-    const v=toNum(d?.rates?.USD);
-    if(v>2000&&v<8000){
-      console.log("[GOLD] ExchangeRate:",v);
-      return cacheSet(k,{value:v,src:"ExchangeRate XAU"},TTL.metals);
-    }
-  }catch(e){console.warn("[GOLD] ExchangeRate:",e.message?.slice(0,40));}
-
-  // 3. GoldAPI via proxy Cloudflare Worker
-  try{
-    const proxyUrl=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
-    const d=await fetchJSON(`${proxyUrl}?url=${encodeURIComponent("https://api.metals.live/v1/spot/gold")}`,{timeout:8000});
-    const v=toNum(Array.isArray(d)?d[0]?.price:d?.price);
+    const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+    const target=encodeURIComponent("https://api.metals.live/v1/spot");
+    const d=await fetchJSON(`${proxy}?url=${target}`,{timeout:10000});
+    const arr=Array.isArray(d)?d:[];
+    const gold=arr.find(x=>x.gold||x.XAU);
+    const v=toNum(gold?.gold||gold?.XAU);
     if(v>2000&&v<8000){
       console.log("[GOLD] MetalsLive:",v);
       return cacheSet(k,{value:v,src:"Metals.live"},TTL.metals);
     }
   }catch(e){console.warn("[GOLD] MetalsLive:",e.message?.slice(0,40));}
+
+  // 3. fxratesapi gratuit
+  try{
+    const d=await fetchJSON("https://fxratesapi.com/api/latest?base=XAU&currencies=USD",{timeout:8000});
+    const v=toNum(d?.data?.USD||d?.rates?.USD);
+    if(v>2000&&v<8000){
+      console.log("[GOLD] fxratesapi:",v);
+      return cacheSet(k,{value:v,src:"fxratesapi"},TTL.metals);
+    }
+  }catch(e){console.warn("[GOLD] fxratesapi:",e.message?.slice(0,40));}
 
   // 3. FRED (si circuit breaker ouvert, utilise stale)
   const fg=await safe(()=>fredObs("GOLDAMGBD228NLBM",5,TTL.fred_d));
