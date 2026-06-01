@@ -136,30 +136,25 @@ async function fredRunQueue(){
 }
 
 async function fredFetch(url){
-  // Circuit breaker — si ouvert, retourner null immédiatement
-  if(!fredBreakerCheck()){
-    return null;
-  }
+  if(!fredBreakerCheck()) return null;
   return fredEnqueue(async () => {
-    for(let attempt=0; attempt<3; attempt++){
+    for(let attempt=0; attempt<2; attempt++){
       try{
         const d = await fetchJSON(url, {timeout:15000});
-        if(d?.error_code===429 || (d?.status_code===429)){
-          fredBreakerFail();
-          const wait = (attempt+1)*3000;
-          console.warn(`[FRED] 429 — retry dans ${wait/1000}s`);
-          await sleep(wait);
-          continue;
-        }
         fredBreakerSuccess();
         if(d?.observations) setTimeout(fredCacheSave, 500);
         return d;
       }catch(e){
-        if(attempt<2){ await sleep((attempt+1)*1000); continue; }
+        if(e.status===429){
+          fredBreakerFail();
+          console.warn(`[FRED] 429 détecté — circuit breaker: ${_fredBreaker.failures}/3`);
+          if(!_fredBreaker.open) await sleep(2000);
+          continue;
+        }
+        if(attempt<1){ await sleep(1000); continue; }
         throw e;
       }
     }
-    fredBreakerFail();
     return null;
   });
 }
@@ -192,6 +187,11 @@ async function fetchJSON(url,opts={}){
       }
     });
     clearTimeout(timer);
+    if(res.status===429){
+      const err=new Error(`HTTP 429 — ${url.slice(0,60)}`);
+      err.status=429;
+      throw err;
+    }
     if(!res.ok)throw new Error(`HTTP ${res.status} — ${url.slice(0,60)}`);
     return await res.json();
   }finally{
