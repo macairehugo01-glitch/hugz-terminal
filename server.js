@@ -35,9 +35,9 @@ function cacheGet(k){
 function cacheSet(k,v,ttl){CACHE.set(k,{v,t:Date.now(),ttl});return v;}
 
 const TTL={
-  metals:  3*60*1000,       // 3 min
-  crypto:  60*1000,         // 1 min
-  equity:  3*60*1000,       // 3 min
+  metals:  5*60*1000,       // 5 min
+  crypto:  5*60*1000,       // 5 min (réduit appels Coinbase)
+  equity:  5*60*1000,       // 5 min
   sector: 10*60*1000,       // 10 min
   yahoo:  30*60*1000,       // 30 min
   fng:    25*60*1000,       // 25 min
@@ -86,6 +86,78 @@ function fredCacheSave(){
 
 // Sauvegarder le cache FRED toutes les 30min
 setInterval(fredCacheSave, 30*60*1000);
+
+// ── Scheduler background — rafraîchit les données en arrière-plan ──
+// Les utilisateurs lisent toujours depuis le cache, jamais directement les APIs
+let _bgRefreshing = false;
+let _lastBgRefresh = 0;
+const BG_INTERVAL = 5*60*1000; // 5 min
+
+async function bgRefresh(){
+  if(_bgRefreshing) return;
+  _bgRefreshing = true;
+  try{
+    const ut = "1M";
+    console.log("[BG] 🔄 Refresh données...");
+
+    // BTC/ETH avec cache explicite
+    await safe(async()=>{
+      const d=await fetchJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot",{timeout:8000});
+      const v=toNum(d?.data?.amount);
+      if(v) cacheSet("btc5",{value:v,ts:new Date().toISOString()},TTL.crypto);
+    });
+    await safe(async()=>{
+      const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:8000});
+      const v=toNum(d?.data?.amount);
+      if(v) cacheSet("eth5",v,TTL.crypto);
+    });
+
+    // Non-FRED en parallèle
+    await Promise.allSettled([
+      eurusdFn(), goldFn(), silverFn(), copperFn(),
+      btcDomFn(), fngFn(), equitiesFn(), allSectors(ut),
+      commo("CL=F","DCOILWTICO",55,105,"oil5"),
+      commo("BZ=F","DCOILBRENTEU",58,110,"brent5"),
+      commo("NG=F","DHHNGSP",0.8,12,"natgas5"),
+    ]);
+
+    // DXY Yahoo
+    await safe(async()=>{
+      for(const host of["query1","query2"]){
+        try{
+          const u=`https://${host}.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d`;
+          const d=await fetchJSON(u,{timeout:8000});
+          const meta=d?.chart?.result?.[0]?.meta;
+          const v=meta?.regularMarketPrice??meta?.chartPreviousClose;
+          if(v&&v>80&&v<130){ cacheSet("dxy5",{v,d:new Date().toISOString().slice(0,10)},TTL.yahoo); return; }
+        }catch{}
+      }
+    });
+
+    // FRED séquentiel seulement si circuit breaker fermé
+    if(fredBreakerCheck()){
+      await safe(()=>fredObs("VIXCLS",5));
+      await safe(()=>fredObs("DGS1MO",5));
+      await safe(()=>fredObs("DGS3MO",5));
+      await safe(()=>fredObs("DGS2",5));
+      await safe(()=>fredObs("DGS10",5));
+      await safe(()=>fredObs("DGS30",5));
+      await safe(()=>fredObs("UNRATE",5));
+      await safe(()=>fredObs("DFEDTARU",5));
+      await safe(()=>fredAll("CPIAUCSL",[]));
+      await safe(()=>fredAll("CPILFESL",[]));
+      await safe(()=>fredAll("PCEPILFE",[]));
+      await safe(()=>creditFn());
+      await safe(()=>delinFn());
+      await safe(()=>researchFn());
+      fredCacheSave();
+    }
+
+    _lastBgRefresh = Date.now();
+    console.log("[BG] ✅ Refresh terminé");
+  }catch(e){ console.warn("[BG]", e.message?.slice(0,50)); }
+  finally{ _bgRefreshing = false; }
+}
 
 // Circuit breaker FRED — coupe les appels après trop de 429
 let _fredBreaker = {open: false, failures: 0, openUntil: 0};
@@ -756,53 +828,44 @@ app.get("/api/dashboard",async(req,res)=>{
   try{
     const ut=req.query.ut||"1M";
 
+    // Si le cache background n'est pas encore prêt, déclencher un refresh
+    if(!_lastBgRefresh && !_bgRefreshing){
+      bgRefresh().catch(()=>{});
+      return res.json({updatedAt:new Date().toISOString(),loading:true,data:{}});
+    }
 
-    // ── Appels NON-FRED en parallèle (rapides) ─────────────
-    const [
-      rEur,rBtc,rEth,rBtcDom,rFng,
-      rGold,rSilver,rCopper,rOil,rBrent,rNatgas,
-      rSectors,rEquities
-    ] = await Promise.all([
-      safe(()=>eurusdFn()),
-      safe(async()=>{const d=await fetchJSON("https://api.coinbase.com/v2/prices/BTC-USD/spot",{timeout:12000});return{value:toNum(d?.data?.amount),ts:new Date().toISOString()};}),
-      safe(async()=>{const d=await fetchJSON("https://api.coinbase.com/v2/prices/ETH-USD/spot",{timeout:12000});return toNum(d?.data?.amount);}),
-      safe(()=>btcDomFn()),safe(()=>fngFn()),
-      goldFn(),silverFn(),copperFn(),
-      safe(()=>commo("CL=F","DCOILWTICO",55,105,"oil5")),
-      safe(()=>commo("BZ=F","DCOILBRENTEU",58,110,"brent5")),
-      safe(()=>commo("NG=F","DHHNGSP",0.8,12,"natgas5")),
-      safe(()=>allSectors(ut),[]),safe(()=>equitiesFn())
-    ]);
+    // Lire depuis le cache — aucun appel API direct
+    const rEur    = cacheGet("eur5");
+    const rBtc    = cacheGet("btc5");
+    const rEth    = cacheGet("eth5");
+    const rBtcDom = cacheGet("dom5");
+    const rFng    = cacheGet("fng5");
+    const rGold   = cacheGet("gold5");
+    const rSilver = cacheGet("sil5");
+    const rCopper = cacheGet("cop5");
+    const rOil    = cacheGet("oil5");
+    const rBrent  = cacheGet("brent5");
+    const rNatgas = cacheGet("natgas5");
+    const rEquities = cacheGet("eq5");
+    const rCredit = cacheGet("cred5");
+    const rDelin  = cacheGet("delin5");
+    const rResearch = cacheGet("res5");
 
-    // ── Appels FRED séquentiels (file d'attente) ──────────
-    const rDxy    = await safe(async()=>{
-      const dxyHeaders={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36","Accept":"application/json,text/plain,*/*","Accept-Language":"en-US,en;q=0.9","Referer":"https://finance.yahoo.com/"};
-      for(const host of["query1","query2"]){
-        try{
-          const u=`https://${host}.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=1d&interval=1d&includePrePost=false`;
-          const d=await fetchJSON(u,{timeout:10000,headers:dxyHeaders});
-          const meta=d?.chart?.result?.[0]?.meta;
-          const v=meta?.regularMarketPrice??meta?.chartPreviousClose??meta?.previousClose;
-          if(v!=null&&v>80&&v<130){console.log(`[DXY] ${host}: ${v}`);return{v,d:new Date().toISOString().slice(0,10)};}
-        }catch(e){console.warn(`[DXY] ${host}:`,e.message?.slice(0,40));}
-      }
-      const fv=await fredObs("DTWEXBGS",5);
-      console.warn(`[DXY] Fallback FRED: ${fv?.v}`);return fv;
-    });
-    const rVix    = await safe(()=>fredObs("VIXCLS",5));
-    const r1m     = await safe(()=>fredObs("DGS1MO",5));
-    const r3m     = await safe(()=>fredObs("DGS3MO",5));
-    const r2y     = await safe(()=>fredObs("DGS2",5));
-    const r10y    = await safe(()=>fredObs("DGS10",5));
-    const r30y    = await safe(()=>fredObs("DGS30",5));
-    const rUnrate = await safe(()=>fredObs("UNRATE",5));
-    const rFed    = await safe(()=>fredObs("DFEDTARU",5));
-    const cpiAll     = await safe(()=>fredAll("CPIAUCSL"),[]);
-    const coreCpiAll = await safe(()=>fredAll("CPILFESL"),[]);
-    const pceCpiAll  = await safe(()=>fredAll("PCEPILFE"),[]);
-    const rCredit = await safe(()=>creditFn());
-    const rDelin  = await safe(()=>delinFn());
-    const rResearch = await safe(()=>researchFn());
+    // FRED depuis cache
+    const rDxy    = cacheGet("f5_DTWEXBGS") ?? cacheGet("dxy5");
+    const rVix    = cacheGet("f5_VIXCLS");
+    const r1m     = cacheGet("f5_DGS1MO");
+    const r3m     = cacheGet("f5_DGS3MO");
+    const r2y     = cacheGet("f5_DGS2");
+    const r10y    = cacheGet("f5_DGS10");
+    const r30y    = cacheGet("f5_DGS30");
+    const rUnrate = cacheGet("f5_UNRATE");
+    const rFed    = cacheGet("f5_DFEDTARU");
+    const cpiAll     = cacheGet("fa5_CPIAUCSL") ?? [];
+    const coreCpiAll = cacheGet("fa5_CPILFESL") ?? [];
+    const pceCpiAll  = cacheGet("fa5_PCEPILFE") ?? [];
+
+    const rSectors = await safe(()=>allSectors(ut),[]);
 
     const us1m=toNum(r1m?.v),us3m=toNum(r3m?.v);
     const us2y=toNum(r2y?.v),us10y=toNum(r10y?.v),us30y=toNum(r30y?.v);
@@ -1863,6 +1926,12 @@ app.listen(PORT,async()=>{
 
   // Charger le cache FRED depuis le disque (survit aux redémarrages)
   fredCacheLoad();
+
+  // Démarrer le scheduler background (rafraîchit les données toutes les 5min)
+  setTimeout(async()=>{
+    await bgRefresh();
+    setInterval(bgRefresh, BG_INTERVAL);
+  }, 5000); // 5s après démarrage
   console.log("  Warming up Yahoo crumb...");
   await safe(()=>refreshCrumb());
   console.log(`  Crumb: ${_crumb?_crumb.slice(0,8)+"...":"FAILED"}`);
