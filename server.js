@@ -396,20 +396,32 @@ async function yahooLast(sym){
    FRED
 ═══════════════════════════════════════════ */
 async function fredObs(id,lim=10,ttl=TTL.fred_d){
-  const k=`f5_${id}`;const c=cacheGet(k);if(c!==undefined)return c;
+  const k=`f5_${id}`;
+  const c=cacheGet(k);if(c!==undefined)return c;
+  // Vérifier aussi le cache stale avant d'appeler FRED
+  if(!fredBreakerCheck()){
+    const stale=cacheGetStale(k);
+    if(stale!==undefined)return stale;
+    return cacheSet(k,{v:null,d:null},60*1000);
+  }
   const url=`https://api.stlouisfed.org/fred/series/observations`+
     `?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(FRED_KEY)}`+
     `&sort_order=desc&limit=${lim}&file_type=json`;
   const d=await fredFetch(url);
-  if(!d) return cacheSet(k,{v:null,d:null},60*1000); // retry dans 1min si échec
+  if(!d) return cacheSet(k,{v:null,d:null},60*1000);
   const obs=Array.isArray(d?.observations)?d.observations.find(o=>o.value!=="."&&o.value!==""):null;
   return cacheSet(k,{v:toNum(obs?.value),d:obs?.date||null},ttl);
 }
 async function fredAll(id){
-  const k=`fa5_${id}`;const c=cacheGet(k);if(c!==undefined)return c;
+  const k=`fa5_${id}`;
+  const c=cacheGet(k);if(c!==undefined)return c;
+  if(!fredBreakerCheck()){
+    const stale=cacheGetStale(k);
+    return stale!==undefined?stale:[];
+  }
   const url=`https://api.stlouisfed.org/fred/series/observations`+
     `?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(FRED_KEY)}&file_type=json`;
-  const d=await fetchJSON(url,{timeout:15000});
+  const d=await fredFetch(url);
   return cacheSet(k,Array.isArray(d?.observations)?d.observations:[],TTL.fred_m);
 }
 function lastValid(obs){
