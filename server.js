@@ -565,25 +565,26 @@ async function goldFn(){
     }
   }catch(e){console.warn("[GOLD] Stooq:",e.message?.slice(0,40));}
 
-  // 2. CoinGecko — or en USD (gratuit, fiable)
+  // 2. ExchangeRate API — XAU/USD gratuit
   try{
-    const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=gold&vs_currencies=usd",{timeout:8000});
-    const v=toNum(d?.gold?.usd);
-    if(v>2000&&v<8000){
-      console.log("[GOLD] CoinGecko:",v);
-      return cacheSet(k,{value:v,src:"CoinGecko"},TTL.metals);
-    }
-  }catch(e){console.warn("[GOLD] CoinGecko:",e.message?.slice(0,40));}
-
-  // 3. Open Exchange Rates — XAU gratuit
-  try{
-    const d=await fetchJSON("https://open.er-api.com/v6/latest/XAU",{timeout:8000});
+    const d=await fetchJSON("https://api.exchangerate.host/latest?base=XAU&symbols=USD",{timeout:8000});
     const v=toNum(d?.rates?.USD);
     if(v>2000&&v<8000){
-      console.log("[GOLD] OpenER:",v);
-      return cacheSet(k,{value:v,src:"OpenER XAU"},TTL.metals);
+      console.log("[GOLD] ExchangeRate:",v);
+      return cacheSet(k,{value:v,src:"ExchangeRate XAU"},TTL.metals);
     }
-  }catch(e){console.warn("[GOLD] OpenER:",e.message?.slice(0,40));}
+  }catch(e){console.warn("[GOLD] ExchangeRate:",e.message?.slice(0,40));}
+
+  // 3. GoldAPI via proxy Cloudflare Worker
+  try{
+    const proxyUrl=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+    const d=await fetchJSON(`${proxyUrl}?url=${encodeURIComponent("https://api.metals.live/v1/spot/gold")}`,{timeout:8000});
+    const v=toNum(Array.isArray(d)?d[0]?.price:d?.price);
+    if(v>2000&&v<8000){
+      console.log("[GOLD] MetalsLive:",v);
+      return cacheSet(k,{value:v,src:"Metals.live"},TTL.metals);
+    }
+  }catch(e){console.warn("[GOLD] MetalsLive:",e.message?.slice(0,40));}
 
   // 3. FRED (si circuit breaker ouvert, utilise stale)
   const fg=await safe(()=>fredObs("GOLDAMGBD228NLBM",5,TTL.fred_d));
@@ -815,18 +816,20 @@ async function btcDomFn(){
 ═══════════════════════════════════════════ */
 async function equitiesFn(){
   const k="eq5";const c=cacheGet(k);if(c!==undefined)return c;
-  // Stooq.com — alternative à Yahoo pour les indices
+  // Stooq.com — SPX et DJI OK, NDX via QQQ×41.3 (ratio stable)
   try{
-    const [spR,ndR,djR]=await Promise.all([
+    const [spR,qqqR,djR]=await Promise.all([
       fetchJSON("https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
-      fetchJSON("https://stooq.com/q/l/?s=%5endq&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
+      fetchJSON("https://stooq.com/q/l/?s=qqq.us&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
       fetchJSON("https://stooq.com/q/l/?s=%5edji&f=sd2t2ohlcv&h&e=json",{timeout:8000})
     ]);
     const spx=parseFloat(spR?.symbols?.[0]?.close||spR?.symbols?.[0]?.open);
-    const ndx=parseFloat(ndR?.symbols?.[0]?.close||ndR?.symbols?.[0]?.open);
+    const qqq=parseFloat(qqqR?.symbols?.[0]?.close||qqqR?.symbols?.[0]?.open);
     const dji=parseFloat(djR?.symbols?.[0]?.close||djR?.symbols?.[0]?.open);
-    if(spx>0&&ndx>0){
-      console.log(`[STOOQ] SPX:${spx} NDX:${ndx} DJI:${dji}`);
+    // NDX ≈ QQQ × 41.3 (ratio approximatif constant)
+    const ndx=qqq>0?Math.round(qqq*41.3):null;
+    if(spx>0&&qqq>0){
+      console.log(`[STOOQ] SPX:${spx} NDX:${ndx} DJI:${dji} (QQQ:${qqq})`);
       return cacheSet(k,{spx,ndx,dji},TTL.equity);
     }
   }catch(e){console.warn("[STOOQ]",e.message?.slice(0,40));}
