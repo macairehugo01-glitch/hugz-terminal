@@ -161,7 +161,6 @@ async function bgRefresh(){
       if(t.us1y!=null)  cacheSet("f5_DGS1",   {v:t.us1y, d}, TTL.fred_d);
     }
 
-    // FRED — seulement si circuit breaker fermé ET cache expiré
     if(fredBreakerCheck()){
       const fredCalls=[
         ["VIXCLS",TTL.fred_d],["DGS1MO",TTL.fred_d],["DGS3MO",TTL.fred_d],
@@ -170,17 +169,20 @@ async function bgRefresh(){
       ];
       let fredCalled=0;
       for(const [id,ttl] of fredCalls){
+        if(!fredBreakerCheck()) break; // arrêter si breaker s'ouvre en cours de boucle
         if(!cacheGet(`f5_${id}`)){
           await safe(()=>fredObs(id,5,ttl));
           fredCalled++;
         }
       }
-      if(!cacheGet("fa5_CPIAUCSL")){ await safe(()=>fredAll("CPIAUCSL",[])); fredCalled++; }
-      if(!cacheGet("fa5_CPILFESL")){ await safe(()=>fredAll("CPILFESL",[])); fredCalled++; }
-      if(!cacheGet("fa5_PCEPILFE")){ await safe(()=>fredAll("PCEPILFE",[])); fredCalled++; }
-      if(!cacheGet("cred5")){ await safe(()=>creditFn()); fredCalled++; }
-      if(!cacheGet("delin5")){ await safe(()=>delinFn()); fredCalled++; }
-      if(!cacheGet("res5")){ await safe(()=>researchFn()); fredCalled++; }
+      if(fredBreakerCheck()){
+        if(!cacheGet("fa5_CPIAUCSL")){ await safe(()=>fredAll("CPIAUCSL",[])); fredCalled++; }
+        if(!cacheGet("fa5_CPILFESL")){ await safe(()=>fredAll("CPILFESL",[])); fredCalled++; }
+        if(!cacheGet("fa5_PCEPILFE")){ await safe(()=>fredAll("PCEPILFE",[])); fredCalled++; }
+        if(!cacheGet("cred5")){ await safe(()=>creditFn()); fredCalled++; }
+        if(!cacheGet("delin5")){ await safe(()=>delinFn()); fredCalled++; }
+        if(!cacheGet("res5")){ await safe(()=>researchFn()); fredCalled++; }
+      }
       if(fredCalled>0){ console.log(`[BG] FRED: ${fredCalled} séries rafraîchies`); fredCacheSave(); }
     }
 
@@ -206,11 +208,17 @@ async function treasuryRates(){
     const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/${year}/all?type=daily_treasury_yield_curve&field_tdr_date_value=${year}&page&_format=csv`;
     const res=await fetch(url,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0"}});
     const text=await res.text();
-    const lines=text.trim().split("\n");
-    if(lines.length<2) return null;
-    // Dernière ligne = données les plus récentes
-    const last=lines[lines.length-1].split(",");
-    const headers=lines[0].split(",");
+    const lines=text.trim().split("\n").filter(l=>l.trim()&&!l.startsWith("Date"));
+    if(lines.length<1) return null;
+    // Trier par date décroissante pour avoir la plus récente en premier
+    lines.sort((a,b)=>{
+      const da=new Date(a.split(",")[0]?.replace(/"/g,""));
+      const db=new Date(b.split(",")[0]?.replace(/"/g,""));
+      return db-da;
+    });
+    const last=lines[0].split(",");
+    const allLines=text.trim().split("\n");
+    const headers=allLines[0].split(",");
     const idx=(h)=>headers.findIndex(x=>x.includes(h));
     const get=(h)=>{const i=idx(h);return i>=0?parseFloat(last[i]):null;};
     const date=last[0]?.replace(/"/g,"");
