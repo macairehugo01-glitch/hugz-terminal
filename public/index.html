@@ -1109,129 +1109,51 @@ async function openArt(slug){
 
 // Vérification accès RaiseFX via whitelist Google Sheets
 async function checkRaiseAccess(slug){
-  const email=document.getElementById("raise-email")?.value?.trim();
+  const emailEl=document.getElementById("raise-email");
   const msg=document.getElementById("raise-msg");
-  if(!email||!email.includes("@")){if(msg)msg.style.color="#f87171",msg.textContent="Email invalide.";return;}
+  const email=emailEl?.value?.trim().toLowerCase();
+  if(!email||!email.includes("@")){
+    if(msg){msg.style.color="#f87171";msg.textContent="Email invalide.";}
+    return;
+  }
   if(msg){msg.style.color="#9ca3af";msg.textContent="Vérification en cours...";}
   try{
-    const r=await fetch("/api/booking/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+    const r=await fetch("/api/booking/check",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email})
+    });
     const d=await r.json();
     if(d.whitelisted||d.authorized){
-      if(msg){msg.style.color="#4ade80";msg.textContent="✅ Accès confirmé ! Chargement...";}
-      setTimeout(async()=>{
-        // Afficher l'article complet
-        const r2=await fetch("/api/articles/"+encodeURIComponent(slug));
-        const data=await r2.json();
-        if(!data.ok)return;
-        const a=data.article;
-        const ct=document.getElementById("overlay-content");
-        const gate=document.getElementById("raise-gate");
-        if(gate) gate.remove();
-        // Trouver et remplacer tout le bloc flouté + overlay
-        const blurWrap=ct.querySelector("[style*='blur(4px)']")?.closest("[style*='overflow:hidden']")
-          || ct.querySelector("[style*='blur']")?.parentNode;
-        if(blurWrap){
-          const newDiv=document.createElement("div");
-          newDiv.className="art-body";
-          newDiv.innerHTML=a.html;
-          blurWrap.replaceWith(newDiv);
-        } else {
-          // Fallback : remplacer tout le contenu après le header
-          const existing=ct.querySelector(".art-body");
-          if(existing){ existing.style.filter="none"; existing.style.maxHeight="none"; existing.style.opacity="1"; existing.style.pointerEvents="auto"; }
-          else { const d=document.createElement("div"); d.className="art-body"; d.innerHTML=a.html; ct.appendChild(d); }
-        }
-        // Ajouter bouton retour
-        const retour=document.createElement("div");
-        retour.style.cssText="margin-top:40px;padding-top:22px;border-top:1px solid var(--line);text-align:center";
-        retour.innerHTML=`<button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>`;
-        ct.appendChild(retour);
-      },800);
+      if(msg){msg.style.color="#4ade80";msg.textContent="✅ Accès confirmé !";}
+      setTimeout(()=>unlockArticle(slug), 600);
     } else {
-      if(msg){msg.style.color="#f87171";msg.textContent="Email non trouvé dans la base RaiseFX. Vérifiez votre inscription.";}
+      if(msg){msg.style.color="#f87171";msg.textContent="Email non trouvé. Vérifiez votre inscription RaiseFX.";}
     }
   }catch(e){
-    if(msg){msg.style.color="#f87171";msg.textContent="Erreur de vérification. Réessayez.";}
+    if(msg){msg.style.color="#f87171";msg.textContent="Erreur de connexion. Réessayez.";}
   }
 }
 
-function closeArt(){
-  const ov=document.getElementById("overlay");
-  if(ov){ov.style.display="none";document.body.style.overflow="";}
-  document.title="Hugo Macaire — Analyses Économiques";
-}
-
-// NEWSLETTER
-function submitEmail(){
-  const inp=document.getElementById("nl-email");
-  const email=inp?.value?.trim();
-  if(!email||!email.includes("@")){alert("Adresse email invalide.");return;}
-  fetch("/api/newsletter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})})
-    .then(()=>{inp.value="";alert("Merci ! Vous recevrez votre premier briefing cette semaine.");})
-    .catch(()=>{inp.value="";alert("Merci ! Email enregistré.");});
-}
-
-// INIT
-// MODE NUIT
-function toggleDark(){
-  const isDark=document.body.classList.toggle("dark");
-  try{localStorage.setItem("hm_dark",isDark?"1":"0");}catch{}
-  const emoji=isDark?"☀️":"🌙";
-  ["dark-btn","dark-btn-art"].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn)btn.textContent=emoji;
-  });
-}
-function initDark(){
+async function unlockArticle(slug){
   try{
-    const saved=localStorage.getItem("hm_dark");
-    const prefersDark=saved!==null?saved==="1":window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if(prefersDark){
-      document.body.classList.add("dark");
-      ["dark-btn","dark-btn-art"].forEach(id=>{
-        const btn=document.getElementById(id);
-        if(btn)btn.textContent="☀️";
-      });
-    }
-  }catch{}
-}
-initDark();
-
-async function init(){
-  document.getElementById("hdr-date").textContent=
-    new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-
-  loadArticles();
-
-  try{
-    const r=await fetch("/api/dashboard");
+    const r=await fetch("/api/articles/"+encodeURIComponent(slug));
     const data=await r.json();
-    if(data?.data){
-      D=data;
-      buildTicker(data.data);
-      buildRibbon(data.data);
-      buildBreaking(data.data);
-      buildStats(data.data);
-      buildSignal(data.data);
-      buildMarkets(data.data);
-      buildDebrief(data.data);
-    }
-  }catch(e){console.warn("Dashboard:",e.message);}
-
-  setInterval(async()=>{
-    try{
-      const r=await fetch("/api/dashboard");
-      const data=await r.json();
-      if(data?.data){
-        D=data;
-        buildTicker(data.data);buildRibbon(data.data);buildBreaking(data.data);
-        buildStats(data.data);buildSignal(data.data);buildMarkets(data.data);
-        buildDebrief(data.data);
-      }
-    }catch{}
-  },5*60*1000);
+    if(!data.ok) return;
+    const a=data.article;
+    const ct=document.getElementById("overlay-content");
+    if(!ct) return;
+    // Reconstruire le contenu complet proprement
+    const headerHTML=ct.innerHTML.split('<div style="position:relative')[0];
+    ct.innerHTML=headerHTML+
+      `<div class="art-body">${a.html}</div>
+       <div style="margin-top:40px;padding-top:22px;border-top:1px solid var(--line);text-align:center">
+         <button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>
+       </div>`;
+  }catch(e){console.warn("unlockArticle:",e.message);}
 }
-// STOCKTWITS SENTIMENT
+
+
 async function loadSentiment(){
   try{
     const r=await fetch("/api/sentiment");
