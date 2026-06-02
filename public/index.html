@@ -783,19 +783,21 @@ function buildRibbon(d){
 
 // BREAKING
 function buildBreaking(d){
-  const risk=d.riskAnalysis;
-  const msgs=[
-    `Régime ${risk?.regime||"—"} — Score ${risk?.score||"—"}/100 sur 10 signaux`,
-    `Or XAU : ${fu(d.commodities?.gold?.value)}/oz · Argent : $${fd(d.commodities?.silver?.value)}/oz · Cu/Au ${fd(d.derived?.copperGoldRatio,3)}`,
-    `Bitcoin : ${fu(d.crypto?.btcusd?.value)} — Dominance ${fp(d.crypto?.btcDominance,1)} — ETH : ${fu(d.crypto?.ethusd)}`,
-    `WTI $${fd(d.commodities?.oil?.value)} · Brent $${fd(d.commodities?.brent?.value)} · Nat.Gas $${fd(d.commodities?.natgas?.value)}`,
-    `CPI ${fp(d.inflation?.cpiYoY)} · Core ${fp(d.inflation?.coreCpi)} · PCE ${fp(d.inflation?.pceCore)} · Fed ${fp(d.fed?.upperBound)}`,
-    `S&P 500 ${fi(d.equities?.spx?.price)} (${fc(d.equities?.spx?.chgPct)}) · NASDAQ ${fi(d.equities?.ndx?.price)} (${fc(d.equities?.ndx?.chgPct)})`,
-  ];
-  const el=document.getElementById("brk");
-  if(el)el.innerHTML=
-    msgs.map(m=>`<span class="brk-item">${m}</span>`).join("")+
-    msgs.map(m=>`<span class="brk-item">${m}</span>`).join("");
+  try{
+    const risk=d?.riskAnalysis;
+    const msgs=[
+      `Régime ${risk?.regime||"—"} — Score ${risk?.score||"—"}/100`,
+      `Or XAU : ${fu(d?.commodities?.gold?.value)}/oz · Cu/Au ${fd(d?.derived?.copperGoldRatio,3)}`,
+      `Bitcoin : ${fu(d?.crypto?.btcusd?.value)} · ETH : ${fu(d?.crypto?.ethusd)}`,
+      `WTI $${fd(d?.commodities?.oil?.value)} · Brent $${fd(d?.commodities?.brent?.value)}`,
+      `CPI ${fp(d?.inflation?.cpiYoY)} · Fed ${fp(d?.fed?.upperBound)} · VIX ${fd(d?.vix?.value)}`,
+      `S&P 500 ${fi(d?.equities?.spx?.price)} · NASDAQ ${fi(d?.equities?.ndx?.price)} · DJI ${fi(d?.equities?.dji?.price)}`,
+    ].filter(Boolean);
+    const el=document.getElementById("brk");
+    if(el) el.innerHTML=
+      msgs.map(m=>`<span class="brk-item">${m}</span>`).join("")+
+      msgs.map(m=>`<span class="brk-item">${m}</span>`).join("");
+  }catch(e){console.warn("[BRK]",e.message);}
 }
 
 // STATS BAND
@@ -1228,6 +1230,7 @@ async function loadDash(){
     if(data?.data){
       buildTicker(data.data);
       buildRibbon(data.data);
+      buildBreaking(data.data);
       buildStats(data.data);
       buildSignal(data.data);
       buildMarkets(data.data);
