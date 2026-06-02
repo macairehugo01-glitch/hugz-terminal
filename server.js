@@ -704,6 +704,7 @@ async function commo(sym,fredId,lo,hi,key){
   // Stooq CSV — WTI=cl.f, Brent=bz.f, NatGas=ng.f
   const stooqSym={"CL=F":"cl.f","BZ=F":"bz.f","NG=F":"ng.f","HG=F":"hg.f","SI=F":"si.f"}[sym];
   if(stooqSym){
+    // Essai direct Stooq
     try{
       const ac=new AbortController();
       const t=setTimeout(()=>ac.abort(),8000);
@@ -722,6 +723,18 @@ async function commo(sym,fredId,lo,hi,key){
         }
       }
     }catch(e){console.warn(`[COMMO] ${sym} Stooq:`,e.message?.slice(0,30));}
+    // Essai via proxy Cloudflare
+    try{
+      const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+      const target=encodeURIComponent(`https://stooq.com/q/l/?s=${stooqSym}&f=sd2t2ohlcv&h&e=json`);
+      const d=await fetchJSON(`${proxy}?url=${target}`,{timeout:8000});
+      const v=parseFloat(d?.symbols?.[0]?.close||d?.symbols?.[0]?.open);
+      if(v>=lo&&v<=hi){
+        console.log(`[COMMO] ${sym} Stooq/proxy: ${v}`);
+        LAST_GOOD[key]={value:v,src:"Stooq"};
+        return cacheSet(key,{value:v,src:"Stooq"},TTL.yahoo);
+      }
+    }catch(e){console.warn(`[COMMO] ${sym} Stooq/proxy:`,e.message?.slice(0,30));}
   }
 
   // Symboles Twelve Data corrects (plan gratuit)
@@ -867,11 +880,15 @@ async function equitiesFn(){
     const spx=parseFloat(spR?.symbols?.[0]?.close||spR?.symbols?.[0]?.open);
     const qqq=parseFloat(qqqR?.symbols?.[0]?.close||qqqR?.symbols?.[0]?.open);
     const dji=parseFloat(djR?.symbols?.[0]?.close||djR?.symbols?.[0]?.open);
-    // NDX ≈ QQQ × 41.3 (ratio approximatif constant)
     const ndx=qqq>0?Math.round(qqq*41.3):null;
     if(spx>0&&qqq>0){
       console.log(`[STOOQ] SPX:${spx} NDX:${ndx} DJI:${dji} (QQQ:${qqq})`);
-      return cacheSet(k,{spx,ndx,dji},TTL.equity);
+      // Stocker directement au format attendu par le dashboard
+      return cacheSet(k,{
+        spx:{price:spx,chgPct:null},
+        ndx:{price:ndx,chgPct:null},
+        dji:{price:dji,chgPct:null}
+      },TTL.equity);
     }
   }catch(e){console.warn("[STOOQ]",e.message?.slice(0,40));}
   async function idx(sym){
@@ -907,7 +924,28 @@ async function sectorPerf(sym,ut){
   const cfg=UTC[ut]||UTC["1M"];
   const k=`s5_${sym}_${ut}`;const c=cacheGet(k);if(c!==undefined)return c;
   const closes=await safe(()=>yahooChart(sym,cfg.r,cfg.i,22000));
-  if(!closes||closes.length<2)return cacheSet(k,null,TTL.sector);
+  if(!closes||closes.length<2){
+    // Fallback Stooq via proxy Cloudflare
+    try{
+      const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+      const stooqSym=sym.toLowerCase()+".us";
+      const target=encodeURIComponent(`https://stooq.com/q/d/l/?s=${stooqSym}&i=d`);
+      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
+      const txt=await fetch(`${proxy}?url=${target}`,{signal:ac.signal});clearTimeout(t);
+      const csv=await txt.text();
+      const lines=csv.trim().split("\n").filter(l=>l&&!l.startsWith("Date"));
+      if(lines.length>=22){
+        const vLast=parseFloat(lines[lines.length-1].split(",")[4]);
+        const vFirst=parseFloat(lines[lines.length-22].split(",")[4]);
+        if(vLast>0&&vFirst>0){
+          const p=((vLast/vFirst)-1)*100;
+          console.log(`[SEC] ${sym}: ${p.toFixed(2)}% (Stooq)`);
+          return cacheSet(k,p,TTL.sector);
+        }
+      }
+    }catch(e){}
+    return cacheSet(k,null,TTL.sector);
+  }
   let first,last;
   if(ut==="1D"){
     const v=closes.filter(x=>x!=null);if(v.length<2)return cacheSet(k,null,TTL.sector);
@@ -1111,9 +1149,18 @@ app.get("/api/dashboard",async(req,res)=>{
       commodities:{gold:rGold,silver:rSilver,copper:rCopper,oil:rOil,brent:rBrent,natgas:rNatgas},
       credit:rCredit,sentiment,delinquency:rDelin,research:rResearch,
       equities:{
-        spx:{price:rEquities?.spx??null, chgPct:rEquities?.spxChg??null},
-        ndx:{price:rEquities?.ndx??null, chgPct:rEquities?.ndxChg??null},
-        dji:{price:rEquities?.dji??null, chgPct:rEquities?.djiChg??null},
+        spx:{
+          price: rEquities?.spx?.price ?? rEquities?.spx ?? null,
+          chgPct: rEquities?.spx?.chgPct ?? null
+        },
+        ndx:{
+          price: rEquities?.ndx?.price ?? rEquities?.ndx ?? null,
+          chgPct: rEquities?.ndx?.chgPct ?? null
+        },
+        dji:{
+          price: rEquities?.dji?.price ?? rEquities?.dji ?? null,
+          chgPct: rEquities?.dji?.chgPct ?? null
+        },
       },
       cds:[
         {c:"USA",v:62,r:"FAIBLE"},{c:"Allemagne",v:28,r:"FAIBLE"},{c:"France",v:84,r:"FAIBLE"},
