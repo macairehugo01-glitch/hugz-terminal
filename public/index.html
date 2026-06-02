@@ -1226,6 +1226,8 @@ async function loadDash(){
     const r=await fetch("/api/dashboard");
     const data=await r.json();
     if(data?.data){
+      buildTicker(data.data);
+      buildRibbon(data.data);
       buildStats(data.data);
       buildSignal(data.data);
       buildMarkets(data.data);
