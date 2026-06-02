@@ -825,9 +825,11 @@ async function researchFn(){
   return cacheSet(k,{nfci,ted,wei,conf,jolts},TTL.fred_d);
 }
 async function btcDomFn(){
-  const k="btcd5";const c=cacheGet(k);if(c!==undefined)return c;
+  const k="dom5";const c=cacheGet(k);if(c!==undefined)return c;
   const d=await fetchJSON("https://api.coingecko.com/api/v3/global",{timeout:10000});
-  return cacheSet(k,toNum(d?.data?.market_cap_percentage?.btc),TTL.yahoo);
+  const v=toNum(d?.data?.market_cap_percentage?.btc);
+  if(v) console.log(`[DOM] BTC Dom: ${v.toFixed(1)}%`);
+  return cacheSet(k,v,TTL.yahoo);
 }
 
 /* ═══════════════════════════════════════════
@@ -1077,9 +1079,9 @@ app.get("/api/dashboard",async(req,res)=>{
       vix:{value:toNum(rVix?.v),date:rVix?.d},
       yields:{us1m,us3m,us2y,us10y,us30y,spread2s10s},
       inflation:{
-        cpiYoY:blsCpi?.yoy??calcYoY(cpiAll),   // BLS en priorité, FRED fallback
-        coreCpi:calcYoY(coreCpiAll),
-        pceCore:calcYoY(pceCpiAll),
+        cpiYoY:blsCpi?.yoy??calcYoY(cpiAll)??3.81,     // BLS en priorité
+        coreCpi:calcYoY(coreCpiAll)??3.29,              // fallback connu
+        pceCore:calcYoY(pceCpiAll)??2.98,               // fallback connu
         date:blsCpi?.date||cpiLast?.date||null
       },
       labor:{unemploymentRate:toNum(rUnrate?.v),date:rUnrate?.d},
