@@ -632,13 +632,24 @@ async function silverFn(){
 
 async function copperFn(){
   const k="copper5";const c=cacheGet(k);if(c!==undefined)return c;
+  // Stooq HG=F CSV
+  try{
+    const txt=await fetch("https://stooq.com/q/l/?s=hg.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:AbortSignal.timeout(8000)});
+    const csv=await txt.text();
+    const lines=csv.trim().split("\n");
+    if(lines.length>=2){
+      const vals=lines[1].split(",");
+      const v=parseFloat(vals[5]||vals[4]);
+      if(v>2&&v<15){ console.log("[CU] Stooq:",v); return cacheSet(k,{value:v,src:"Stooq HG.F",stale:false},TTL.yahoo); }
+    }
+  }catch(e){console.warn("[CU] Stooq:",e.message?.slice(0,40));}
   // Yahoo HG=F
   const yc=await safe(()=>yahooLast("HG=F"));
   if(yc!=null&&yc>2&&yc<15)return cacheSet(k,{value:yc,src:"Yahoo HG=F",stale:false},TTL.yahoo);
   // FRED mensuel
   const fc=await safe(()=>fredObs("PCOPPUSDM",5,TTL.fred_m));
   if(fc?.v!=null&&fc.v>2&&fc.v<15)return cacheSet(k,{value:fc.v,src:"FRED mensuel",stale:false},TTL.fred_m);
-  // Fallback connu
+  // Fallback
   return cacheSet(k,{value:4.60,src:"Estimé*",stale:true},TTL.metals);
 }
 
@@ -1027,7 +1038,7 @@ app.get("/api/dashboard",async(req,res)=>{
     const rFng    = g("fng5");
     const rGold   = g("gold5");
     const rSilver = g("sil5");
-    const rCopper = g("cop5");
+    const rCopper = g("copper5");
     const rOil    = g("oil5");
     const rBrent  = g("brent5");
     const rNatgas = g("natgas5");
@@ -2041,13 +2052,31 @@ const ST_TTL=4*3600*1000; // 4h
 async function fetchStockTwits(sym){
   try{
     const url=`${ST_PROXY}?sym=${encodeURIComponent(sym)}`;
-    const d=await fetchJSON(url,{timeout:10000,headers:{"User-Agent":"Mozilla/5.0"}});
+    const ac=new AbortController();
+    const timer=setTimeout(()=>ac.abort(),10000);
+    const res=await fetch(url,{signal:ac.signal,headers:{"User-Agent":"Mozilla/5.0"}});
+    clearTimeout(timer);
+    const text=await res.text();
+    let d;
+    try{ d=JSON.parse(text); }catch(e){ console.warn(`[ST] ${sym} JSON:`,text.slice(0,50)); return null; }
     const symbol=d?.symbol;
-    if(!symbol)return null;
-    const bull=symbol.sentiment?.bullish||0;
-    const bear=symbol.sentiment?.bearish||0;
+    if(!symbol) return null;
+
+    // Source 1 : sentiment agrégé du symbole
+    let bull=symbol.sentiment?.bullish||0;
+    let bear=symbol.sentiment?.bearish||0;
+
+    // Source 2 : si pas de sentiment agrégé, compter dans les messages
+    if(bull+bear===0 && Array.isArray(d?.messages)){
+      d.messages.forEach(m=>{
+        const s=m?.entities?.sentiment?.basic;
+        if(s==="Bullish") bull++;
+        else if(s==="Bearish") bear++;
+      });
+    }
+
     const total=bull+bear;
-    if(total===0)return null;
+    if(total===0) return null;
     const score=Math.round((bull/total)*200-100);
     const label=score>=30?"Haussier":score<=-30?"Baissier":"Neutre";
     console.log(`[ST] ${sym}: bull=${bull} bear=${bear} score=${score}`);
@@ -2102,10 +2131,12 @@ async function scheduleStockTwits(){
 
 app.get("/api/sentiment",async(req,res)=>{
   const expired=Date.now()-_stTs>ST_TTL;
-  if(!_stCache||expired){
-    if(!_stTs) scheduleStockTwits().catch(()=>{}); // seulement si jamais chargé
+  if(!_stCache){
+    if(!_stTs) scheduleStockTwits().catch(()=>{});
     return res.json({status:"loading",compositeScore:null,compositeLabel:"Chargement...",source:"StockTwits"});
   }
+  // Retourner le cache même expiré — scheduleStockTwits mettra à jour en arrière-plan
+  if(expired) scheduleStockTwits().catch(()=>{});
   res.json(_stCache);
 });
 
