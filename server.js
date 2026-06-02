@@ -403,7 +403,10 @@ async function fetchJSON(url,opts={}){
 let _crumb=null,_cookie=null,_crumbAge=0;
 const CRUMB_TTL=6*3600*1000; // 6h
 
+let _crumbRefreshing = false;
 async function refreshCrumb(){
+  if(_crumbRefreshing) return; // éviter les appels parallèles
+  _crumbRefreshing = true;
   console.log("[CRUMB] Refreshing Yahoo crumb...");
   try{
     // Étape 1 : cookie
@@ -699,7 +702,7 @@ async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
 
   // Stooq CSV — WTI=cl.f, Brent=bz.f, NatGas=ng.f
-  const stooqSym={"CL=F":"cl.f","BZ=F":"bz.f","NG=F":"ng.f","HG=F":"hg.f"}[sym];
+  const stooqSym={"CL=F":"cl.f","BZ=F":"bz.f","NG=F":"ng.f","HG=F":"hg.f","SI=F":"si.f"}[sym];
   if(stooqSym){
     try{
       const txt=await fetch(`https://stooq.com/q/l/?s=${stooqSym}&f=sd2t2ohlcv&h&e=csv`,
@@ -731,13 +734,7 @@ async function commo(sym,fredId,lo,hi,key){
     "CL=F":"WTI","BZ=F":"BRENT","NG=F":"NATURAL_GAS","HG=F":"COPPER"
   }[sym];
 
-  // Tentative 1 : Twelve Data
-  const tv=await twelvePrice(tdSym,lo,hi);
-  if(tv!=null){
-    console.log(`[COMMO] ${sym} TwelveData: ${tv}`);
-    LAST_GOOD[key]={value:tv,src:"TwelveData"};
-    return cacheSet(key,{value:tv,src:"TwelveData"},TTL.yahoo);
-  }
+  // Twelve Data désactivé (404 sur tous symboles)
 
   // Tentative 2 : Alpha Vantage
   if(avFunc){
