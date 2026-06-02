@@ -560,7 +560,7 @@ async function goldFn(){
 
   // 1. Stooq GC=F — futures or
   try{
-    const txt=await fetch("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:AbortSignal.timeout(8000)});
+    const txt=await fetch("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),8000);return ac.signal;})()});
     const csv=await txt.text();
     const lines=csv.trim().split("\n");
     if(lines.length>=2){
@@ -637,7 +637,7 @@ async function copperFn(){
   const k="copper5";const c=cacheGet(k);if(c!==undefined)return c;
   // Stooq HG=F CSV
   try{
-    const txt=await fetch("https://stooq.com/q/l/?s=hg.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:AbortSignal.timeout(8000)});
+    const txt=await fetch("https://stooq.com/q/l/?s=hg.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),8000);return ac.signal;})()});
     const csv=await txt.text();
     const lines=csv.trim().split("\n");
     if(lines.length>=2){
@@ -705,8 +705,11 @@ async function commo(sym,fredId,lo,hi,key){
   const stooqSym={"CL=F":"cl.f","BZ=F":"bz.f","NG=F":"ng.f","HG=F":"hg.f","SI=F":"si.f"}[sym];
   if(stooqSym){
     try{
+      const ac=new AbortController();
+      const t=setTimeout(()=>ac.abort(),8000);
       const txt=await fetch(`https://stooq.com/q/l/?s=${stooqSym}&f=sd2t2ohlcv&h&e=csv`,
-        {headers:{"User-Agent":"Mozilla/5.0"},signal:AbortSignal.timeout(8000)});
+        {headers:{"User-Agent":"Mozilla/5.0"},signal:ac.signal});
+      clearTimeout(t);
       const csv=await txt.text();
       const lines=csv.trim().split("\n");
       if(lines.length>=2){
