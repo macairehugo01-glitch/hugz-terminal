@@ -698,6 +698,26 @@ const LAST_GOOD={};
 async function commo(sym,fredId,lo,hi,key){
   const c=cacheGet(key);if(c!==undefined)return c;
 
+  // Stooq CSV — WTI=cl.f, Brent=bz.f, NatGas=ng.f
+  const stooqSym={"CL=F":"cl.f","BZ=F":"bz.f","NG=F":"ng.f","HG=F":"hg.f"}[sym];
+  if(stooqSym){
+    try{
+      const txt=await fetch(`https://stooq.com/q/l/?s=${stooqSym}&f=sd2t2ohlcv&h&e=csv`,
+        {headers:{"User-Agent":"Mozilla/5.0"},signal:AbortSignal.timeout(8000)});
+      const csv=await txt.text();
+      const lines=csv.trim().split("\n");
+      if(lines.length>=2){
+        const vals=lines[1].split(",");
+        const v=parseFloat(vals[5]||vals[4]);
+        if(v>=lo&&v<=hi){
+          console.log(`[COMMO] ${sym} Stooq: ${v}`);
+          LAST_GOOD[key]={value:v,src:"Stooq"};
+          return cacheSet(key,{value:v,src:"Stooq"},TTL.yahoo);
+        }
+      }
+    }catch(e){console.warn(`[COMMO] ${sym} Stooq:`,e.message?.slice(0,30));}
+  }
+
   // Symboles Twelve Data corrects (plan gratuit)
   const tdSym={
     "CL=F":"CL1",      // WTI Crude futures
