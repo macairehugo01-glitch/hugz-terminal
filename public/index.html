@@ -471,8 +471,8 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       </div>
     </div>
 
-    <!-- Session personnalisée -->
-    <div style="background:linear-gradient(135deg,var(--ink),#1a2235);border:1px solid #252a35;border-radius:4px;padding:18px">
+    <!-- Session personnalisée — MASQUÉ V1 (retirer display:none pour réactiver) -->
+    <div style="display:none">
       <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1.5px;color:var(--gold2);text-transform:uppercase;margin-bottom:8px">Session personnalisée</div>
       <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:800;color:white;line-height:1.25;margin-bottom:8px">Tu ne sais pas par où commencer ?</div>
       <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:14px">Réserve un appel directement avec moi.</p>
@@ -1197,6 +1197,16 @@ async function loadSentiment(){
     }
   }catch(e){console.warn("[ST UI]",e.message);}
 }
+
+function closeArt(){
+  const ov=document.getElementById("overlay");
+  if(ov){ov.style.display="none";}
+  document.body.style.overflow="";
+  document.title="Hugo Macaire — Analyses Économiques";
+}
+
+// Fermer avec Escape
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeArt();});
 
 // DARK MODE
 function toggleDark(){
