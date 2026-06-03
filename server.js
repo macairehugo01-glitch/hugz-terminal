@@ -112,10 +112,24 @@ async function bgRefresh(){
 
     // BTC/ETH — Binance (primary, 1200 req/min, pas de clé) + CoinGecko fallback
     if(!cacheGet("btc5")||!cacheGet("eth5")) await safe(async()=>{
-      // CoinGecko (Binance bloqué depuis Railway - HTTP 451)
-      const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",{timeout:10000});
-      if(d?.bitcoin?.usd){cacheSet("btc5",{value:d.bitcoin.usd,ts:new Date().toISOString()},TTL.crypto);console.log(`[CG] BTC: $${d.bitcoin.usd}`);}
-      if(d?.ethereum?.usd){cacheSet("eth5",d.ethereum.usd,TTL.crypto);console.log(`[CG] ETH: $${d.ethereum.usd}`);}
+      // Kraken API — gratuit, sans clé, sans limite
+      try{
+        const [bR,eR]=await Promise.all([
+          fetchJSON("https://api.kraken.com/0/public/Ticker?pair=XBTUSD",{timeout:6000}),
+          fetchJSON("https://api.kraken.com/0/public/Ticker?pair=ETHUSD",{timeout:6000})
+        ]);
+        const btc=parseFloat(bR?.result?.XXBTZUSD?.c?.[0]);
+        const eth=parseFloat(eR?.result?.XETHZUSD?.c?.[0]);
+        if(btc>0){cacheSet("btc5",{value:btc,ts:new Date().toISOString()},TTL.crypto);console.log(`[KRAKEN] BTC: $${btc}`);}
+        if(eth>0){cacheSet("eth5",eth,TTL.crypto);console.log(`[KRAKEN] ETH: $${eth}`);}
+        return;
+      }catch(e){console.warn("[KRAKEN]",e.message?.slice(0,40));}
+      // CoinGecko fallback
+      try{
+        const d=await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",{timeout:10000});
+        if(d?.bitcoin?.usd){cacheSet("btc5",{value:d.bitcoin.usd,ts:new Date().toISOString()},TTL.crypto);console.log(`[CG] BTC: $${d.bitcoin.usd}`);}
+        if(d?.ethereum?.usd){cacheSet("eth5",d.ethereum.usd,TTL.crypto);console.log(`[CG] ETH: $${d.ethereum.usd}`);}
+      }catch(e){console.warn("[CG]",e.message?.slice(0,40));}
     });
 
     await Promise.allSettled([
