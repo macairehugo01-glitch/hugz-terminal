@@ -271,17 +271,33 @@ async function treasuryRates(){
 // CBOE VIX — données publiques sans clé
 async function vixFromCBOE(){
   const k="f5_VIXCLS"; if(cacheGet(k)) return cacheGetStale(k);
+  // Stooq ^VIX
   try{
-    const url="https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/_SPX.json";
-    // Alternative: utiliser Yahoo pour VIX
-    const u="https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=1d";
+    const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
+    const txt=await fetch("https://stooq.com/q/l/?s=%5Evix&f=sd2t2ohlcv&h&e=csv",
+      {headers:{"User-Agent":"Mozilla/5.0"},signal:ac.signal});
+    clearTimeout(t);
+    const csv=await txt.text();
+    const lines=csv.trim().split("\n");
+    if(lines.length>=2){
+      const vals=lines[1].split(",");
+      const v=parseFloat(vals[5]||vals[4]);
+      if(v>5&&v<90){
+        console.log(`[VIX] Stooq: ${v}`);
+        return cacheSet(k,{v,d:new Date().toISOString().slice(0,10)},TTL.fred_d);
+      }
+    }
+  }catch(e){console.warn("[VIX] Stooq:",e.message?.slice(0,40));}
+  // Yahoo fallback
+  try{
+    const u="https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=1d";
     const d=await fetchJSON(u,{timeout:8000});
     const v=d?.chart?.result?.[0]?.meta?.regularMarketPrice;
     if(v&&v>0&&v<100){
       console.log(`[VIX] Yahoo: ${v}`);
       return cacheSet(k,{v,d:new Date().toISOString().slice(0,10)},TTL.fred_d);
     }
-  }catch(e){ console.warn("[VIX]",e.message?.slice(0,40)); }
+  }catch(e){console.warn("[VIX] Yahoo:",e.message?.slice(0,40));}
   return null;
 }
 
@@ -299,10 +315,17 @@ function fredBreakerCheck(){
 
 function fredBreakerFail(){
   _fredBreaker.failures++;
-  if(_fredBreaker.failures >= 1){ // ouvrir dès le premier 429
+  if(!_fredBreaker.open){
     _fredBreaker.open = true;
-    _fredBreaker.openUntil = Date.now() + 60*60*1000; // 1h de pause
+    _fredBreaker.openUntil = Date.now() + 60*60*1000;
     console.warn(`[FRED] ⛔ Circuit breaker OUVERT — pause 1h (quota épuisé)`);
+    // Vider la queue pour stopper tous les appels en attente
+    if(Array.isArray(FRED_QUEUE)){
+      while(FRED_QUEUE.length > 0){
+        const item = FRED_QUEUE.shift();
+        if(item?.resolve) item.resolve(null);
+      }
+    }
   }
 }
 
@@ -752,7 +775,23 @@ async function commo(sym,fredId,lo,hi,key){
 
   // Twelve Data désactivé (404 sur tous symboles)
 
-  // Tentative 2 : Alpha Vantage
+  // EIA.gov — Brent et WTI (gratuit, officiel US Energy)
+  // Yahoo query2 direct (sans crumb) pour Brent
+  if(sym==="BZ=F"){
+    try{
+      const u="https://query2.finance.yahoo.com/v8/finance/chart/BZ%3DF?range=1d&interval=1d";
+      const d=await fetchJSON(u,{timeout:8000});
+      const v=d?.chart?.result?.[0]?.meta?.regularMarketPrice||
+               d?.chart?.result?.[0]?.meta?.chartPreviousClose;
+      if(v&&v>=lo&&v<=hi){
+        console.log(`[COMMO] BZ=F Yahoo2: ${v}`);
+        LAST_GOOD[key]={value:v,src:"Yahoo"};
+        return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
+      }
+    }catch(e){console.warn("[COMMO] BZ=F Yahoo2:",e.message?.slice(0,30));}
+  }
+
+  // Alpha Vantage
   if(avFunc){
     const av=await avCommo(avFunc,lo,hi);
     if(av!=null){
