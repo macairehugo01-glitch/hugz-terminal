@@ -364,10 +364,19 @@ async function fredRunQueue(){
   if(FRED_RUNNING || FRED_QUEUE.length === 0) return;
   FRED_RUNNING = true;
   while(FRED_QUEUE.length > 0){
+    // Vérifier le breaker avant chaque appel
+    if(!fredBreakerCheck()){
+      // Vider le reste de la queue
+      while(FRED_QUEUE.length > 0){
+        const item = FRED_QUEUE.shift();
+        if(item?.resolve) item.resolve(null);
+      }
+      break;
+    }
     const {fn, resolve, reject} = FRED_QUEUE.shift();
     try{ resolve(await fn()); }
     catch(e){ reject(e); }
-    await sleep(1200); // 1.2s entre chaque = 50 req/min max (limite FRED 120/min)
+    await sleep(1200);
   }
   FRED_RUNNING = false;
 }
@@ -942,7 +951,30 @@ async function btcDomFn(){
 ═══════════════════════════════════════════ */
 async function equitiesFn(){
   const k="eq5";const c=cacheGet(k);if(c!==undefined)return c;
-  // Stooq.com — SPX et DJI OK, NDX via QQQ×41.3 (ratio stable)
+
+  // 1. Yahoo via proxy Cloudflare — prix live pendant les heures de marché
+  try{
+    const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+    const [spR,qqqR,djR]=await Promise.all([
+      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d")}`,{timeout:8000}),
+      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/QQQ?range=1d&interval=1d")}`,{timeout:8000}),
+      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EDJI?range=1d&interval=1d")}`,{timeout:8000}),
+    ]);
+    const spx=spR?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const qqq=qqqR?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const dji=djR?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const ndx=qqq>0?Math.round(qqq*41.3):null;
+    if(spx>0&&qqq>0){
+      console.log(`[YH/proxy] SPX:${spx} NDX:${ndx} DJI:${dji}`);
+      return cacheSet(k,{
+        spx:{price:spx,chgPct:null},
+        ndx:{price:ndx,chgPct:null},
+        dji:{price:dji,chgPct:null}
+      },TTL.equity);
+    }
+  }catch(e){console.warn("[EQ] Yahoo proxy:",e.message?.slice(0,40));}
+
+  // 2. Stooq.com — fallback (données parfois décalées hors marché)
   try{
     const [spR,qqqR,djR]=await Promise.all([
       fetchJSON("https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
@@ -955,7 +987,6 @@ async function equitiesFn(){
     const ndx=qqq>0?Math.round(qqq*41.3):null;
     if(spx>0&&qqq>0){
       console.log(`[STOOQ] SPX:${spx} NDX:${ndx} DJI:${dji} (QQQ:${qqq})`);
-      // Stocker directement au format attendu par le dashboard
       return cacheSet(k,{
         spx:{price:spx,chgPct:null},
         ndx:{price:ndx,chgPct:null},
