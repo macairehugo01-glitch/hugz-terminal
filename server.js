@@ -952,48 +952,34 @@ async function btcDomFn(){
 async function equitiesFn(){
   const k="eq5";const c=cacheGet(k);if(c!==undefined)return c;
 
-  // 1. Yahoo via proxy Cloudflare — prix live pendant les heures de marché
+  // CME Futures via Stooq CSV — ES=F (SPX), NQ=F (NDX), YM=F (DJI)
+  // Prix quasi identiques au spot pendant les heures de marché
   try{
-    const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
-    const [spR,qqqR,djR]=await Promise.all([
-      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d")}`,{timeout:8000}),
-      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/QQQ?range=1d&interval=1d")}`,{timeout:8000}),
-      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EDJI?range=1d&interval=1d")}`,{timeout:8000}),
+    const getStooq=async(sym)=>{
+      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
+      const r=await fetch(`https://stooq.com/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`,
+        {headers:{"User-Agent":"Mozilla/5.0"},signal:ac.signal});
+      clearTimeout(t);
+      const csv=await r.text();
+      const lines=csv.trim().split("\n");
+      if(lines.length<2) return null;
+      const vals=lines[1].split(",");
+      return parseFloat(vals[5]||vals[4]); // close ou open
+    };
+    const [esf,nqf,ymf]=await Promise.all([
+      getStooq("es.f"),
+      getStooq("nq.f"),
+      getStooq("ym.f"),
     ]);
-    const spx=spR?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    const qqq=qqqR?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    const dji=djR?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    const ndx=qqq>0?Math.round(qqq*41.3):null;
-    if(spx>0&&qqq>0){
-      console.log(`[YH/proxy] SPX:${spx} NDX:${ndx} DJI:${dji}`);
+    if(esf>4000&&nqf>15000){
+      console.log(`[FUTURES] ES:${esf} NQ:${nqf} YM:${ymf}`);
       return cacheSet(k,{
-        spx:{price:spx,chgPct:null},
-        ndx:{price:ndx,chgPct:null},
-        dji:{price:dji,chgPct:null}
+        spx:{price:esf,chgPct:null},
+        ndx:{price:nqf,chgPct:null},
+        dji:{price:ymf,chgPct:null}
       },TTL.equity);
     }
-  }catch(e){console.warn("[EQ] Yahoo proxy:",e.message?.slice(0,40));}
-
-  // 2. Stooq.com — fallback (données parfois décalées hors marché)
-  try{
-    const [spR,qqqR,djR]=await Promise.all([
-      fetchJSON("https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
-      fetchJSON("https://stooq.com/q/l/?s=qqq.us&f=sd2t2ohlcv&h&e=json",{timeout:8000}),
-      fetchJSON("https://stooq.com/q/l/?s=%5edji&f=sd2t2ohlcv&h&e=json",{timeout:8000})
-    ]);
-    const spx=parseFloat(spR?.symbols?.[0]?.close||spR?.symbols?.[0]?.open);
-    const qqq=parseFloat(qqqR?.symbols?.[0]?.close||qqqR?.symbols?.[0]?.open);
-    const dji=parseFloat(djR?.symbols?.[0]?.close||djR?.symbols?.[0]?.open);
-    const ndx=qqq>0?Math.round(qqq*41.3):null;
-    if(spx>0&&qqq>0){
-      console.log(`[STOOQ] SPX:${spx} NDX:${ndx} DJI:${dji} (QQQ:${qqq})`);
-      return cacheSet(k,{
-        spx:{price:spx,chgPct:null},
-        ndx:{price:ndx,chgPct:null},
-        dji:{price:dji,chgPct:null}
-      },TTL.equity);
-    }
-  }catch(e){console.warn("[STOOQ]",e.message?.slice(0,40));}
+  }catch(e){console.warn("[FUTURES]",e.message?.slice(0,40));}
   async function idx(sym){
     const closes=await safe(()=>yahooChart(sym,"5d","1d",20000));
     if(!closes||closes.length<2)return null;
@@ -1026,16 +1012,18 @@ const UTC={
 async function sectorPerf(sym,ut){
   const cfg=UTC[ut]||UTC["1M"];
   const k=`s5_${sym}_${ut}`;const c=cacheGet(k);if(c!==undefined)return c;
+
+  // Yahoo direct
   const closes=await safe(()=>yahooChart(sym,cfg.r,cfg.i,22000));
   if(!closes||closes.length<2){
-    // Fallback Stooq via proxy Cloudflare
+    // Stooq CSV direct fallback
     try{
-      const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
       const stooqSym=sym.toLowerCase()+".us";
-      const target=encodeURIComponent(`https://stooq.com/q/d/l/?s=${stooqSym}&i=d`);
       const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
-      const txt=await fetch(`${proxy}?url=${target}`,{signal:ac.signal});clearTimeout(t);
-      const csv=await txt.text();
+      const r=await fetch(`https://stooq.com/q/d/l/?s=${stooqSym}&i=d`,
+        {headers:{"User-Agent":"Mozilla/5.0"},signal:ac.signal});
+      clearTimeout(t);
+      const csv=await r.text();
       const lines=csv.trim().split("\n").filter(l=>l&&!l.startsWith("Date"));
       if(lines.length>=22){
         const vLast=parseFloat(lines[lines.length-1].split(",")[4]);
