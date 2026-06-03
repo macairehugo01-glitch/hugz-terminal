@@ -1,7 +1,7 @@
 ---
 title: "Canton Coin ($CC) : Le réseau blockchain secret à 6 milliards de dollars qui va avaler Wall Street ?"
 date: 2026-06-02
-category: Debrief
+category: Actif
 tags: [CantonNetwork, CantonCoin, CC, RWA, Institutionnel, Finance, Crypto]
 cover: /articles/images/canton-coin.jpg
 excerpt: Avec 1 500 milliards de dollars de transactions mensuelles et une explosion de 190 000 adresses actives, Canton Coin bouscule les codes. Analyse d'un géant de l'ombre.
