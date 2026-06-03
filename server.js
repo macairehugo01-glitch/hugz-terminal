@@ -398,24 +398,21 @@ async function fredRunQueue(){
 async function fredFetch(url){
   if(!fredBreakerCheck()) return null;
   return fredEnqueue(async () => {
-    for(let attempt=0; attempt<2; attempt++){
-      try{
-        const d = await fetchJSON(url, {timeout:15000});
-        fredBreakerSuccess();
-        if(d?.observations) setTimeout(fredCacheSave, 500);
-        return d;
-      }catch(e){
-        if(e.status===429){
-          fredBreakerFail();
-          console.warn(`[FRED] 429 détecté — circuit breaker: ${_fredBreaker.failures}/3`);
-          if(!_fredBreaker.open) await sleep(2000);
-          continue;
-        }
-        if(attempt<1){ await sleep(1000); continue; }
-        throw e;
+    // Re-vérifier le breaker au moment de l'exécution (peut avoir changé)
+    if(!fredBreakerCheck()) return null;
+    try{
+      const d = await fetchJSON(url, {timeout:15000});
+      fredBreakerSuccess();
+      if(d?.observations) setTimeout(fredCacheSave, 500);
+      return d;
+    }catch(e){
+      if(e.status===429){
+        fredBreakerFail();
+        console.warn(`[FRED] 429 — circuit breaker ouvert`);
+        return null;
       }
+      throw e;
     }
-    return null;
   });
 }
 
@@ -815,36 +812,21 @@ async function commo(sym,fredId,lo,hi,key){
   // Twelve Data désactivé (404 sur tous symboles)
 
   // EIA.gov — Brent et WTI (gratuit, officiel US Energy)
-  // Brent via Stooq JSON direct (parfois accessible)
+  // Brent — Kraken XBT pas dispo, utiliser Yahoo query2 direct
   if(sym==="BZ=F"){
-    try{
-      const u="https://stooq.com/q/l/?s=brent&f=sd2t2ohlcv&h&e=json";
-      const d=await fetchJSON(u,{timeout:6000});
-      const v=parseFloat(d?.symbols?.[0]?.close||d?.symbols?.[0]?.open);
-      if(v&&v>=lo&&v<=hi){
-        console.log(`[COMMO] BZ=F Stooq brent: ${v}`);
-        LAST_GOOD[key]={value:v,src:"Stooq"};
-        return cacheSet(key,{value:v,src:"Stooq"},TTL.yahoo);
-      }
-    }catch(e){}
-    // macrotrends CSV via proxy
-    try{
-      const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
-      const target=encodeURIComponent("https://stooq.com/q/l/?s=bz.f&f=sd2t2ohlcv&h&e=csv");
-      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
-      const txt=await fetch(`${proxy}?url=${target}`,{signal:ac.signal});clearTimeout(t);
-      const csv=await txt.text();
-      const lines=csv.trim().split("\n");
-      if(lines.length>=2){
-        const vals=lines[1].split(",");
-        const v=parseFloat(vals[5]||vals[4]);
+    for(const host of ["query2","query1"]){
+      try{
+        const u=`https://${host}.finance.yahoo.com/v8/finance/chart/BZ%3DF?range=1d&interval=1d`;
+        const d=await fetchJSON(u,{timeout:6000});
+        const v=d?.chart?.result?.[0]?.meta?.regularMarketPrice||
+                 d?.chart?.result?.[0]?.meta?.chartPreviousClose;
         if(v&&v>=lo&&v<=hi){
-          console.log(`[COMMO] BZ=F proxy: ${v}`);
-          LAST_GOOD[key]={value:v,src:"Stooq"};
-          return cacheSet(key,{value:v,src:"Stooq"},TTL.yahoo);
+          console.log(`[COMMO] BZ=F Yahoo/${host}: ${v}`);
+          LAST_GOOD[key]={value:v,src:"Yahoo"};
+          return cacheSet(key,{value:v,src:"Yahoo"},TTL.yahoo);
         }
-      }
-    }catch(e){console.warn("[COMMO] BZ=F proxy:",e.message?.slice(0,30));}
+      }catch(e){}
+    }
   }
 
   // Alpha Vantage
