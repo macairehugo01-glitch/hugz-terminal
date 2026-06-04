@@ -191,8 +191,8 @@ async function bgRefresh(){
       for(const [id,ttl] of fredCalls){
         if(!fredBreakerCheck()){ console.log("[BG] FRED breaker ouvert — arrêt boucle"); break; }
         if(!cacheGet(`f5_${id}`)){
-          const r=await safe(()=>fredObs(id,5,ttl));
-          if(r!==null) fredCalled++;
+          await safe(()=>fredObs(id,5,ttl));
+          fredCalled++;
           if(!fredBreakerCheck()) break;
         }
       }
@@ -204,7 +204,10 @@ async function bgRefresh(){
         if(!cacheGet("delin5")){ await safe(()=>delinFn()); fredCalled++; }
         if(!cacheGet("res5")){ await safe(()=>researchFn()); fredCalled++; }
       }
-      if(fredCalled>0){ console.log(`[BG] FRED: ${fredCalled} séries rafraîchies`); fredCacheSave(); }
+      if(fredCalled>0 && fredBreakerCheck()){
+        console.log(`[BG] FRED: ${fredCalled} séries rafraîchies`);
+        fredCacheSave();
+      }
     }
 
     _lastBgRefresh = Date.now();
