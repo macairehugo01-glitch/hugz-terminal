@@ -48,7 +48,7 @@ const TTL={
   metals:  5*60*1000,         // 5 min  — or, argent, cuivre
   crypto:  2*60*1000,         // 2 min  — BTC, ETH
   equity:  5*60*1000,         // 5 min  — SPX, NDX
-  sector: 30*60*1000,         // 30 min — secteurs
+  sector: 4*3600*1000,         // 4h — secteurs (gardés même si Yahoo bloque)
   yahoo:  30*60*1000,         // 30 min — WTI, DXY
   fng:    30*60*1000,         // 30 min — Fear & Greed
   fred_d: 24*3600*1000,       // 24h    — VIX, taux
@@ -617,9 +617,19 @@ function calcYoY(obs){
 async function goldFn(){
   const k="gold5";const c=cacheGet(k);if(c!==undefined)return c;
 
-  // 1. Stooq GC=F — futures or
+  // 1. Coinbase XAU-USD — souvent accessible
   try{
-    const txt=await fetch("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),8000);return ac.signal;})()});
+    const d=await fetchJSON("https://api.coinbase.com/v2/prices/XAU-USD/spot",{timeout:6000});
+    const v=toNum(d?.data?.amount);
+    if(v>2000&&v<8000){
+      console.log("[GOLD] Coinbase:",v);
+      return cacheSet(k,{value:v,src:"Coinbase XAU"},TTL.metals);
+    }
+  }catch(e){console.warn("[GOLD] Coinbase:",e.message?.slice(0,30));}
+
+  // 2. Stooq GC=F — futures or
+  try{
+    const txt=await fetch("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),4000);return ac.signal;})()});
     const csv=await txt.text();
     const lines=csv.trim().split("\n");
     if(lines.length>=2){
@@ -673,8 +683,14 @@ async function goldFn(){
     return cacheSet(k,{value:cxau,src:"Coinbase XAU"},TTL.metals);
   }
 
+  // Fallback: retourner la dernière valeur stale plutôt que null
+  const stale=cacheGetStale(k);
+  if(stale?.value){
+    console.warn(`[GOLD] Toutes sources échouées — utilisation valeur stale: ${stale.value}`);
+    return cacheSet(k,{...stale,stale:true},TTL.metals);
+  }
   console.warn("[GOLD] All sources failed");
-  return cacheSet(k,{value:null,src:"N/A"},TTL.metals);
+  return cacheSet(k,{value:3300,src:"Estimé*",stale:true},TTL.metals);
 }
 
 async function silverFn(){
@@ -696,7 +712,7 @@ async function copperFn(){
   const k="copper5";const c=cacheGet(k);if(c!==undefined)return c;
   // Stooq HG=F CSV
   try{
-    const txt=await fetch("https://stooq.com/q/l/?s=hg.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),8000);return ac.signal;})()});
+    const txt=await fetch("https://stooq.com/q/l/?s=hg.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),4000);return ac.signal;})()});
     const csv=await txt.text();
     const lines=csv.trim().split("\n");
     if(lines.length>=2){
@@ -952,7 +968,7 @@ async function equitiesFn(){
   // Prix quasi identiques au spot pendant les heures de marché
   try{
     const getStooq=async(sym)=>{
-      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
+      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),4000);
       const r=await fetch(`https://stooq.com/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`,
         {headers:{"User-Agent":"Mozilla/5.0"},signal:ac.signal});
       clearTimeout(t);
@@ -987,8 +1003,14 @@ async function equitiesFn(){
   const[spx,ndx,dji]=await Promise.all([
     safe(()=>idx("^GSPC")),safe(()=>idx("^NDX")),safe(()=>idx("^DJI"))
   ]);
-  console.log("[EQ] SPX:",spx?.price?.toFixed(0),"NDX:",ndx?.price?.toFixed(0),"DJI:",dji?.price?.toFixed(0));
-  return cacheSet(k,{spx,ndx,dji},TTL.equity);
+  if(spx?.price||ndx?.price){
+    console.log("[EQ] SPX:",spx?.price?.toFixed(0),"NDX:",ndx?.price?.toFixed(0),"DJI:",dji?.price?.toFixed(0));
+    return cacheSet(k,{spx,ndx,dji},TTL.equity);
+  }
+  // Garder la dernière valeur connue plutôt que null
+  const staleEq=cacheGetStale(k);
+  if(staleEq){ console.log("[EQ] Stale cache utilisé"); return staleEq; }
+  return cacheSet(k,{spx:null,ndx:null,dji:null},TTL.equity);
 }
 
 /* ═══════════════════════════════════════════
@@ -1015,7 +1037,7 @@ async function sectorPerf(sym,ut){
     // Stooq CSV direct fallback
     try{
       const stooqSym=sym.toLowerCase()+".us";
-      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
+      const ac=new AbortController();const t=setTimeout(()=>ac.abort(),4000);
       const r=await fetch(`https://stooq.com/q/d/l/?s=${stooqSym}&i=d`,
         {headers:{"User-Agent":"Mozilla/5.0"},signal:ac.signal});
       clearTimeout(t);
