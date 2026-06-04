@@ -406,7 +406,7 @@ async function fredFetch(url){
       if(d?.observations) setTimeout(fredCacheSave, 500);
       return d;
     }catch(e){
-      if(e.status===429){
+      if(e.status===429||e.status===400){
         fredBreakerFail();
         console.warn(`[FRED] 429 — circuit breaker ouvert`);
         return null;
@@ -444,9 +444,9 @@ async function fetchJSON(url,opts={}){
       }
     });
     clearTimeout(timer);
-    if(res.status===429){
-      const err=new Error(`HTTP 429 — ${url.slice(0,60)}`);
-      err.status=429;
+    if(res.status===429||res.status===400){
+      const err=new Error(`HTTP ${res.status} — ${url.slice(0,60)}`);
+      err.status=res.status;
       throw err;
     }
     if(!res.ok)throw new Error(`HTTP ${res.status} — ${url.slice(0,60)}`);
