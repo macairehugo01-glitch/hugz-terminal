@@ -189,10 +189,11 @@ async function bgRefresh(){
       ];
       let fredCalled=0;
       for(const [id,ttl] of fredCalls){
-        if(!fredBreakerCheck()) break; // arrêter si breaker s'ouvre en cours de boucle
+        if(!fredBreakerCheck()){ console.log("[BG] FRED breaker ouvert — arrêt boucle"); break; }
         if(!cacheGet(`f5_${id}`)){
-          await safe(()=>fredObs(id,5,ttl));
-          fredCalled++;
+          const r=await safe(()=>fredObs(id,5,ttl));
+          if(r!==null) fredCalled++;
+          if(!fredBreakerCheck()) break;
         }
       }
       if(fredBreakerCheck()){
