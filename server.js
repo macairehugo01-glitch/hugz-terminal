@@ -306,16 +306,19 @@ async function vixFromCBOE(){
       }
     }
   }catch(e){console.warn("[VIX] Stooq:",e.message?.slice(0,40));}
-  // Yahoo fallback
+  // Yahoo query1 fallback
   try{
-    const u="https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=1d";
+    const u="https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=1d";
     const d=await fetchJSON(u,{timeout:8000});
-    const v=d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const v=d?.chart?.result?.[0]?.meta?.regularMarketPrice??d?.chart?.result?.[0]?.meta?.chartPreviousClose;
     if(v&&v>0&&v<100){
       console.log(`[VIX] Yahoo: ${v}`);
       return cacheSet(k,{v,d:new Date().toISOString().slice(0,10)},TTL.fred_d);
     }
   }catch(e){console.warn("[VIX] Yahoo:",e.message?.slice(0,40));}
+  // Fallback stale
+  const staleVix=cacheGetStale(k);
+  if(staleVix) return staleVix;
   return null;
 }
 
@@ -968,8 +971,27 @@ async function btcDomFn(){
 async function equitiesFn(){
   const k="eq5";const c=cacheGet(k);if(c!==undefined)return c;
 
-  // CME Futures via Stooq CSV — ES=F (SPX), NQ=F (NDX), YM=F (DJI)
-  // Prix quasi identiques au spot pendant les heures de marché
+  // 1. Yahoo direct — prix live SPX/NDX/DJI
+  try{
+    const [spR,ndR,djR]=await Promise.all([
+      fetchJSON("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d",{timeout:6000}),
+      fetchJSON("https://query1.finance.yahoo.com/v8/finance/chart/%5ENDX?range=1d&interval=1d",{timeout:6000}),
+      fetchJSON("https://query1.finance.yahoo.com/v8/finance/chart/%5EDJI?range=1d&interval=1d",{timeout:6000}),
+    ]);
+    const spx=spR?.chart?.result?.[0]?.meta?.regularMarketPrice??spR?.chart?.result?.[0]?.meta?.chartPreviousClose;
+    const ndx=ndR?.chart?.result?.[0]?.meta?.regularMarketPrice??ndR?.chart?.result?.[0]?.meta?.chartPreviousClose;
+    const dji=djR?.chart?.result?.[0]?.meta?.regularMarketPrice??djR?.chart?.result?.[0]?.meta?.chartPreviousClose;
+    if(spx>0&&ndx>0){
+      console.log(`[EQ] Yahoo SPX:${Math.round(spx)} NDX:${Math.round(ndx)} DJI:${Math.round(dji)}`);
+      return cacheSet(k,{
+        spx:{price:Math.round(spx),chgPct:null},
+        ndx:{price:Math.round(ndx),chgPct:null},
+        dji:{price:Math.round(dji),chgPct:null}
+      },TTL.equity);
+    }
+  }catch(e){console.warn("[EQ] Yahoo:",e.message?.slice(0,40));}
+
+  // 2. CME Futures via Stooq CSV — ES=F (SPX), NQ=F (NDX), YM=F (DJI)
   try{
     const getStooq=async(sym)=>{
       const ac=new AbortController();const t=setTimeout(()=>ac.abort(),4000);
@@ -980,7 +1002,7 @@ async function equitiesFn(){
       const lines=csv.trim().split("\n");
       if(lines.length<2) return null;
       const vals=lines[1].split(",");
-      return parseFloat(vals[5]||vals[4]); // close ou open
+      return parseFloat(vals[5]||vals[4]);
     };
     const [esf,nqf,ymf]=await Promise.all([
       getStooq("es.f"),
