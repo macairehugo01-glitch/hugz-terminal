@@ -119,10 +119,14 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .sec-cnt{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto}
 
 /* TABS */
-.tabs{display:flex;gap:0;margin-bottom:26px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;gap:0;margin-bottom:26px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;width:100%}
 .tabs::-webkit-scrollbar{display:none}
-.tab{background:none;border:none;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;padding:9px 16px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;white-space:nowrap}
+.tab{background:none;border:none;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;padding:9px 16px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;white-space:nowrap;flex:1;text-align:center}
 .tab:hover{color:var(--ink)}.tab.on{color:var(--ink);border-bottom-color:var(--gold);font-weight:600}
+.tab-actif:hover{color:#ef4444}
+.tab-actif.on{color:#ef4444;border-bottom-color:#ef4444;font-weight:600}
+body.dark .tab-actif:hover{color:#f87171}
+body.dark .tab-actif.on{color:#f87171;border-bottom-color:#f87171}
 
 /* HERO */
 .hero{display:grid;grid-template-columns:1fr 1fr;margin-bottom:30px;background:var(--ink);border-radius:4px;overflow:hidden;box-shadow:0 8px 40px rgba(10,12,16,.15);cursor:pointer;transition:transform .3s}
@@ -527,7 +531,7 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;f
       <button class="tab" onclick="filterCat(this,'debrief')">📅 Débrief</button>
       <button class="tab" onclick="filterCat(this,'macro')">🌐 Macro</button>
       <button class="tab" onclick="filterCat(this,'crypto')">₿ Crypto</button>
-      <button class="tab" onclick="filterCat(this,'actif')">🔍 Actif</button>
+      <button class="tab tab-actif" onclick="filterCat(this,'actif')">🔍 Analyse Actif</button>
     </div>
 
     <div class="grid" id="art-grid"></div>
