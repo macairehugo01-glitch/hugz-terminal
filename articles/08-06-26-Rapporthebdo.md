@@ -1,7 +1,7 @@
 ---
 title: "Analyse COT — Or, Indices & Crypto : Les shorts s'accumulent sur les actions, l'or résiste par capitulation"
 date: 2026-06-05
-category: Debrief Hebdomadaire
+category: Debrief 
 tags: [COT, CFTC, S&P500, Nasdaq, Or, Bitcoin, Ether, Institutionnels]
 cover: /articles/images/macro-mai-2026.jpg
 excerpt: Le rapport COT du 2 juin 2026 révèle une méfiance historique sur les indices US (S&P et Nasdaq), un rachat technique de shorts sur l'or et un attentisme plat sur les cryptomonnaies du CME.
