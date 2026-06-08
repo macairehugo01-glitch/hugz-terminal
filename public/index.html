@@ -934,6 +934,11 @@ function buildDynamicTags(){
 // ARTICLES
 async function loadArticles(){
   try{const r=await fetch("/api/articles");const data=await r.json();articles=data.articles||[];}catch{articles=[];}
+  // Trier par date décroissante — plus récent en premier
+  articles.sort((a,b)=>{
+    const da=new Date(a.date||0), db=new Date(b.date||0);
+    return db-da;
+  });
   buildDynamicTags();
   renderArticles();
 }
