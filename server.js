@@ -17,6 +17,7 @@
 const express=require("express"),path=require("path");
 const app=express(),PORT=process.env.PORT||3000;
 const FRED_KEY=process.env.FRED_API_KEY||"2945c843ac2ef54c3d1272b9f9cc2747";
+const POLYGON_KEY=process.env.POLYGON_KEY||"";
 const CLAUDE_KEY=process.env.ANTHROPIC_KEY||"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";
 app.use(express.json({limit:"2mb"}));
 app.use(express.urlencoded({extended:true}));
@@ -289,7 +290,34 @@ async function treasuryRates(){
 // CBOE VIX — données publiques sans clé
 async function vixFromCBOE(){
   const k="f5_VIXCLS"; if(cacheGet(k)) return cacheGetStale(k);
-  // Stooq ^VIX
+
+  // 1. Polygon.io I:VIX — fiable, jamais bloqué
+  if(POLYGON_KEY){
+    try{
+      const url=`https://api.polygon.io/v3/snapshot?ticker.any_of=I:VIX&apiKey=${POLYGON_KEY}`;
+      const d=await fetchJSON(url,{timeout:8000});
+      const v=parseFloat(d?.results?.[0]?.session?.close||d?.results?.[0]?.value);
+      if(v>5&&v<90){
+        console.log(`[VIX] Polygon: ${v}`);
+        return cacheSet(k,{v,d:new Date().toISOString().slice(0,10)},TTL.fred_d);
+      }
+    }catch(e){console.warn("[VIX] Polygon:",e.message?.slice(0,40));}
+  }
+  // Polygon.io — I:VIX index
+  if(POLYGON_KEY){
+    try{
+      const wait=Math.max(0, _polyLastCall+15000-Date.now());
+      if(wait>0) await sleep(wait);
+      _polyLastCall=Date.now();
+      const url=`https://api.polygon.io/v2/aggs/ticker/I%3AVIX/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+      const d=await fetchJSON(url,{timeout:8000});
+      const v=d?.results?.[0]?.c;
+      if(v&&v>5&&v<90){
+        console.log(`[VIX] Polygon: ${v}`);
+        return cacheSet(k,{v,d:new Date().toISOString().slice(0,10)},TTL.fred_d);
+      }
+    }catch(e){console.warn("[VIX] Polygon:",e.message?.slice(0,40));}
+  }
   try{
     const ac=new AbortController();const t=setTimeout(()=>ac.abort(),8000);
     const txt=await fetch("https://stooq.com/q/l/?s=%5Evix&f=sd2t2ohlcv&h&e=csv",
@@ -746,6 +774,108 @@ async function copperFn(){
      TWELVE_DATA_KEY   → clé gratuite sur twelvedata.com
 ═══════════════════════════════════════════ */
 const AV_KEY  = process.env.ALPHA_VANTAGE_KEY||"";
+
+// ── Polygon.io — gratuit 5 req/min, jamais bloqué depuis Railway ──
+// Supporte indices, ETFs, VIX, forex
+async function polygonPrev(ticker){
+  if(!POLYGON_KEY) return null;
+  try{
+    const url=`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+    const d=await fetchJSON(url,{timeout:8000});
+    if(d?.resultsCount>0) return d.results[0];
+    return null;
+  }catch(e){
+    console.warn(`[POLY] ${ticker}:`,e.message?.slice(0,40));
+    return null;
+  }
+}
+
+// Prix snapshot live Polygon (pendant les heures de marché)
+async function polygonSnap(ticker){
+  if(!POLYGON_KEY) return null;
+  try{
+    const url=`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(ticker)}?apiKey=${POLYGON_KEY}`;
+    const d=await fetchJSON(url,{timeout:8000});
+    const snap=d?.ticker;
+    if(snap) return {
+      price: snap.day?.c || snap.prevDay?.c,
+      chgPct: snap.todaysChangePerc
+    };
+    return null;
+  }catch(e){
+    console.warn(`[POLY] snap ${ticker}:`,e.message?.slice(0,40));
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   POLYGON.IO — indices, secteurs, VIX
+   Gratuit: 5 req/min, pas de blocage Railway
+   Variable Railway: POLYGON_KEY
+═══════════════════════════════════════════════════════ */
+// Cache anti-spam Polygon (max 4 req/min pour rester dans la limite)
+let _polyLastCall=0;
+async function polyFetch(ticker){
+  if(!POLYGON_KEY) return null;
+  // Rate limit: 1 appel toutes les 15s max
+  const wait=Math.max(0, _polyLastCall+15000-Date.now());
+  if(wait>0) await sleep(wait);
+  _polyLastCall=Date.now();
+  try{
+    const url=`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+    const d=await fetchJSON(url,{timeout:8000});
+    if(d?.resultsCount>0&&d?.results?.[0]?.c){
+      return d.results[0].c; // close price
+    }
+    // Snapshot pour prix live
+    const url2=`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(ticker)}?apiKey=${POLYGON_KEY}`;
+    const d2=await fetchJSON(url2,{timeout:8000});
+    return d2?.ticker?.day?.c||d2?.ticker?.prevDay?.c||null;
+  }catch(e){
+    console.warn(`[POLY] ${ticker}:`,e.message?.slice(0,40));
+    return null;
+  }
+}
+
+// Indices via Polygon (tickers indices)
+async function polyIndex(ticker){
+  if(!POLYGON_KEY) return null;
+  try{
+    // Polygon indices: I:SPX, I:NDX, I:DJI, I:VIX
+    const url=`https://api.polygon.io/v3/snapshot?ticker.any_of=${encodeURIComponent(ticker)}&apiKey=${POLYGON_KEY}`;
+    const d=await fetchJSON(url,{timeout:8000});
+    const res=d?.results?.[0];
+    return res?.session?.close||res?.session?.price||res?.value||null;
+  }catch(e){
+    console.warn(`[POLY] index ${ticker}:`,e.message?.slice(0,40));
+    return null;
+  }
+}
+
+// Batch secteurs via Polygon (1 seul appel pour tous les ETFs)
+async function polySectors(syms){
+  if(!POLYGON_KEY) return null;
+  try{
+    const wait=Math.max(0, _polyLastCall+15000-Date.now());
+    if(wait>0) await sleep(wait);
+    _polyLastCall=Date.now();
+    const tickers=syms.join(",");
+    const url=`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${encodeURIComponent(tickers)}&apiKey=${POLYGON_KEY}`;
+    const d=await fetchJSON(url,{timeout:10000});
+    if(!d?.tickers) return null;
+    const result={};
+    for(const t of d.tickers){
+      const sym=t.ticker;
+      const chg=t.todaysChangePerc;
+      if(chg!=null) result[sym]=parseFloat(chg.toFixed(2));
+    }
+    console.log(`[POLY] Secteurs: ${Object.keys(result).length}/${syms.length} OK`);
+    return result;
+  }catch(e){
+    console.warn("[POLY] sectors:",e.message?.slice(0,40));
+    return null;
+  }
+}
 const TD_KEY  = process.env.TWELVE_DATA_KEY||"";
 
 // Twelve Data — symboles corrects pour le plan gratuit
@@ -971,6 +1101,35 @@ async function btcDomFn(){
 async function equitiesFn(){
   const k="eq5";const c=cacheGet(k);if(c!==undefined)return c;
 
+  // 0. Polygon.io — prix live, jamais bloqué par Railway
+  if(POLYGON_KEY){
+    try{
+      const wait=Math.max(0, _polyLastCall+15000-Date.now());
+      if(wait>0) await sleep(wait);
+      _polyLastCall=Date.now();
+      const url=`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=SPY,QQQ,DIA&apiKey=${POLYGON_KEY}`;
+      const d=await fetchJSON(url,{timeout:8000});
+      const tickers=d?.tickers||[];
+      const get=(sym)=>tickers.find(t=>t.ticker===sym);
+      const spy=get("SPY"), qqq=get("QQQ"), dia=get("DIA");
+      const spyP=spy?.day?.c||spy?.prevDay?.c;
+      const qqqP=qqq?.day?.c||qqq?.prevDay?.c;
+      const diaP=dia?.day?.c||dia?.prevDay?.c;
+      // SPY×10≈SPX, QQQ×41.3≈NDX, DIA×1≈DJI/100... utiliser les ratios
+      if(spyP>0&&qqqP>0){
+        const spx=Math.round(spyP*10.08); // ratio approximatif
+        const ndx=Math.round(qqqP*41.3);
+        const dji=Math.round(diaP*303);
+        console.log(`[POLY] SPX:${spx} NDX:${ndx} DJI:${dji}`);
+        return cacheSet(k,{
+          spx:{price:spx,chgPct:spy?.todaysChangePerc??null},
+          ndx:{price:ndx,chgPct:qqq?.todaysChangePerc??null},
+          dji:{price:dji,chgPct:dia?.todaysChangePerc??null}
+        },TTL.equity);
+      }
+    }catch(e){console.warn("[POLY] equities:",e.message?.slice(0,40));}
+  }
+
   // 1. Yahoo direct — prix live SPX/NDX/DJI
   try{
     const [spR,ndR,djR]=await Promise.all([
@@ -1096,6 +1255,23 @@ async function sectorPerf(sym,ut){
 }
 
 async function allSectors(ut="1M"){
+  // Polygon batch — 1 seul appel pour tous les ETFs
+  if(POLYGON_KEY && ut==="1M"){
+    const syms=ETFS.map(e=>e.s);
+    const polyData=await polySectors(syms);
+    if(polyData&&Object.keys(polyData).length>=8){
+      // Stocker chaque secteur dans le cache
+      for(const e of ETFS){
+        if(polyData[e.s]!=null){
+          cacheSet(`s5_${e.s}_1M`,polyData[e.s],TTL.sector);
+          console.log(`[SEC] ${e.s}: ${polyData[e.s].toFixed(2)}%`);
+        }
+      }
+      console.log(`[SEC] ${Object.keys(polyData).length}/${syms.length} OK (Polygon)`);
+      return ETFS.map(e=>polyData[e.s]??null);
+    }
+  }
+  // Fallback Yahoo/Stooq par secteur
   const results=[];
   for(let i=0;i<ETFS.length;i+=3){
     const batch=ETFS.slice(i,i+3);
