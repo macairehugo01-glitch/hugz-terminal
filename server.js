@@ -1401,7 +1401,7 @@ async function getArticlesList(){
   if(cached!==undefined)return cached;
   try{
     const files=await fsP.readdir(ARTICLES_DIR);
-    const mdFiles=files.filter(f=>f.endsWith(".md")).sort().reverse(); // plus récent en premier
+    const mdFiles=files.filter(f=>f.endsWith(".md"));
     const articles=[];
     for(const file of mdFiles){
       const content=await fsP.readFile(path.join(ARTICLES_DIR,file),"utf8");
@@ -1419,6 +1419,12 @@ async function getArticlesList(){
         });
       }
     }
+    // Tri par date décroissante — plus récent en premier
+    articles.sort((a,b)=>{
+      const da=new Date(a.date||"1970-01-01");
+      const db=new Date(b.date||"1970-01-01");
+      return db-da;
+    });
     return cacheSet(k,articles,5*60*1000); // Cache 5min
   }catch(e){
     console.warn("[ARTICLES]",e.message);
