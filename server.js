@@ -656,8 +656,10 @@ function calcYoY(obs){
 ═══════════════════════════════════════════ */
 async function goldFn(){
   const k="gold5";const c=cacheGet(k);if(c!==undefined)return c;
+  // Retourner stale immédiatement si disponible (évite appels inutiles)
+  const staleGold=cacheGetStale(k);
 
-  // 1. Coinbase XAU-USD — souvent accessible
+  // 1. Coinbase XAU-USD
   try{
     const d=await fetchJSON("https://api.coinbase.com/v2/prices/XAU-USD/spot",{timeout:6000});
     const v=toNum(d?.data?.amount);
@@ -666,10 +668,8 @@ async function goldFn(){
       return cacheSet(k,{value:v,src:"Coinbase XAU"},TTL.metals);
     }
   }catch(e){
-    // Si 429, retourner stale immédiatement
-    const staleGold=cacheGetStale(k);
     if(staleGold?.value){
-      console.log(`[GOLD] Coinbase 429 — stale: ${staleGold.value}`);
+      console.log(`[GOLD] Stale: ${staleGold.value}`);
       return cacheSet(k,{...staleGold,stale:true},6*3600*1000);
     }
     console.warn("[GOLD] Coinbase:",e.message?.slice(0,30));
@@ -865,28 +865,29 @@ async function polyIndex(ticker){
   }
 }
 
-// Batch secteurs via Polygon /prev — disponible plan gratuit
+// Batch secteurs via Polygon /grouped/daily — UN seul appel pour tous
 async function polySectors(syms){
   if(!POLYGON_KEY) return null;
   try{
+    // /grouped/daily retourne tous les tickers du jour en 1 appel
+    const wait=Math.max(0, _polyLastCall+20000-Date.now());
+    if(wait>0) await sleep(wait);
+    _polyLastCall=Date.now();
+    const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
+    const url=`https://api.polygon.io/v2/aggs/grouped/locale/us/market/stocks/${yesterday}?adjusted=true&apiKey=${POLYGON_KEY}`;
+    const d=await fetchJSON(url,{timeout:10000});
+    if(!d?.results) return null;
+    const map={};
+    for(const r of d.results){ map[r.T]=r; }
     const result={};
-    // Appels séquentiels avec délai pour respecter 5 req/min
     for(const sym of syms){
-      const wait=Math.max(0, _polyLastCall+20000-Date.now());
-      if(wait>0) await sleep(wait);
-      _polyLastCall=Date.now();
-      const url=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
-      try{
-        const d=await fetchJSON(url,{timeout:8000});
-        const r=d?.results?.[0];
-        if(r?.c&&r?.o){
-          const chg=((r.c-r.o)/r.o)*100;
-          result[sym]=parseFloat(chg.toFixed(2));
-        }
-      }catch(e){}
+      const r=map[sym];
+      if(r?.c&&r?.o){
+        result[sym]=parseFloat(((r.c-r.o)/r.o*100).toFixed(2));
+      }
     }
     const n=Object.keys(result).length;
-    if(n>0) console.log(`[POLY] Secteurs: ${n}/${syms.length} OK`);
+    console.log(`[POLY] Secteurs: ${n}/${syms.length} OK`);
     return n>=8?result:null;
   }catch(e){
     console.warn("[POLY] sectors:",e.message?.slice(0,40));
