@@ -133,6 +133,8 @@ async function bgRefresh(){
       }catch(e){console.warn("[CG]",e.message?.slice(0,40));}
     });
 
+    // Équités d'abord (utilise Polygon), puis secteurs après
+    await equitiesFn();
     await Promise.allSettled([
       eurusdFn(),
       goldFn(),
@@ -140,7 +142,6 @@ async function bgRefresh(){
       copperFn(),
       btcDomFn(),
       fngFn(),
-      equitiesFn(),
       allSectors(ut),
       commo("CL=F","DCOILWTICO",55,105,"oil5"),
       commo("BZ=F","DCOILBRENTEU",58,110,"brent5"),
@@ -294,7 +295,7 @@ async function vixFromCBOE(){
   // 1. Polygon.io VIXY /prev — plan gratuit
   if(POLYGON_KEY){
     try{
-      const wait=Math.max(0, _polyLastCall+13000-Date.now());
+      const wait=Math.max(0, _polyLastCall+20000-Date.now());
       if(wait>0) await sleep(wait);
       _polyLastCall=Date.now();
       const url=`https://api.polygon.io/v2/aggs/ticker/VIXY/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
@@ -310,7 +311,7 @@ async function vixFromCBOE(){
   // Polygon.io — I:VIX index
   if(POLYGON_KEY){
     try{
-      const wait=Math.max(0, _polyLastCall+15000-Date.now());
+      const wait=Math.max(0, _polyLastCall+20000-Date.now());
       if(wait>0) await sleep(wait);
       _polyLastCall=Date.now();
       const url=`https://api.polygon.io/v2/aggs/ticker/I%3AVIX/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
@@ -664,7 +665,15 @@ async function goldFn(){
       console.log("[GOLD] Coinbase:",v);
       return cacheSet(k,{value:v,src:"Coinbase XAU"},TTL.metals);
     }
-  }catch(e){console.warn("[GOLD] Coinbase:",e.message?.slice(0,30));}
+  }catch(e){
+    // Si 429, retourner stale immédiatement
+    const staleGold=cacheGetStale(k);
+    if(staleGold?.value){
+      console.log(`[GOLD] Coinbase 429 — stale: ${staleGold.value}`);
+      return cacheSet(k,{...staleGold,stale:true},6*3600*1000);
+    }
+    console.warn("[GOLD] Coinbase:",e.message?.slice(0,30));
+  }
 
   // 2. Stooq GC=F — futures or
   try{
@@ -798,7 +807,7 @@ async function polygonPrev(ticker){
 async function polygonSnap(ticker){
   if(!POLYGON_KEY) return null;
   try{
-    const wait=Math.max(0, _polyLastCall+13000-Date.now());
+    const wait=Math.max(0, _polyLastCall+20000-Date.now());
     if(wait>0) await sleep(wait);
     _polyLastCall=Date.now();
     const url=`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
@@ -822,7 +831,7 @@ let _polyLastCall=0;
 async function polyFetch(ticker){
   if(!POLYGON_KEY) return null;
   // Rate limit: 1 appel toutes les 15s max
-  const wait=Math.max(0, _polyLastCall+15000-Date.now());
+  const wait=Math.max(0, _polyLastCall+20000-Date.now());
   if(wait>0) await sleep(wait);
   _polyLastCall=Date.now();
   try{
@@ -863,7 +872,7 @@ async function polySectors(syms){
     const result={};
     // Appels séquentiels avec délai pour respecter 5 req/min
     for(const sym of syms){
-      const wait=Math.max(0, _polyLastCall+13000-Date.now());
+      const wait=Math.max(0, _polyLastCall+20000-Date.now());
       if(wait>0) await sleep(wait);
       _polyLastCall=Date.now();
       const url=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
@@ -1113,7 +1122,7 @@ async function equitiesFn(){
   if(POLYGON_KEY){
     try{
       const getPrev=async(sym)=>{
-        const wait=Math.max(0, _polyLastCall+13000-Date.now());
+        const wait=Math.max(0, _polyLastCall+20000-Date.now());
         if(wait>0) await sleep(wait);
         _polyLastCall=Date.now();
         const url=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
@@ -1123,16 +1132,15 @@ async function equitiesFn(){
       const spyP=await getPrev("SPY");
       const qqqP=await getPrev("QQQ");
       const diaP=await getPrev("DIA");
-      // SPY×10≈SPX, QQQ×41.3≈NDX, DIA×1≈DJI/100... utiliser les ratios
       if(spyP>0&&qqqP>0){
-        const spx=Math.round(spyP*10.08); // ratio approximatif
+        const spx=Math.round(spyP*10.08);
         const ndx=Math.round(qqqP*41.3);
-        const dji=Math.round(diaP*303);
+        const dji=diaP?Math.round(diaP*100.8):null; // DIA×100.8≈DJI
         console.log(`[POLY] SPX:${spx} NDX:${ndx} DJI:${dji}`);
         return cacheSet(k,{
-          spx:{price:spx,chgPct:spy?.todaysChangePerc??null},
-          ndx:{price:ndx,chgPct:qqq?.todaysChangePerc??null},
-          dji:{price:dji,chgPct:dia?.todaysChangePerc??null}
+          spx:{price:spx,chgPct:null},
+          ndx:{price:ndx,chgPct:null},
+          dji:{price:dji,chgPct:null}
         },TTL.equity);
       }
     }catch(e){console.warn("[POLY] equities:",e.message?.slice(0,40));}
