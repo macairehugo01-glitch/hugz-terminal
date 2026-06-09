@@ -2569,6 +2569,16 @@ app.listen(PORT,async()=>{
 
   // Fallbacks UNIQUEMENT pour données statiques (FRED) — pas les données live
   // Les données live (BTC, Or, SPX, WTI) seront chargées par bgRefresh immédiatement
+  // Données live — remplacées dès que bgRefresh réussit
+  setFallback("gold5",  {value:4330, src:"Estimé*", stale:true});
+  setFallback("oil5",   {value:91.0, src:"Estimé*", stale:true});
+  setFallback("brent5", {value:94.0, src:"Estimé*", stale:true});
+  setFallback("natgas5",{value:3.07, src:"Estimé*", stale:true});
+  setFallback("copper5",{value:4.55, src:"Estimé*", stale:true});
+  setFallback("sil5",   {value:32.5, src:"Estimé*", stale:true});
+  setFallback("eur5",   1.108);
+  setFallback("dom5",   56.0);
+  setFallback("fng5",   {value:50, label:"Neutre"});
   setFallback("f5_VIXCLS", {v:16.29, d:"2026-05-30"});
   setFallback("f5_DGS2", {v:3.89, d:"2026-05-30"});
   setFallback("f5_DGS10", {v:4.45, d:"2026-05-29"});
@@ -2586,6 +2596,16 @@ app.listen(PORT,async()=>{
     conf:{v:49.8,d:"2026-04-30"},
     jolts:{v:6866,d:"2026-03-31"}
   });
+  // Données live — remplacées dès que bgRefresh réussit
+  setFallback("gold5",  {value:4330, src:"Estimé*", stale:true});
+  setFallback("oil5",   {value:91.0, src:"Estimé*", stale:true});
+  setFallback("brent5", {value:94.0, src:"Estimé*", stale:true});
+  setFallback("natgas5",{value:3.07, src:"Estimé*", stale:true});
+  setFallback("copper5",{value:4.55, src:"Estimé*", stale:true});
+  setFallback("sil5",   {value:32.5, src:"Estimé*", stale:true});
+  setFallback("eur5",   1.108);
+  setFallback("dom5",   56.0);
+  setFallback("fng5",   {value:50, label:"Neutre"});
   setFallback("f5_VIXCLS", {v:16.29, d:"2026-05-30"});
   setFallback("f5_DGS2", {v:3.89, d:"2026-05-30"});
   setFallback("f5_DGS10", {v:4.48, d:"2026-05-30"});
