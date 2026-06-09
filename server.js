@@ -50,7 +50,7 @@ const TTL={
   crypto:  2*60*1000,         // 2 min  — BTC, ETH
   equity:  5*60*1000,         // 5 min  — SPX, NDX
   sector: 4*3600*1000,         // 4h — secteurs (gardés même si Yahoo bloque)
-  yahoo:  30*60*1000,         // 30 min — WTI, DXY
+  yahoo:  2*60*1000,          // 2 min — WTI, DXY (refresh fréquent)
   fng:    30*60*1000,         // 30 min — Fear & Greed
   fred_d: 24*3600*1000,       // 24h    — VIX, taux
   fred_m:  7*24*3600*1000     // 7j     — CPI, NFCI, JOLTS
@@ -998,6 +998,28 @@ async function commo(sym,fredId,lo,hi,key){
         }
       }catch(e){}
     }
+  }
+
+  // Polygon grouped/daily pour WTI (USO ETF ×10) et NatGas (UNG ×10)
+  if(POLYGON_KEY&&(sym==="CL=F"||sym==="NG=F")){
+    try{
+      const proxySym=sym==="CL=F"?"USO":"UNG";
+      const wait=Math.max(0, _polyLastCall+20000-Date.now());
+      if(wait>0) await sleep(wait);
+      _polyLastCall=Date.now();
+      const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
+      const url=`https://api.polygon.io/v2/aggs/ticker/${proxySym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+      const d=await fetchJSON(url,{timeout:8000});
+      const r=d?.results?.[0];
+      // USO ≈ WTI/10, UNG ≈ NatGas×2
+      const ratio=sym==="CL=F"?10:0.5;
+      const v=r?.c?r.c*ratio:null;
+      if(v&&v>=lo&&v<=hi){
+        console.log(`[COMMO] ${sym} Polygon(${proxySym}): ${v.toFixed(2)}`);
+        LAST_GOOD[key]={value:v,src:"Polygon"};
+        return cacheSet(key,{value:v,src:"Polygon"},TTL.yahoo);
+      }
+    }catch(e){console.warn(`[COMMO] ${sym} Polygon:`,e.message?.slice(0,30));}
   }
 
   // Alpha Vantage
