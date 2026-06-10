@@ -46,14 +46,14 @@ function cacheSet(k,v,ttl){CACHE.set(k,{v,t:Date.now(),ttl:ttl||TTL_PERSIST});re
 // Le bgRefresh tourne toutes les 5min mais ne rappelle les APIs
 // que si le TTL est expiré. Les visiteurs ne font JAMAIS d'appels API directs.
 const TTL={
-  metals:  60*60*1000,        // 1h — or, argent, cuivre
-  crypto:  60*60*1000,        // 1h — BTC, ETH
-  equity:  60*60*1000,        // 1h — SPX, NDX
-  sector:  60*60*1000,        // 1h — secteurs
-  yahoo:   60*60*1000,        // 1h — WTI, DXY
-  fng:     60*60*1000,        // 1h — Fear & Greed
-  fred_d:  24*3600*1000,      // 24h — VIX, taux
-  fred_m:  7*24*3600*1000     // 7j  — CPI, NFCI, JOLTS
+  metals:  5*60*1000,
+  crypto:  2*60*1000,
+  equity:  5*60*1000,
+  sector:  4*3600*1000,
+  yahoo:   5*60*1000,
+  fng:     30*60*1000,
+  fred_d:  24*3600*1000,
+  fred_m:  7*24*3600*1000
 };
 
 /* ═══════════════════════════════════════════
