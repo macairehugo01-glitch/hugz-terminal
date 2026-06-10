@@ -675,7 +675,26 @@ async function goldFn(){
     console.warn("[GOLD] Coinbase:",e.message?.slice(0,30));
   }
 
-  // 2. Stooq GC=F — futures or
+  // 2. Polygon GLD ETF — GLD×10 ≈ or en dollars (plan gratuit /prev)
+  if(POLYGON_KEY){
+    try{
+      const wait=Math.max(0, _polyLastCall+20000-Date.now());
+      if(wait>0) await sleep(wait);
+      _polyLastCall=Date.now();
+      const url=`https://api.polygon.io/v2/aggs/ticker/GLD/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+      const d=await fetchJSON(url,{timeout:8000});
+      const c=d?.results?.[0]?.c;
+      if(c>150){
+        const v=parseFloat((c*10.0).toFixed(2));
+        if(v>2000&&v<8000){
+          console.log(`[GOLD] Polygon GLD: ${v}`);
+          return cacheSet(k,{value:v,src:"Polygon GLD"},TTL.metals);
+        }
+      }
+    }catch(e){console.warn("[GOLD] Polygon:",e.message?.slice(0,40));}
+  }
+
+  // 3. Stooq GC=F — futures or
   try{
     const txt=await fetch("https://stooq.com/q/l/?s=gc.f&f=sd2t2ohlcv&h&e=csv",{headers:{"User-Agent":"Mozilla/5.0"},signal:(()=>{const ac=new AbortController();setTimeout(()=>ac.abort(),4000);return ac.signal;})()});
     const csv=await txt.text();
@@ -1012,7 +1031,7 @@ async function commo(sym,fredId,lo,hi,key){
       const d=await fetchJSON(url,{timeout:8000});
       const r=d?.results?.[0];
       // USO ≈ WTI/10, UNG ≈ NatGas×2
-      const ratio=sym==="CL=F"?10:0.5;
+      const ratio=sym==="CL=F"?10:3.0; // USO≈WTI/10, UNG≈NatGas×3
       const v=r?.c?r.c*ratio:null;
       if(v&&v>=lo&&v<=hi){
         console.log(`[COMMO] ${sym} Polygon(${proxySym}): ${v.toFixed(2)}`);
@@ -1169,7 +1188,28 @@ async function equitiesFn(){
     }catch(e){console.warn("[POLY] equities:",e.message?.slice(0,40));}
   }
 
-  // 1. Yahoo direct — prix live SPX/NDX/DJI
+  // 1. Yahoo via proxy Cloudflare — prix live (contourne blocage Railway)
+  try{
+    const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+    const [spR,ndR,djR]=await Promise.all([
+      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d")}`,{timeout:8000}),
+      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5ENDX?range=1d&interval=1d")}`,{timeout:8000}),
+      fetchJSON(`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EDJI?range=1d&interval=1d")}`,{timeout:8000}),
+    ]);
+    const spx=spR?.chart?.result?.[0]?.meta?.regularMarketPrice??spR?.chart?.result?.[0]?.meta?.chartPreviousClose;
+    const ndx=ndR?.chart?.result?.[0]?.meta?.regularMarketPrice??ndR?.chart?.result?.[0]?.meta?.chartPreviousClose;
+    const dji=djR?.chart?.result?.[0]?.meta?.regularMarketPrice??djR?.chart?.result?.[0]?.meta?.chartPreviousClose;
+    if(spx>0&&ndx>0){
+      console.log(`[EQ] proxy SPX:${Math.round(spx)} NDX:${Math.round(ndx)} DJI:${Math.round(dji)}`);
+      return cacheSet(k,{
+        spx:{price:Math.round(spx),chgPct:null},
+        ndx:{price:Math.round(ndx),chgPct:null},
+        dji:{price:Math.round(dji),chgPct:null}
+      },TTL.equity);
+    }
+  }catch(e){console.warn("[EQ] proxy:",e.message?.slice(0,40));}
+
+  // 1b. Yahoo direct fallback
   try{
     const [spR,ndR,djR]=await Promise.all([
       fetchJSON("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d",{timeout:6000}),
