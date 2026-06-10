@@ -849,7 +849,15 @@ function buildSignal(d){
     el.style.fontSize="20px";
   }
   set("sig-sub","Score "+sc+"/100 · "+risk.details?.length+" signaux analysés");
-  set("sig-upd",new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+  // Countdown prochain refresh indices (1h)
+  if(window._eqUpdatedAt){
+    const elapsed=Date.now()-window._eqUpdatedAt;
+    const remaining=Math.max(0,3600000-elapsed);
+    const mins=Math.ceil(remaining/60000);
+    set("sig-upd", remaining>0?`màj indices ~${mins}min`:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+  } else {
+    set("sig-upd",new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+  }
   const bar=document.getElementById("sig-bar");
   if(bar){bar.style.width=sc+"%";bar.style.background=rc}
   const rows=[
@@ -1247,6 +1255,9 @@ async function loadDash(){
     const r=await fetch("/api/dashboard");
     const data=await r.json();
     if(data?.data){
+      // Stocker timestamp pour countdown
+      if(data.data.equities?.spx?.price) window._eqUpdatedAt=window._eqUpdatedAt||Date.now();
+      if(data.eqUpdatedAt) window._eqUpdatedAt=new Date(data.eqUpdatedAt).getTime();
       buildTicker(data.data);
       buildRibbon(data.data);
       buildBreaking(data.data);
@@ -1263,6 +1274,15 @@ function init(){
   loadArticles();
   loadDash();
   setInterval(loadDash, 5*60*1000);
+// Mettre à jour le countdown chaque minute
+setInterval(()=>{
+  const el=document.getElementById("sig-upd");
+  if(!el||!window._eqUpdatedAt) return;
+  const elapsed=Date.now()-window._eqUpdatedAt;
+  const remaining=Math.max(0,3600000-elapsed);
+  const mins=Math.ceil(remaining/60000);
+  el.textContent=remaining>60000?`indices màj dans ${mins}min`:"données récentes";
+}, 60000);
 }
 
 init();
