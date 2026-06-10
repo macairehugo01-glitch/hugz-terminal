@@ -39,6 +39,13 @@ body.dark .art-body blockquote{background:#111620;color:#9aa5b4;border-left-colo
 body.dark .art-body hr{border-top-color:#21262d}
 body.dark .art-body code{background:#161b24;border-color:#21262d;color:#7dd3fc}
 body.dark .art-body a{color:#60a5fa}
+.art-body table{width:100%;border-collapse:collapse;margin:20px 0;font-size:13px;overflow-x:auto;display:block}
+.art-body table thead tr{background:var(--gold);color:#0a0c10}
+.art-body table th{padding:8px 12px;text-align:left;font-weight:700;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.5px;white-space:nowrap}
+.art-body table td{padding:7px 12px;border-bottom:1px solid var(--line);color:var(--ink);font-size:13px}
+.art-body table tbody tr:hover{background:var(--paper2)}
+body.dark .art-body table thead tr{background:#b5860d}
+body.dark .art-body table td{border-bottom-color:#21262d}
 body.dark .art-body{color:#c9d1d9}
 body.dark .overlay{background:#0d1117;color:#e6edf3}
 body.dark .art-main-title{color:#e6edf3}
@@ -744,11 +751,13 @@ function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||"📊";}
 function buildTicker(d){
   // Countdown prochain refresh indices
   let countdownLabel="";
-  if(window._eqUpdatedAt){
-    const remaining=Math.max(0,3600000-(Date.now()-window._eqUpdatedAt));
-    const mins=Math.ceil(remaining/60000);
-    countdownLabel=remaining>60000?`⏱ indices dans ${mins}min`:"⏱ indices récents";
-  }
+  const _now=new Date();
+  const _next=new Date(_now);
+  _next.setMinutes(0,0,0);
+  _next.setHours(_next.getHours()+1);
+  const _mins=Math.ceil((_next-_now)/60000);
+  const _hStr=_next.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  countdownLabel=`⏱ indices màj à ${_hStr} (${_mins}min)`;
 
   const items=[
     {n:"S&P 500",v:fi(d.equities?.spx?.price),c:fc(d.equities?.spx?.chgPct),up:(d.equities?.spx?.chgPct||0)>=0},
@@ -859,14 +868,14 @@ function buildSignal(d){
   }
   set("sig-sub","Score "+sc+"/100 · "+risk.details?.length+" signaux analysés");
   // Countdown prochain refresh indices (1h)
-  if(window._eqUpdatedAt){
-    const elapsed=Date.now()-window._eqUpdatedAt;
-    const remaining=Math.max(0,3600000-elapsed);
-    const mins=Math.ceil(remaining/60000);
-    set("sig-upd", remaining>0?`màj indices ~${mins}min`:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
-  } else {
-    set("sig-upd",new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
-  }
+  // Prochain refresh = prochaine heure ronde
+  const now=new Date();
+  const nextHour=new Date(now);
+  nextHour.setMinutes(0,0,0);
+  nextHour.setHours(nextHour.getHours()+1);
+  const minsLeft=Math.ceil((nextHour-now)/60000);
+  const nextHourStr=nextHour.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  set("sig-upd", `màj ${nextHourStr} (dans ${minsLeft}min)`);
   const bar=document.getElementById("sig-bar");
   if(bar){bar.style.width=sc+"%";bar.style.background=rc}
   const rows=[
@@ -1088,7 +1097,7 @@ async function openArt(slug){
       </div>
       <h1 class="art-main-title" style="font-family:'Playfair Display',serif;font-size:28px;font-weight:800;line-height:1.2;margin-bottom:16px">${esc(a.title)}</h1>
       ${a.excerpt?`<div style="font-size:16px;color:var(--muted);line-height:1.6;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--line)">${esc(a.excerpt)}</div>`:""}
-      ${a.cover?`<img src="${esc(a.cover)}" alt="" style="width:100%;max-height:340px;object-fit:cover;border-radius:5px;margin-bottom:26px">`:""}`;
+      ${a.cover?`<img src="${esc(a.cover)}" alt="" style="width:100%;object-fit:contain;border-radius:5px;margin-bottom:26px;background:var(--paper2)">`:""}`;
 
     if(isActif){
       // Paywall RaiseFX
@@ -1267,6 +1276,7 @@ async function loadDash(){
       // Stocker timestamp pour countdown
       if(data.data.equities?.spx?.price) window._eqUpdatedAt=window._eqUpdatedAt||Date.now();
       if(data.eqUpdatedAt) window._eqUpdatedAt=new Date(data.eqUpdatedAt).getTime();
+      window._lastDashData=data.data; // pour rebuild countdown
       buildTicker(data.data);
       buildRibbon(data.data);
       buildBreaking(data.data);
@@ -1285,12 +1295,17 @@ function init(){
   setInterval(loadDash, 5*60*1000);
 // Mettre à jour le countdown chaque minute
 setInterval(()=>{
+  // Mettre à jour le countdown dans le panneau signal
   const el=document.getElementById("sig-upd");
-  if(!el||!window._eqUpdatedAt) return;
-  const elapsed=Date.now()-window._eqUpdatedAt;
-  const remaining=Math.max(0,3600000-elapsed);
-  const mins=Math.ceil(remaining/60000);
-  el.textContent=remaining>60000?`indices màj dans ${mins}min`:"données récentes";
+  if(el){
+    const n=new Date();
+    const nx=new Date(n);nx.setMinutes(0,0,0);nx.setHours(nx.getHours()+1);
+    const ml=Math.ceil((nx-n)/60000);
+    const hs=nx.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    el.textContent=`màj ${hs} (dans ${ml}min)`;
+  }
+  // Rebuild ticker avec nouveau countdown
+  if(window._lastDashData) buildTicker(window._lastDashData);
 }, 60000);
 }
 
