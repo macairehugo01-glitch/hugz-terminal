@@ -1083,24 +1083,6 @@ async function commo(sym,fredId,lo,hi,key){
     }
   }
 
-  // Polygon futures directs pour WTI et NatGas
-  if(POLYGON_KEY&&(sym==="CL=F"||sym==="NG=F")){
-    try{
-      const polyFut=sym==="CL=F"?"nymex:CL":"nymex:NG";
-      const wait=Math.max(0, _polyLastCall+20000-Date.now());
-      if(wait>0) await sleep(wait);
-      _polyLastCall=Date.now();
-      const url=`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polyFut)}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
-      const d=await fetchJSON(url,{timeout:8000});
-      const v=d?.results?.[0]?.c||null;
-      if(v&&v>=lo&&v<=hi){
-        console.log(`[COMMO] ${sym} Polygon: ${v}`);
-        LAST_GOOD[key]={value:v,src:"Polygon"};
-        return cacheSet(key,{value:v,src:"Polygon"},TTL.yahoo);
-      }
-    }catch(e){console.warn(`[COMMO] ${sym} Polygon:`,e.message?.slice(0,30));}
-  }
-
   // Alpha Vantage
   if(avFunc){
     const av=await avCommo(avFunc,lo,hi);
@@ -1545,6 +1527,25 @@ async function callClaude(question,ctx,maxTokens=260){
 /* ═══════════════════════════════════════════
    ROUTES
 ═══════════════════════════════════════════ */
+// Test proxy depuis Railway
+app.get("/api/test-proxy", async(req,res)=>{
+  const proxy=process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+  const results={};
+  // Test SPX
+  try{
+    const url=`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d")}`;
+    const d=await fetchJSON(url,{timeout:10000});
+    results.spx=d?.chart?.result?.[0]?.meta?.regularMarketPrice||"no price";
+  }catch(e){results.spx="ERR:"+e.message?.slice(0,50);}
+  // Test GLD
+  try{
+    const url=`${proxy}?url=${encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/GLD?range=1d&interval=1d")}`;
+    const d=await fetchJSON(url,{timeout:10000});
+    results.gld=d?.chart?.result?.[0]?.meta?.regularMarketPrice||"no price";
+  }catch(e){results.gld="ERR:"+e.message?.slice(0,50);}
+  res.json({proxy,results});
+});
+
 app.get("/api/dashboard",async(req,res)=>{
   try{
     const ut=req.query.ut||"1M";
