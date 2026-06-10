@@ -788,7 +788,7 @@ async function goldFn(){
     return cacheSet(k,{...stale,stale:true},TTL.metals);
   }
   console.warn("[GOLD] All sources failed");
-  return cacheSet(k,{value:3300,src:"Estimé*",stale:true},TTL.metals);
+  return cacheSet(k,{value:4330,src:"Estimé*",stale:true},TTL.metals);
 }
 
 async function silverFn(){
@@ -1308,8 +1308,11 @@ async function equitiesFn(){
   }
   // Garder la dernière valeur connue plutôt que null
   const staleEq=cacheGetStale(k);
-  if(staleEq){ console.log("[EQ] Stale cache utilisé"); return staleEq; }
-  return cacheSet(k,{spx:null,ndx:null,dji:null},TTL.equity);
+  if(staleEq?.spx?.price){
+    console.log(`[EQ] Stale: SPX:${staleEq.spx.price}`);
+    return cacheSet(k,staleEq,TTL.equity); // Re-cache pour éviter de retenter trop vite
+  }
+  return cacheSet(k,{spx:{price:null},ndx:{price:null},dji:{price:null}},60*1000); // retry dans 1min
 }
 
 /* ═══════════════════════════════════════════
@@ -2688,6 +2691,7 @@ app.listen(PORT,async()=>{
   // Les données live (BTC, Or, SPX, WTI) seront chargées par bgRefresh immédiatement
   // Données live — remplacées dès que bgRefresh réussit
   setFallback("gold5",  {value:4330, src:"Estimé*", stale:true});
+  setFallback("eq5",    {spx:{price:null,chgPct:null},ndx:{price:null,chgPct:null},dji:{price:null,chgPct:null}});
   setFallback("oil5",   {value:91.0, src:"Estimé*", stale:true});
   setFallback("brent5", {value:94.0, src:"Estimé*", stale:true});
   setFallback("natgas5",{value:3.07, src:"Estimé*", stale:true});
@@ -2715,6 +2719,7 @@ app.listen(PORT,async()=>{
   });
   // Données live — remplacées dès que bgRefresh réussit
   setFallback("gold5",  {value:4330, src:"Estimé*", stale:true});
+  setFallback("eq5",    {spx:{price:null,chgPct:null},ndx:{price:null,chgPct:null},dji:{price:null,chgPct:null}});
   setFallback("oil5",   {value:91.0, src:"Estimé*", stale:true});
   setFallback("brent5", {value:94.0, src:"Estimé*", stale:true});
   setFallback("natgas5",{value:3.07, src:"Estimé*", stale:true});
