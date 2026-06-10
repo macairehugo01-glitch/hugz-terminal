@@ -1019,22 +1019,18 @@ async function commo(sym,fredId,lo,hi,key){
     }
   }
 
-  // Polygon grouped/daily pour WTI (USO ETF ×10) et NatGas (UNG ×10)
+  // Polygon futures directs pour WTI et NatGas
   if(POLYGON_KEY&&(sym==="CL=F"||sym==="NG=F")){
     try{
-      const proxySym=sym==="CL=F"?"USO":"UNG";
+      const polyFut=sym==="CL=F"?"nymex:CL":"nymex:NG";
       const wait=Math.max(0, _polyLastCall+20000-Date.now());
       if(wait>0) await sleep(wait);
       _polyLastCall=Date.now();
-      const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
-      const url=`https://api.polygon.io/v2/aggs/ticker/${proxySym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+      const url=`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polyFut)}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
       const d=await fetchJSON(url,{timeout:8000});
-      const r=d?.results?.[0];
-      // USO ≈ WTI/10, UNG ≈ NatGas×2
-      const ratio=sym==="CL=F"?10:3.0; // USO≈WTI/10, UNG≈NatGas×3
-      const v=r?.c?r.c*ratio:null;
+      const v=d?.results?.[0]?.c||null;
       if(v&&v>=lo&&v<=hi){
-        console.log(`[COMMO] ${sym} Polygon(${proxySym}): ${v.toFixed(2)}`);
+        console.log(`[COMMO] ${sym} Polygon: ${v}`);
         LAST_GOOD[key]={value:v,src:"Polygon"};
         return cacheSet(key,{value:v,src:"Polygon"},TTL.yahoo);
       }
@@ -1178,11 +1174,14 @@ async function equitiesFn(){
         const spx=Math.round(spyP*10.08);
         const ndx=Math.round(qqqP*41.3);
         const dji=diaP?Math.round(diaP*100.8):null; // DIA×100.8≈DJI
+        const eqTs=Date.now();
         console.log(`[POLY] SPX:${spx} NDX:${ndx} DJI:${dji}`);
         return cacheSet(k,{
           spx:{price:spx,chgPct:null},
           ndx:{price:ndx,chgPct:null},
-          dji:{price:dji,chgPct:null}
+          dji:{price:dji,chgPct:null},
+          updatedAt:new Date(eqTs).toISOString(),
+          nextUpdate:new Date(eqTs+3600000).toISOString()
         },TTL.equity);
       }
     }catch(e){console.warn("[POLY] equities:",e.message?.slice(0,40));}
@@ -1572,7 +1571,13 @@ app.get("/api/dashboard",async(req,res)=>{
     data.localSummary=buildSummary(data,risk);
     // Mettre à jour le sentiment composite depuis les données live
     buildSentimentCache(data);
-    res.json({updatedAt:new Date().toISOString(),sources:{fred:"FRED St. Louis",market:"Coinbase·Yahoo(crumb)·Frankfurter·Alt.me"},data});
+    res.json({
+      updatedAt:new Date().toISOString(),
+      eqUpdatedAt:rEquities?.updatedAt||null,
+      eqNextUpdate:rEquities?.nextUpdate||null,
+      sources:{fred:"FRED St. Louis",market:"Polygon·Kraken·Coinbase·Yahoo·Treasury"},
+      data
+    });
   }catch(err){
     console.error("DASHBOARD ERROR:",err);
     res.status(500).json({error:"failed",message:err.message});
