@@ -99,10 +99,41 @@ function fredCacheSave(){
 setInterval(fredCacheSave, 30*60*1000);
 
 // ── Scheduler background — rafraîchit les données en arrière-plan ──
-// Les utilisateurs lisent toujours depuis le cache, jamais directement les APIs
 let _bgRefreshing = false;
 let _lastBgRefresh = 0;
 const BG_INTERVAL = 5*60*1000; // 5 min
+
+// ── Scheduler Polygon — 1 appel par heure ──
+let _polyScheduled = false;
+function schedulePolygonHourly(){
+  if(_polyScheduled) return;
+  _polyScheduled = true;
+  const runPolygon = async () => {
+    console.log("[POLY] 🕐 Refresh horaire...");
+    // Reset le cache Polygon pour forcer le refresh
+    CACHE.delete("eq5");
+    CACHE.delete("gold5");
+    // Lancer les fonctions — elles verront cache vide et appelleront Polygon
+    await safe(()=>equitiesFn());
+    await sleep(20000);
+    await safe(()=>goldFn());
+    await sleep(20000);
+    await safe(()=>allSectors("1M"));
+    console.log("[POLY] ✅ Refresh horaire terminé");
+  };
+  // Calculer le délai jusqu'à la prochaine heure ronde
+  const now = new Date();
+  const next = new Date(now);
+  next.setMinutes(0, 0, 0);
+  next.setHours(next.getHours() + 1);
+  const delay = next.getTime() - now.getTime();
+  console.log(`[POLY] Prochain refresh à ${next.toLocaleTimeString('fr-FR')} (dans ${Math.round(delay/60000)}min)`);
+  setTimeout(async () => {
+    await runPolygon();
+    // Ensuite toutes les heures
+    setInterval(runPolygon, 3600000);
+  }, delay);
+}
 
 async function bgRefresh(){
   if(_bgRefreshing) return;
@@ -2727,6 +2758,8 @@ app.listen(PORT,async()=>{
   }).catch(()=>{
     setInterval(bgRefresh, BG_INTERVAL);
   });
+  // Scheduler Polygon — refresh à chaque heure ronde
+  schedulePolygonHourly();
   console.log("  Warming up Yahoo crumb...");
   await safe(()=>refreshCrumb());
   console.log(`  Crumb: ${_crumb?_crumb.slice(0,8)+"...":"FAILED"}`);
