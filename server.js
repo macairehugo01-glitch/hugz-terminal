@@ -925,7 +925,7 @@ async function polySectors(syms){
     _polyLastCall=Date.now();
     const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
     const url=`https://api.polygon.io/v2/aggs/grouped/locale/us/market/stocks/${yesterday}?adjusted=true&apiKey=${POLYGON_KEY}`;
-    const d=await fetchJSON(url,{timeout:10000});
+    const d=await fetchJSON(url,{timeout:20000});
     if(!d?.results) return null;
     const map={};
     for(const r of d.results){ map[r.T]=r; }
