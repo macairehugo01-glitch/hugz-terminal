@@ -750,14 +750,14 @@ function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||"📊";}
 // TICKER
 function buildTicker(d){
   // Countdown prochain refresh indices
-  let countdownLabel="";
   const _now=new Date();
   const _next=new Date(_now);
   _next.setMinutes(0,0,0);
   _next.setHours(_next.getHours()+1);
   const _mins=Math.ceil((_next-_now)/60000);
   const _hStr=_next.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  countdownLabel=`⏱ indices màj à ${_hStr} (${_mins}min)`;
+  const countdownLabel=`⏱ màj ${_hStr} · dans ${_mins}min`;
+  }
 
   const items=[
     {n:"S&P 500",v:fi(d.equities?.spx?.price),c:fc(d.equities?.spx?.chgPct),up:(d.equities?.spx?.chgPct||0)>=0},
