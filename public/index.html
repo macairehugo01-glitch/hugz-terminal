@@ -443,10 +443,10 @@ body.dark .tab-actif.on{color:#f87171;border-bottom-color:#f87171}
   <div class="stats-in">
     <div class="sb"><span class="sb-l">Régime</span><span class="sb-v" id="s-regime">—</span><span class="sb-c" id="s-score">—</span></div>
     <div class="sb"><span class="sb-l">S&P 500</span><span class="sb-v" id="s-spx">—</span><span class="sb-c" id="s-spxc">—</span></div>
-    <div class="sb"><span class="sb-l">Bitcoin</span><span class="sb-v" id="s-btc">—</span><span class="sb-c neu">Coinbase</span></div>
+    <div class="sb"><span class="sb-l">Nasdaq 100</span><span class="sb-v" id="s-ndx">—</span><span class="sb-c" id="s-ndxc">—</span></div>
+    <div class="sb"><span class="sb-l">Bitcoin</span><span class="sb-v" id="s-btc">—</span><span class="sb-c neu">Kraken</span></div>
     <div class="sb"><span class="sb-l">Or XAU</span><span class="sb-v" id="s-gold">—</span><span class="sb-c" id="s-goldsrc">—</span></div>
     <div class="sb"><span class="sb-l">WTI Crude</span><span class="sb-v" id="s-wti">—</span><span class="sb-c neu">Yahoo</span></div>
-    <div class="sb"><span class="sb-l">US 10 ans</span><span class="sb-v" id="s-10y">—</span><span class="sb-c" id="s-sp">—</span></div>
     <div class="sb"><span class="sb-l">CPI YoY</span><span class="sb-v" id="s-cpi">—</span><span class="sb-c neu" id="s-cpid">FRED</span></div>
     <div class="sb"><span class="sb-l">VIX</span><span class="sb-v" id="s-vix">—</span><span class="sb-c" id="s-vixc">—</span></div>
   </div>
@@ -834,6 +834,8 @@ function buildStats(d){
   set("s-score","Score "+(risk?.score||"—")+"/100",rc);
   set("s-spx",fi(d.equities?.spx?.price));
   set("s-spxc",fc(d.equities?.spx?.chgPct),col(d.equities?.spx?.chgPct||0));
+  set("s-ndx",fi(d.equities?.ndx?.price));
+  set("s-ndxc",fc(d.equities?.ndx?.chgPct),col(d.equities?.ndx?.chgPct||0));
   set("s-btc",fu(d.crypto?.btcusd?.value));
   set("s-gold",fu(d.commodities?.gold?.value));
   set("s-goldsrc",d.commodities?.gold?.src||"FRED");
@@ -875,10 +877,10 @@ function buildSignal(d){
   if(bar){bar.style.width=sc+"%";bar.style.background=rc}
   const rows=[
     {k:"VIX CBOE",v:fd(d.vix?.value),c:d.vix?.value<20?"#4ade80":"#f87171"},
+    {k:"US 10 ans",v:fp(d.yields?.us10y),c:"#9ca3af"},
     {k:"2s10s",v:(d.yields?.spread2s10s!=null?"+"+Math.round(d.yields.spread2s10s)+" pb":"—"),c:d.yields?.spread2s10s>=0?"#4ade80":"#f87171"},
     {k:"HY Spread",v:fp(d.credit?.hy),c:d.credit?.hy<4?"#4ade80":"#facc15"},
     {k:"NFCI",v:fd(d.research?.nfci?.v),c:d.research?.nfci?.v<0?"#4ade80":"#f87171"},
-    {k:"Or XAU",v:fu(d.commodities?.gold?.value),c:"#facc15"},
     {k:"Cu/Au",v:fd(d.derived?.copperGoldRatio,3),c:d.derived?.copperGoldRatio>0.5?"#4ade80":"#facc15"},
   ];
   const sigEl=document.getElementById("sig-rows");
