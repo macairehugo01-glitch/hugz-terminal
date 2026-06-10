@@ -116,7 +116,7 @@ function schedulePolygonHourly(){
     try{
       const getPrev=async(sym)=>{
         const url=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
-        const d=await fetchJSON(url,{timeout:10000});
+        const d=await fetchJSON(url,{timeout:20000});
         return d?.results?.[0]?.c||null;
       };
       const spyP=await getPrev("SPY"); await sleep(13000);
@@ -136,7 +136,7 @@ function schedulePolygonHourly(){
     // 2. GLD via Polygon /prev
     try{
       const url=`https://api.polygon.io/v2/aggs/ticker/GLD/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
-      const d=await fetchJSON(url,{timeout:10000});
+      const d=await fetchJSON(url,{timeout:20000});
       const c=d?.results?.[0]?.c;
       if(c>150){
         const v=parseFloat((c*10.0).toFixed(2));
@@ -821,7 +821,7 @@ async function goldFn(){
     return cacheSet(k,{...stale,stale:true},TTL.metals);
   }
   console.warn("[GOLD] All sources failed");
-  return cacheSet(k,{value:4330,src:"Estimé*",stale:true},TTL.metals);
+  return cacheSet(k,{value:3300,src:"Estimé*",stale:true},TTL.metals);
 }
 
 async function silverFn(){
@@ -1451,12 +1451,14 @@ function calcRisk(d){
   if(hy!=null){const s=hy<4?1:hy<6?0:hy<8?-1:-2;add(s,`HY ${hy.toFixed(2)}% → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(fg!=null){const s=fg>65?2:fg>45?1:fg>35?-1:-2;add(s,`F&G ${Math.round(fg)} → ${s>0?"Risk-ON":"Risk-OFF"}`);}
   if(dxy!=null){const s=dxy<100?1:dxy<104?0:-1;add(s,`DXY ${dxy.toFixed(2)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
-  if(gold!=null){const s=gold>3500?-2:gold>3000?-1:gold<2000?1:0;add(s,`Or $${Math.round(gold)} → ${s<0?"Risk-OFF":"Neutre"}`);}
+  // Or — seuils ajustés pour 2026 (or structurellement plus haut)
+  if(gold!=null){const s=gold>4000?-2:gold>3500?-1:gold<2500?1:0;add(s,`Or $${Math.round(gold)} → ${s<0?"Risk-OFF":"Neutre"}`);}
   if(copper!=null&&gold!=null&&gold>0&&!cuStale){
     const cg=copper/gold*1000;const s=cg>0.6?1:cg>0.4?0:-1;
     add(s,`Cu/Au ${cg.toFixed(3)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);
   }
-  if(btc!=null){const s=btc>80000?1:btc>50000?0:-1;add(s,`BTC $${Math.round(btc/1000)}k → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
+  // BTC — seuils ajustés pour 2026
+  if(btc!=null){const s=btc>90000?2:btc>65000?1:btc>45000?0:-1;add(s,`BTC $${Math.round(btc/1000)}k → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(cc!=null){const s=cc<2.5?1:cc<3.5?0:-1;add(s,`Délinq. CC ${cc.toFixed(2)}% → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(nfci!=null){const s=nfci<-0.5?1:nfci<0.5?0:-1;add(s,`NFCI ${nfci.toFixed(2)} → ${s>0?"Risk-ON":s===0?"Neutre":"Risk-OFF"}`);}
   if(!sc.length)return null;
@@ -2723,7 +2725,7 @@ app.listen(PORT,async()=>{
   // Fallbacks UNIQUEMENT pour données statiques (FRED) — pas les données live
   // Les données live (BTC, Or, SPX, WTI) seront chargées par bgRefresh immédiatement
   // Données live — remplacées dès que bgRefresh réussit
-  setFallback("gold5",  {value:4330, src:"Estimé*", stale:true});
+  setFallback("gold5",  {value:3300, src:"Estimé*", stale:true});
   setFallback("eq5",    {spx:{price:null,chgPct:null},ndx:{price:null,chgPct:null},dji:{price:null,chgPct:null}});
   setFallback("oil5",   {value:91.0, src:"Estimé*", stale:true});
   setFallback("brent5", {value:94.0, src:"Estimé*", stale:true});
@@ -2751,7 +2753,7 @@ app.listen(PORT,async()=>{
     jolts:{v:6866,d:"2026-03-31"}
   });
   // Données live — remplacées dès que bgRefresh réussit
-  setFallback("gold5",  {value:4330, src:"Estimé*", stale:true});
+  setFallback("gold5",  {value:3300, src:"Estimé*", stale:true});
   setFallback("eq5",    {spx:{price:null,chgPct:null},ndx:{price:null,chgPct:null},dji:{price:null,chgPct:null}});
   setFallback("oil5",   {value:91.0, src:"Estimé*", stale:true});
   setFallback("brent5", {value:94.0, src:"Estimé*", stale:true});
