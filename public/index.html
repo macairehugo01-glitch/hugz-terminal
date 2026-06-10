@@ -449,6 +449,10 @@ body.dark .tab-actif.on{color:#f87171;border-bottom-color:#f87171}
     <div class="sb"><span class="sb-l">US 10 ans</span><span class="sb-v" id="s-10y">—</span><span class="sb-c" id="s-sp">—</span></div>
     <div class="sb"><span class="sb-l">CPI YoY</span><span class="sb-v" id="s-cpi">—</span><span class="sb-c neu" id="s-cpid">FRED</span></div>
     <div class="sb"><span class="sb-l">VIX</span><span class="sb-v" id="s-vix">—</span><span class="sb-c" id="s-vixc">—</span></div>
+    <div class="sb" style="border-right:none;min-width:90px">
+      <span class="sb-l" style="color:#6ee7b7">⏱ Màj données</span>
+      <span class="sb-v" id="s-countdown" style="font-size:13px;color:#6ee7b7">—</span>
+    </div>
   </div>
 </div>
 
@@ -1280,23 +1284,38 @@ async function loadDash(){
   }catch(e){console.warn("[DASH]",e.message);}
 }
 
+function updateCountdown(){
+  const now=new Date();
+  const next=new Date(now);
+  next.setMinutes(0,0,0);
+  next.setHours(next.getHours()+1);
+  const mins=Math.ceil((next-now)/60000);
+  const hStr=next.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const txt=`${hStr} · ${mins}min`;
+  // Stats band
+  const sc=document.getElementById("s-countdown");
+  if(sc) sc.textContent=txt;
+  // Panneau signal sidebar
+  const su=document.getElementById("sig-upd");
+  if(su) su.textContent=`màj ${txt}`;
+}
+
 function init(){
   initDark();
+  updateCountdown(); // afficher immédiatement
+  setInterval(updateCountdown, 60000); // mettre à jour chaque minute
+  // Afficher le minuteur immédiatement dans la barre
+  const now=new Date();
+  const next=new Date(now);next.setMinutes(0,0,0);next.setHours(next.getHours()+1);
+  const mins=Math.ceil((next-now)/60000);
+  const hStr=next.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const el=document.getElementById("tk");
+  if(el)el.innerHTML=`<div class="tick" style="background:rgba(110,231,183,.08);border-right:1px solid rgba(110,231,183,.2)"><span style="font-family:'DM Mono',monospace;font-size:10px;color:#6ee7b7;letter-spacing:.8px;font-weight:600">⏱ ${hStr} · ${mins}min</span></div>`;
   loadArticles();
   loadDash();
   setInterval(loadDash, 5*60*1000);
-// Mettre à jour le countdown chaque minute
+// Rebuild ticker avec nouveau countdown chaque minute
 setInterval(()=>{
-  // Mettre à jour le countdown dans le panneau signal
-  const el=document.getElementById("sig-upd");
-  if(el){
-    const n=new Date();
-    const nx=new Date(n);nx.setMinutes(0,0,0);nx.setHours(nx.getHours()+1);
-    const ml=Math.ceil((nx-n)/60000);
-    const hs=nx.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    el.textContent=`màj ${hs} (dans ${ml}min)`;
-  }
-  // Rebuild ticker avec nouveau countdown
   if(window._lastDashData) buildTicker(window._lastDashData);
 }, 60000);
 }
