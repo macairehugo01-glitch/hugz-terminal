@@ -109,15 +109,45 @@ function schedulePolygonHourly(){
   if(_polyScheduled) return;
   _polyScheduled = true;
   const runPolygon = async () => {
-    console.log("[POLY] 🕐 Refresh horaire...");
-    // Reset le cache Polygon pour forcer le refresh
-    CACHE.delete("eq5");
-    CACHE.delete("gold5");
-    // Lancer les fonctions — elles verront cache vide et appelleront Polygon
-    await safe(()=>equitiesFn());
-    await sleep(20000);
-    await safe(()=>goldFn());
-    await sleep(20000);
+    console.log("[POLY] 🕐 Refresh horaire Polygon...");
+    if(!POLYGON_KEY){ console.warn("[POLY] Pas de clé"); return; }
+
+    // 1. SPY/QQQ/DIA via Polygon /prev
+    try{
+      const getPrev=async(sym)=>{
+        const url=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+        const d=await fetchJSON(url,{timeout:10000});
+        return d?.results?.[0]?.c||null;
+      };
+      const spyP=await getPrev("SPY"); await sleep(13000);
+      const qqqP=await getPrev("QQQ"); await sleep(13000);
+      const diaP=await getPrev("DIA");
+      if(spyP&&qqqP){
+        const spx=Math.round(spyP*10.08);
+        const ndx=Math.round(qqqP*41.3);
+        const dji=diaP?Math.round(diaP*100.8):null;
+        console.log(`[POLY] ✅ SPX:${spx} NDX:${ndx} DJI:${dji}`);
+        cacheSet("eq5",{spx:{price:spx,chgPct:null},ndx:{price:ndx,chgPct:null},dji:{price:dji,chgPct:null}},3600000);
+      }
+    }catch(e){console.warn("[POLY] equities horaire:",e.message?.slice(0,40));}
+
+    await sleep(13000);
+
+    // 2. GLD via Polygon /prev
+    try{
+      const url=`https://api.polygon.io/v2/aggs/ticker/GLD/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+      const d=await fetchJSON(url,{timeout:10000});
+      const c=d?.results?.[0]?.c;
+      if(c>150){
+        const v=parseFloat((c*10.0).toFixed(2));
+        console.log(`[POLY] ✅ GLD: ${v}`);
+        cacheSet("gold5",{value:v,src:"Polygon GLD"},3600000);
+      }
+    }catch(e){console.warn("[POLY] gold horaire:",e.message?.slice(0,40));}
+
+    await sleep(13000);
+
+    // 3. Secteurs grouped/daily
     await safe(()=>allSectors("1M"));
     console.log("[POLY] ✅ Refresh horaire terminé");
   };
@@ -128,11 +158,14 @@ function schedulePolygonHourly(){
   next.setHours(next.getHours() + 1);
   const delay = next.getTime() - now.getTime();
   console.log(`[POLY] Prochain refresh à ${next.toLocaleTimeString('fr-FR')} (dans ${Math.round(delay/60000)}min)`);
-  setTimeout(async () => {
-    await runPolygon();
-    // Ensuite toutes les heures
-    setInterval(runPolygon, 3600000);
-  }, delay);
+  // Lancer immédiatement au démarrage
+  runPolygon().then(()=>{
+    // Puis à chaque heure ronde
+    setTimeout(async()=>{
+      await runPolygon();
+      setInterval(runPolygon, 3600000);
+    }, delay);
+  });
 }
 
 async function bgRefresh(){
