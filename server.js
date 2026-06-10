@@ -1176,13 +1176,18 @@ async function equitiesFn(){
         const dji=diaP?Math.round(diaP*100.8):null; // DIA×100.8≈DJI
         const eqTs=Date.now();
         console.log(`[POLY] SPX:${spx} NDX:${ndx} DJI:${dji}`);
+        // TTL jusqu'à la prochaine heure ronde
+        const nextHour=new Date(eqTs);
+        nextHour.setMinutes(0,0,0);
+        nextHour.setHours(nextHour.getHours()+1);
+        const ttlToNextHour=Math.max(60000, nextHour.getTime()-eqTs);
         return cacheSet(k,{
           spx:{price:spx,chgPct:null},
           ndx:{price:ndx,chgPct:null},
           dji:{price:dji,chgPct:null},
           updatedAt:new Date(eqTs).toISOString(),
-          nextUpdate:new Date(eqTs+3600000).toISOString()
-        },TTL.equity);
+          nextUpdate:nextHour.toISOString()
+        },ttlToNextHour);
       }
     }catch(e){console.warn("[POLY] equities:",e.message?.slice(0,40));}
   }
@@ -1644,6 +1649,19 @@ function parseFrontmatter(content){
 
 // Convertir Markdown basique en HTML (sans dépendance)
 function mdToHtml(md){
+  // Tableaux Markdown — traiter avant les paragraphes
+  md = md.replace(/^(\|.+\|\s*\n)((?:\|[\s:]-+[\s:]\|)+\s*\n)((?:\|.+\|\s*\n?)+)/gm, (match, header, sep, rows) => {
+    const parseRow = (row) => row.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+    const headers = parseRow(header);
+    const body = rows.trim().split('\n').filter(r=>r.trim());
+    const ths = headers.map(h=>`<th>${h}</th>`).join('');
+    const trs = body.map(row=>{
+      const cells = parseRow(row);
+      return `<tr>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`;
+    }).join('');
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  });
+
   return md
     // Titres
     .replace(/^#### (.+)$/gm,"<h4>$1</h4>")
@@ -1658,8 +1676,8 @@ function mdToHtml(md){
     .replace(/`([^`]+)`/g,"<code>$1</code>")
     // Liens
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>')
-    // Images
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img src="$2" alt="$1" loading="lazy">')
+    // Images — sans max-height pour ne pas couper
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img src="$2" alt="$1" loading="lazy" style="max-width:100%;height:auto;display:block;margin:16px auto;border-radius:4px">')
     // Séparateurs
     .replace(/^---$/gm,"<hr>")
     // Blockquotes
@@ -1670,7 +1688,7 @@ function mdToHtml(md){
     // Paragraphes (double saut de ligne)
     .split(/\n\n+/)
     .map(block=>{
-      if(/^<(h[1-4]|blockquote|hr|ul|ol|li|img)/.test(block.trim()))return block;
+      if(/^<(h[1-4]|blockquote|hr|ul|ol|li|img|table)/.test(block.trim()))return block;
       if(block.trim().startsWith("<li>"))return`<ul>${block}</ul>`;
       return block.trim()?`<p>${block.replace(/\n/g,"<br>")}</p>`:"";
     })
