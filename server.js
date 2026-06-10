@@ -119,9 +119,9 @@ function schedulePolygonHourly(){
         const d=await fetchJSON(url,{timeout:20000});
         return d?.results?.[0]?.c||null;
       };
-      const spyP=await getPrev("SPY"); await sleep(13000);
-      const qqqP=await getPrev("QQQ"); await sleep(13000);
-      const diaP=await getPrev("DIA");
+      const spyP=await getPrev("SPY"); await sleep(15000);
+      const qqqP=await getPrev("QQQ"); await sleep(15000);
+      const diaP=await getPrev("DIA"); await sleep(15000);
       if(spyP&&qqqP){
         const spx=Math.round(spyP*10.08);
         const ndx=Math.round(qqqP*41.3);
@@ -197,8 +197,8 @@ async function bgRefresh(){
       }catch(e){console.warn("[CG]",e.message?.slice(0,40));}
     });
 
-    // Équités d'abord (utilise Polygon), puis secteurs après
-    await equitiesFn();
+    // Équités gérées exclusivement par le scheduler Polygon horaire
+    // bgRefresh ne touche pas aux équités pour éviter les 429
     await Promise.allSettled([
       eurusdFn(),
       goldFn(),
