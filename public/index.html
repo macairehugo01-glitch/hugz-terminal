@@ -742,6 +742,14 @@ function catEmoji(cat){return CAT_EMO_NORM[normCat(cat)]||"📊";}
 
 // TICKER
 function buildTicker(d){
+  // Countdown prochain refresh indices
+  let countdownLabel="";
+  if(window._eqUpdatedAt){
+    const remaining=Math.max(0,3600000-(Date.now()-window._eqUpdatedAt));
+    const mins=Math.ceil(remaining/60000);
+    countdownLabel=remaining>60000?`⏱ indices dans ${mins}min`:"⏱ indices récents";
+  }
+
   const items=[
     {n:"S&P 500",v:fi(d.equities?.spx?.price),c:fc(d.equities?.spx?.chgPct),up:(d.equities?.spx?.chgPct||0)>=0},
     {n:"NASDAQ",v:fi(d.equities?.ndx?.price),c:fc(d.equities?.ndx?.chgPct),up:(d.equities?.ndx?.chgPct||0)>=0},
@@ -754,16 +762,17 @@ function buildTicker(d){
     {n:"WTI",v:"$"+fd(d.commodities?.oil?.value),c:"USD/bbl",up:true},
     {n:"BRENT",v:"$"+fd(d.commodities?.brent?.value),c:"USD/bbl",up:true},
     {n:"VIX",v:fd(d.vix?.value),c:d.derived?.vixRegime||"",up:false},
-    // DXY : on affiche le spot depuis Yahoo si dispo, sinon TWI avec note
     {n:"DXY",v:fd(d.dxyProxy?.value),c:"Indice",up:false},
     {n:"US 10A",v:fp(d.yields?.us10y),c:"2s10s "+fc((d.yields?.spread2s10s||0)/100),up:false},
     {n:"EUR/USD",v:fd(d.fx?.eurusd?.value,4),c:"Frankfurter",up:true},
     {n:"HY OAS",v:fp(d.credit?.hy),c:"BAML",up:false},
     {n:"F&G",v:d.sentiment?.value?Math.round(d.sentiment.value)+"/100":"—",c:d.sentiment?.label||"",up:false},
   ];
+  // Ajouter le countdown comme item spécial si disponible
+  const countdownHtml=countdownLabel?`<div class="tick"><span style="font-family:'DM Mono',monospace;font-size:9px;color:#6ee7b7;letter-spacing:.5px;opacity:.85">${countdownLabel}</span></div>`:"";
   const html=items.map(i=>`<div class="tick"><span class="tn">${i.n}</span><span class="tv">${i.v}</span><span class="tc ${i.up?"up":"dn"}">${i.c}</span></div>`).join("");
   const el=document.getElementById("tk");
-  if(el)el.innerHTML=html+html;
+  if(el)el.innerHTML=countdownHtml+html+countdownHtml+html;
 }
 
 // RIBBON MACRO
