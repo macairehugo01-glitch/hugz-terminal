@@ -173,7 +173,18 @@ function schedulePolygonHourly(){
       }
     }catch(e){console.warn("[MKT] gold:",e.message?.slice(0,50));}
 
-    // 3. Secteurs grouped/daily Polygon
+    // 3. WTI et Brent via Yahoo proxy
+    try{
+      const wti = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/CL%3DF?range=1d&interval=1d");
+      const brent = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/BZ%3DF?range=1d&interval=1d");
+      if(wti&&wti>50&&wti<200){
+        console.log(`[MKT] ✅ WTI: $${wti.toFixed(2)} Brent: $${brent?.toFixed(2)||"—"}`);
+        cacheSet("oil5",{value:parseFloat(wti.toFixed(2)),src:"Yahoo CL=F"},3600000);
+        if(brent&&brent>50) cacheSet("brent5",{value:parseFloat(brent.toFixed(2)),src:"Yahoo BZ=F"},3600000);
+      }
+    }catch(e){console.warn("[MKT] WTI:",e.message?.slice(0,50));}
+
+    // 4. Secteurs grouped/daily Polygon
     if(POLYGON_KEY) await safe(()=>allSectors("1M"));
 
     console.log("[MKT] ✅ Refresh horaire terminé");
