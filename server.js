@@ -127,11 +127,16 @@ function schedulePolygonHourly(){
       const ndx = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/%5ENDX?range=1d&interval=1d");
       const dji = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EDJI?range=1d&interval=1d");
       if(spx&&ndx&&!isNaN(spx)){
+        // Calcul variation 1h depuis le cache précédent
+        const prevEq=cacheGetStale("eq5");
+        const spxChg=prevEq?.spx?.price?((spx-prevEq.spx.price)/prevEq.spx.price*100):null;
+        const ndxChg=prevEq?.ndx?.price?((ndx-prevEq.ndx.price)/prevEq.ndx.price*100):null;
+        const djiChg=prevEq?.dji?.price&&dji?((dji-prevEq.dji.price)/prevEq.dji.price*100):null;
         console.log(`[MKT] ✅ SPX:${Math.round(spx)} NDX:${Math.round(ndx)} DJI:${Math.round(dji)}`);
         cacheSet("eq5",{
-          spx:{price:Math.round(spx),chgPct:null},
-          ndx:{price:Math.round(ndx),chgPct:null},
-          dji:{price:Math.round(dji),chgPct:null}
+          spx:{price:Math.round(spx),chgPct:spxChg},
+          ndx:{price:Math.round(ndx),chgPct:ndxChg},
+          dji:{price:Math.round(dji),chgPct:djiChg}
         },3600000);
       } else {
         // Fallback Polygon /prev
@@ -156,8 +161,10 @@ function schedulePolygonHourly(){
     try{
       const gold = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?range=1d&interval=1d");
       if(gold&&gold>2000&&gold<8000){
-        console.log(`[MKT] ✅ Or: $${gold}`);
-        cacheSet("gold5",{value:parseFloat(gold.toFixed(2)),src:"Yahoo GC=F"},3600000);
+        const prevGold=cacheGetStale("gold5");
+        const goldChg=prevGold?.value?((gold-prevGold.value)/prevGold.value*100):null;
+        console.log(`[MKT] ✅ Or: $${gold.toFixed(2)}`);
+        cacheSet("gold5",{value:parseFloat(gold.toFixed(2)),src:"Yahoo GC=F",chgPct:goldChg},3600000);
       } else {
         // Fallback Polygon GLD
         if(POLYGON_KEY){
@@ -178,9 +185,13 @@ function schedulePolygonHourly(){
       const wti = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/CL%3DF?range=1d&interval=1d");
       const brent = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/BZ%3DF?range=1d&interval=1d");
       if(wti&&wti>50&&wti<200){
+        const prevOil=cacheGetStale("oil5");
+        const prevBrent=cacheGetStale("brent5");
+        const wtiChg=prevOil?.value?((wti-prevOil.value)/prevOil.value*100):null;
+        const brentChg=prevBrent?.value&&brent?((brent-prevBrent.value)/prevBrent.value*100):null;
         console.log(`[MKT] ✅ WTI: $${wti.toFixed(2)} Brent: $${brent?.toFixed(2)||"—"}`);
-        cacheSet("oil5",{value:parseFloat(wti.toFixed(2)),src:"Yahoo CL=F"},3600000);
-        if(brent&&brent>50) cacheSet("brent5",{value:parseFloat(brent.toFixed(2)),src:"Yahoo BZ=F"},3600000);
+        cacheSet("oil5",{value:parseFloat(wti.toFixed(2)),src:"Yahoo CL=F",chgPct:wtiChg},3600000);
+        if(brent&&brent>50) cacheSet("brent5",{value:parseFloat(brent.toFixed(2)),src:"Yahoo BZ=F",chgPct:brentChg},3600000);
       }
     }catch(e){console.warn("[MKT] WTI:",e.message?.slice(0,50));}
 
