@@ -122,12 +122,14 @@ function schedulePolygonHourly(){
       const spyP=await getPrev("SPY"); await sleep(15000);
       const qqqP=await getPrev("QQQ"); await sleep(15000);
       const diaP=await getPrev("DIA"); await sleep(15000);
-      if(spyP&&qqqP){
-        const spx=Math.round(spyP*10.08);
-        const ndx=Math.round(qqqP*41.3);
-        const dji=diaP?Math.round(diaP*100.8):null;
-        console.log(`[POLY] ✅ SPX:${spx} NDX:${ndx} DJI:${dji}`);
-        cacheSet("eq5",{spx:{price:spx,chgPct:null},ndx:{price:ndx,chgPct:null},dji:{price:dji,chgPct:null}},3600000);
+      const spxV = spyP ? Math.round(spyP*10.08) : null;
+      const ndxV = qqqP ? Math.round(qqqP*41.3) : null;
+      const djiV = diaP ? Math.round(diaP*100.8) : null;
+      if(spxV&&ndxV&&!isNaN(spxV)&&!isNaN(ndxV)){
+        console.log(`[POLY] ✅ SPX:${spxV} NDX:${ndxV} DJI:${djiV}`);
+        cacheSet("eq5",{spx:{price:spxV,chgPct:null},ndx:{price:ndxV,chgPct:null},dji:{price:djiV,chgPct:null}},3600000);
+      } else {
+        console.warn("[POLY] equities: valeurs nulles/NaN — pas de mise à jour cache");
       }
     }catch(e){console.warn("[POLY] equities horaire:",e.message?.slice(0,40));}
 
