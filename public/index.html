@@ -707,7 +707,7 @@ let D=null, articles=[], curCat='tous';
 // FORMATTERS
 const fp=(v,d=2)=>v==null?"—":`${(+v).toFixed(d)}%`;
 const fd=(v,d=2)=>v==null?"—":(+v).toFixed(d);
-const fi=(v)=>v==null?"—":Math.round(+v).toLocaleString('fr-FR');
+const fi=(v)=>(v==null||isNaN(+v))?"—":Math.round(+v).toLocaleString('fr-FR');
 const fu=(v)=>v==null?"—":`$${Math.round(+v).toLocaleString('fr-FR')}`;
 const fc=(v)=>v==null?"—":(+v>=0?"+":"")+`${(+v).toFixed(2)}%`;
 const fdate=(d)=>{try{return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}catch{return d}};
