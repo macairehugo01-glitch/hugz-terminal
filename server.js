@@ -206,7 +206,6 @@ async function bgRefresh(){
       copperFn(),
       btcDomFn(),
       fngFn(),
-      allSectors(ut),
       commo("CL=F","DCOILWTICO",55,105,"oil5"),
       commo("BZ=F","DCOILBRENTEU",58,110,"brent5"),
       commo("NG=F","DHHNGSP",0.8,12,"natgas5"),
@@ -1585,7 +1584,11 @@ app.get("/api/dashboard",async(req,res)=>{
     const coreCpiAll = g("fa5_CPILFESL") ?? [];
     const pceCpiAll  = g("fa5_PCEPILFE") ?? [];
 
-    const rSectors = await safe(()=>allSectors(ut),[]);
+    // Secteurs depuis cache uniquement — le scheduler Polygon les met à jour 1x/heure
+    const rSectors = ETFS.map(e=>({
+      name: e.n, sym: e.s,
+      value: cacheGetStale(`s5_${e.s}_1M`) ?? null
+    })).filter(s=>s.value!=null);
 
     const us1m=toNum(r1m?.v),us3m=toNum(r3m?.v);
     const us2y=toNum(r2y?.v),us10y=toNum(r10y?.v),us30y=toNum(r30y?.v);
@@ -2609,7 +2612,8 @@ const ST_TTL=4*3600*1000; // 4h
 
 async function fetchStockTwits(sym){
   try{
-    const url=`${ST_PROXY}?sym=${encodeURIComponent(sym)}`;
+    const stUrl=`https://api.stocktwits.com/api/2/streams/symbol/${encodeURIComponent(sym)}.json`;
+    const url=`${ST_PROXY}?url=${encodeURIComponent(stUrl)}`;
     const ac=new AbortController();
     const timer=setTimeout(()=>ac.abort(),10000);
     const res=await fetch(url,{signal:ac.signal,headers:{"User-Agent":"Mozilla/5.0"}});
