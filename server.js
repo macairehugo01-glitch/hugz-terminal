@@ -108,50 +108,75 @@ let _polyScheduled = false;
 function schedulePolygonHourly(){
   if(_polyScheduled) return;
   _polyScheduled = true;
+  const PROXY = process.env.STOCKTWITS_PROXY||"https://billowing-bird-7d55.macairehugo01.workers.dev";
+
+  const proxyFetch = async(yahooUrl) => {
+    const url=`${PROXY}?url=${encodeURIComponent(yahooUrl)}`;
+    const d=await fetchJSON(url,{timeout:15000});
+    return d?.chart?.result?.[0]?.meta?.regularMarketPrice
+        ?? d?.chart?.result?.[0]?.meta?.chartPreviousClose
+        ?? null;
+  };
+
   const runPolygon = async () => {
-    console.log("[POLY] 🕐 Refresh horaire Polygon...");
-    if(!POLYGON_KEY){ console.warn("[POLY] Pas de clé"); return; }
+    console.log("[MKT] 🕐 Refresh horaire marchés...");
 
-    // 1. SPY/QQQ/DIA via Polygon /prev
+    // 1. SPX/NDX/DJI via Yahoo proxy (prix live)
     try{
-      const getPrev=async(sym)=>{
-        const url=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
-        const d=await fetchJSON(url,{timeout:20000});
-        return d?.results?.[0]?.c||null;
-      };
-      const spyP=await getPrev("SPY"); await sleep(15000);
-      const qqqP=await getPrev("QQQ"); await sleep(15000);
-      const diaP=await getPrev("DIA"); await sleep(15000);
-      const spxV = spyP ? Math.round(spyP*10.08) : null;
-      const ndxV = qqqP ? Math.round(qqqP*41.3) : null;
-      const djiV = diaP ? Math.round(diaP*100.8) : null;
-      if(spxV&&ndxV&&!isNaN(spxV)&&!isNaN(ndxV)){
-        console.log(`[POLY] ✅ SPX:${spxV} NDX:${ndxV} DJI:${djiV}`);
-        cacheSet("eq5",{spx:{price:spxV,chgPct:null},ndx:{price:ndxV,chgPct:null},dji:{price:djiV,chgPct:null}},3600000);
+      const spx = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1d");
+      const ndx = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/%5ENDX?range=1d&interval=1d");
+      const dji = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EDJI?range=1d&interval=1d");
+      if(spx&&ndx&&!isNaN(spx)){
+        console.log(`[MKT] ✅ SPX:${Math.round(spx)} NDX:${Math.round(ndx)} DJI:${Math.round(dji)}`);
+        cacheSet("eq5",{
+          spx:{price:Math.round(spx),chgPct:null},
+          ndx:{price:Math.round(ndx),chgPct:null},
+          dji:{price:Math.round(dji),chgPct:null}
+        },3600000);
       } else {
-        console.warn("[POLY] equities: valeurs nulles/NaN — pas de mise à jour cache");
+        // Fallback Polygon /prev
+        if(POLYGON_KEY){
+          const getPrev=async(sym)=>{
+            const u=`https://api.polygon.io/v2/aggs/ticker/${sym}/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+            const d=await fetchJSON(u,{timeout:15000});
+            return d?.results?.[0]?.c||null;
+          };
+          const spyP=await getPrev("SPY"); await sleep(13000);
+          const qqqP=await getPrev("QQQ");
+          if(spyP&&qqqP){
+            const spxV=Math.round(spyP*10.08), ndxV=Math.round(qqqP*41.3);
+            console.log(`[MKT] ✅ Polygon SPX:${spxV} NDX:${ndxV}`);
+            cacheSet("eq5",{spx:{price:spxV,chgPct:null},ndx:{price:ndxV,chgPct:null},dji:{price:null,chgPct:null}},3600000);
+          }
+        }
       }
-    }catch(e){console.warn("[POLY] equities horaire:",e.message?.slice(0,40));}
+    }catch(e){console.warn("[MKT] equities:",e.message?.slice(0,50));}
 
-    await sleep(13000);
-
-    // 2. GLD via Polygon /prev
+    // 2. Or via Yahoo proxy (GC=F)
     try{
-      const url=`https://api.polygon.io/v2/aggs/ticker/GLD/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
-      const d=await fetchJSON(url,{timeout:20000});
-      const c=d?.results?.[0]?.c;
-      if(c>150){
-        const v=parseFloat((c*10.0).toFixed(2));
-        console.log(`[POLY] ✅ GLD: ${v}`);
-        cacheSet("gold5",{value:v,src:"Polygon GLD"},3600000);
+      const gold = await proxyFetch("https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?range=1d&interval=1d");
+      if(gold&&gold>2000&&gold<8000){
+        console.log(`[MKT] ✅ Or: $${gold}`);
+        cacheSet("gold5",{value:parseFloat(gold.toFixed(2)),src:"Yahoo GC=F"},3600000);
+      } else {
+        // Fallback Polygon GLD
+        if(POLYGON_KEY){
+          const u=`https://api.polygon.io/v2/aggs/ticker/GLD/prev?adjusted=true&apiKey=${POLYGON_KEY}`;
+          const d=await fetchJSON(u,{timeout:15000});
+          const c=d?.results?.[0]?.c;
+          if(c>150){
+            const v=parseFloat((c*10.0).toFixed(2));
+            console.log(`[MKT] ✅ Polygon GLD: $${v}`);
+            cacheSet("gold5",{value:v,src:"Polygon GLD"},3600000);
+          }
+        }
       }
-    }catch(e){console.warn("[POLY] gold horaire:",e.message?.slice(0,40));}
+    }catch(e){console.warn("[MKT] gold:",e.message?.slice(0,50));}
 
-    await sleep(13000);
+    // 3. Secteurs grouped/daily Polygon
+    if(POLYGON_KEY) await safe(()=>allSectors("1M"));
 
-    // 3. Secteurs grouped/daily
-    await safe(()=>allSectors("1M"));
-    console.log("[POLY] ✅ Refresh horaire terminé");
+    console.log("[MKT] ✅ Refresh horaire terminé");
   };
   // Calculer le délai jusqu'à la prochaine heure ronde
   const now = new Date();
