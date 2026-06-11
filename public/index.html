@@ -764,8 +764,8 @@ function buildTicker(d){
     {n:"DOW",v:fi(d.equities?.dji?.price),c:fc(d.equities?.dji?.chgPct),up:(d.equities?.dji?.chgPct||0)>=0},
     {n:"BTC",v:fu(d.crypto?.btcusd?.value),c:"Kraken",up:true},
     {n:"ETH",v:fu(d.crypto?.ethusd),c:"Kraken",up:true},
-    {n:"OR XAU",v:fu(d.commodities?.gold?.value),c:d.commodities?.gold?.src||"",up:false},
-    {n:"WTI",v:"$"+fd(d.commodities?.oil?.value),c:"USD/bbl",up:true},
+    {n:"OR XAU",v:fu(d.commodities?.gold?.value),c:d.commodities?.gold?.chgPct!=null?(d.commodities.gold.chgPct>=0?"+":"")+d.commodities.gold.chgPct.toFixed(2)+"%":"GC=F",up:(d.commodities?.gold?.chgPct||0)>=0},
+    {n:"WTI",v:"$"+fd(d.commodities?.oil?.value),c:d.commodities?.oil?.chgPct!=null?(d.commodities.oil.chgPct>=0?"+":"")+d.commodities.oil.chgPct.toFixed(2)+"%":"CL=F",up:(d.commodities?.oil?.chgPct||0)>=0},
     {n:"BRENT",v:"$"+fd(d.commodities?.brent?.value),c:"USD/bbl",up:true},
     {n:"VIX",v:fd(d.vix?.value),c:d.derived?.vixRegime||"",up:false},
     {n:"US 10A",v:fp(d.yields?.us10y),c:"Treasury",up:false},
@@ -838,8 +838,12 @@ function buildStats(d){
   set("s-ndxc",fc(d.equities?.ndx?.chgPct),col(d.equities?.ndx?.chgPct||0));
   set("s-btc",fu(d.crypto?.btcusd?.value));
   set("s-gold",fu(d.commodities?.gold?.value));
-  set("s-goldsrc",d.commodities?.gold?.src||"FRED");
+  const goldChg=d.commodities?.gold?.chgPct;
+  set("s-goldsrc",goldChg!=null?(goldChg>=0?"+":"")+goldChg.toFixed(2)+"% 1h":"—", goldChg!=null?col(goldChg):"#9ca3af");
   set("s-wti","$"+fd(d.commodities?.oil?.value));
+  const wtiChg=d.commodities?.oil?.chgPct;
+  const wtiSrcEl=document.querySelector("#s-wti")?.closest(".sb")?.querySelector(".neu");
+  if(wtiSrcEl&&wtiChg!=null){wtiSrcEl.textContent=(wtiChg>=0?"+":"")+wtiChg.toFixed(2)+"% 1h";wtiSrcEl.style.color=col(wtiChg);}
   set("s-10y",fp(d.yields?.us10y));
   const sp=d.yields?.spread2s10s;
   set("s-sp",sp!=null?"2s10s +"+(Math.round(sp))+"pb":"—",sp>=0?"#4ade80":"#f87171");
@@ -893,8 +897,8 @@ function buildMarkets(d){
     {n:"S&P 500",s:"^GSPC",p:fi(d.equities?.spx?.price),c:fc(d.equities?.spx?.chgPct),up:(d.equities?.spx?.chgPct||0)>=0},
     {n:"NASDAQ 100",s:"^NDX",p:fi(d.equities?.ndx?.price),c:fc(d.equities?.ndx?.chgPct),up:(d.equities?.ndx?.chgPct||0)>=0},
     {n:"Bitcoin",s:"BTC/USD",p:fu(d.crypto?.btcusd?.value),c:"Coinbase",up:true},
-    {n:"Or XAU",s:d.commodities?.gold?.src||"FRED",p:fu(d.commodities?.gold?.value),c:"USD/oz",up:false},
-    {n:"WTI Crude",s:"Yahoo CL=F",p:"$"+fd(d.commodities?.oil?.value),c:"USD/bbl",up:true},
+    {n:"Or XAU",s:"GC=F",p:fu(d.commodities?.gold?.value),c:d.commodities?.gold?.chgPct!=null?(d.commodities.gold.chgPct>=0?"+":"")+d.commodities.gold.chgPct.toFixed(2)+"% 1h":"USD/oz",up:(d.commodities?.gold?.chgPct||0)>=0},
+    {n:"WTI Crude",s:"CL=F",p:"$"+fd(d.commodities?.oil?.value),c:d.commodities?.oil?.chgPct!=null?(d.commodities.oil.chgPct>=0?"+":"")+d.commodities.oil.chgPct.toFixed(2)+"% 1h":"USD/bbl",up:(d.commodities?.oil?.chgPct||0)>=0},
     {n:"US 10 ans",s:"FRED DGS10",p:fp(d.yields?.us10y),c:"2s10s +"+Math.round(d.yields?.spread2s10s||0)+"pb",up:false},
   ];
   const el=document.getElementById("mkt-rows");
