@@ -2758,6 +2758,67 @@ app.post("/api/sentiment/refresh",async(req,res)=>{
 
 // Route journal
 app.get("/journal",(_,res)=>res.sendFile(path.join(__dirname,"public","journal.html")));
+
+/* ═══════════════════════════════════════════
+   TRACKING CLICS — stockage disque /data/clicks.json
+   ═══════════════════════════════════════════ */
+const CLICKS_FILE = path.join(NL_DATA_DIR,"clicks.json");
+let _clicksCache = null;
+
+async function loadClicks(){
+  if(_clicksCache) return _clicksCache;
+  try{
+    const raw = await fsP.readFile(CLICKS_FILE,"utf8");
+    _clicksCache = JSON.parse(raw);
+  }catch{
+    _clicksCache = { events: [], counters: {} };
+  }
+  return _clicksCache;
+}
+
+async function saveClicks(){
+  try{
+    await fsP.mkdir(NL_DATA_DIR,{recursive:true});
+    await fsP.writeFile(CLICKS_FILE, JSON.stringify(_clicksCache));
+  }catch(e){console.warn("[CLICKS] save:",e.message);}
+}
+
+app.post("/api/track",async(req,res)=>{
+  try{
+    const { type, label, slug } = req.body||{};
+    if(!type) return res.json({ok:false});
+    const data = await loadClicks();
+    const key = type + (label?`:${label}`:"") + (slug?`:${slug}`:"");
+    data.counters[key] = (data.counters[key]||0) + 1;
+    data.events.push({ type, label:label||null, slug:slug||null, ts:new Date().toISOString() });
+    // Garder seulement les 5000 derniers événements bruts pour ne pas grossir indéfiniment
+    if(data.events.length > 5000) data.events = data.events.slice(-5000);
+    await saveClicks();
+    res.json({ok:true});
+  }catch(e){
+    console.warn("[CLICKS] track:",e.message);
+    res.json({ok:false});
+  }
+});
+
+app.get("/api/track/stats",async(req,res)=>{
+  const data = await loadClicks();
+  // Tri par compteur décroissant
+  const sorted = Object.entries(data.counters)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([key,count])=>({key,count}));
+  // Stats des 7 derniers jours
+  const weekAgo = Date.now()-7*24*3600*1000;
+  const recent = data.events.filter(e=>new Date(e.ts).getTime()>weekAgo);
+  res.json({
+    totalEvents: data.events.length,
+    counters: sorted,
+    last7Days: recent.length,
+    lastEvents: data.events.slice(-30).reverse()
+  });
+});
+
+
 app.get("/journal/*",(_,res)=>res.sendFile(path.join(__dirname,"public","journal.html")));
 
 app.get("*",(_,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
