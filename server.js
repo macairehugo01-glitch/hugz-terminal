@@ -2803,17 +2803,24 @@ app.post("/api/track",async(req,res)=>{
 
 app.get("/api/track/stats",async(req,res)=>{
   const data = await loadClicks();
-  // Tri par compteur décroissant
-  const sorted = Object.entries(data.counters)
+  // Visites de page (page_visit) séparées des actions
+  const visits = data.events.filter(e=>e.type==="page_visit");
+  const actions = Object.entries(data.counters)
+    .filter(([key])=>!key.startsWith("page_visit"))
     .sort((a,b)=>b[1]-a[1])
     .map(([key,count])=>({key,count}));
-  // Stats des 7 derniers jours
   const weekAgo = Date.now()-7*24*3600*1000;
-  const recent = data.events.filter(e=>new Date(e.ts).getTime()>weekAgo);
+  const monthAgo = Date.now()-30*24*3600*1000;
+  const visits7d = visits.filter(e=>new Date(e.ts).getTime()>weekAgo).length;
+  const visits30d = visits.filter(e=>new Date(e.ts).getTime()>monthAgo).length;
+  const recentAll = data.events.filter(e=>new Date(e.ts).getTime()>weekAgo);
   res.json({
+    totalVisits: visits.length,
+    visitsLast7Days: visits7d,
+    visitsLast30Days: visits30d,
     totalEvents: data.events.length,
-    counters: sorted,
-    last7Days: recent.length,
+    actionsCounters: actions,
+    last7DaysAllEvents: recentAll.length,
     lastEvents: data.events.slice(-30).reverse()
   });
 });
