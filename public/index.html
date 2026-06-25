@@ -1319,6 +1319,7 @@ function updateCountdown(){
 
 function init(){
   initDark();
+  track('page_visit', location.pathname); // visite de page
   updateCountdown(); // afficher immédiatement
   setInterval(updateCountdown, 60000); // mettre à jour chaque minute
   // Afficher le minuteur immédiatement dans la barre
