@@ -3,7 +3,7 @@ title: "Méthodologie & Stratégie : Comment préparer sa semaine sur les crypto
 date: 2026-06-28
 category: Crypto
 tags: [Bitcoin, BTC, ETF, COT, CME, Liquidation, Macro, Géopolitique]
-cover: /articles/images/btc.jpg
+cover: /articles/images/bitcoin.jpg
 excerpt: Découvrez la routine d'analyse en 6 piliers majeurs pour anticiper les mouvements du Bitcoin et cartographier les zones clés de la semaine.
 ---
 
