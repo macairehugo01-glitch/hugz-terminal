@@ -3,7 +3,7 @@ title: "Emploi US en baisse : la Fed ne peut plus ignorer les signaux faibles"
 date: 2026-07-01
 category: Macro
 tags: [USD, Macro, Fed, Employment]
-cover: /articles/images/usa.jpg
+cover: /articles/images/usa.png
 excerpt: "Les créations d'emploi en juin chutent à +98K, bien en deçà des +118K attendus. Un signal d'alerte pour la Fed et un tournant pour les marchés."
 ---
 
