@@ -315,9 +315,10 @@ body.dark .tab-actif.on{color:#f87171;border-bottom-color:#f87171}
 }
 
 @media(max-width:768px){
+  #mobile-cta-bar{display:flex!important}
   /* Base — empêcher tout débordement */
   *{max-width:100%;box-sizing:border-box}
-  body{overflow-x:hidden}
+  body{overflow-x:hidden;padding-bottom:70px!important}
   
   /* Layout principal */
   .main{grid-template-columns:1fr!important;padding:12px!important;gap:16px!important}
@@ -700,6 +701,21 @@ body.dark .tab-actif.on{color:#f87171;border-bottom-color:#f87171}
     <span class="f-legal">© 2026 Hugo Macaire — Données informatives, pas de conseil en investissement</span>
     <span class="f-mono">FRED · Coinbase · Yahoo Finance · Alt.me · Frankfurter</span>
   </div>
+</div>
+
+<!-- BARRE MOBILE BAS — visible uniquement mobile -->
+<div id="mobile-cta-bar" style="
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:8000;
+  background:#0a0c10;border-top:1px solid rgba(201,146,42,.3);
+  padding:10px 16px;gap:10px;align-items:center;
+">
+  <button onclick="track('booking_click','mobile_bar');openBookingCheck()" style="flex:1;background:#c9922a;border:none;color:#0a0c10;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:3px;cursor:pointer">
+    📅 Réserver un appel
+  </button>
+  <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank" onclick="track('raisefx_click','mobile_bar')" style="flex:1;display:block;text-align:center;background:#c0392b;color:white;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:11px;border-radius:3px;text-decoration:none">
+    RaiseFX →
+  </a>
 </div>
 
 <!-- ARTICLE OVERLAY -->
@@ -1142,9 +1158,10 @@ async function openArt(slug){
           <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:var(--ink);margin-bottom:10px">Article réservé aux clients RaiseFX</div>
           <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:24px">Accédez à toutes les analyses actif en ouvrant un compte chez RaiseFX via le lien ci-dessous.</p>
           <a href="https://partners.raisefx.com/visit/?bta=168324&brand=raisefx" target="_blank"
-            style="display:inline-block;background:#c0392b;color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:12px 24px;border-radius:4px;text-decoration:none;margin-bottom:16px;transition:background .2s"
+            onclick="track('raisefx_click','article_paywall')"
+            style="display:inline-block;background:#c0392b;color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;padding:14px 32px;border-radius:4px;text-decoration:none;margin-bottom:16px;transition:background .2s;box-shadow:0 4px 20px rgba(192,57,43,.4)"
             onmouseover="this.style.background='#e74c3c'" onmouseout="this.style.background='#c0392b'">
-            Rejoindre RaiseFX →
+            Ouvrir un compte RaiseFX →
           </a>
           <div style="font-size:11px;color:var(--muted);margin-bottom:20px">Déjà client ? Vérifiez votre accès avec votre email.</div>
           <div style="display:flex;gap:8px;max-width:400px;margin:0 auto">
@@ -1165,7 +1182,14 @@ async function openArt(slug){
     } else {
       ct.innerHTML=articleHeader+`
         <div class="art-body">${a.html}</div>
-        <div style="margin-top:40px;padding-top:22px;border-top:1px solid var(--line);text-align:center">
+        <div style="margin-top:48px;padding:24px;background:linear-gradient(135deg,#1a1f2e,#0f1419);border:1px solid rgba(201,146,42,.3);border-radius:6px;text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#e8b04b;text-transform:uppercase;margin-bottom:8px">📅 Tu veux aller plus loin ?</div>
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:800;color:white;margin-bottom:8px">Réserve un appel avec moi</div>
+          <p style="font-size:13px;color:#9ca3af;margin-bottom:16px">On travaille ton contexte macro et ta stratégie ensemble. Pas des signaux — de la vraie compréhension.</p>
+          <button onclick="closeArt();track('booking_click','article_cta');openBookingCheck()" style="background:#c9922a;border:none;color:#0a0c10;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:11px 28px;border-radius:3px;cursor:pointer;margin-bottom:8px;display:inline-block">Réserver un créneau →</button>
+          <div style="font-size:10px;color:#6b7280;margin-top:4px">Sans engagement · 30 min</div>
+        </div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);text-align:center">
           <button onclick="closeArt()" style="border:1px solid var(--line);color:var(--muted);padding:8px 20px;border-radius:3px;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;font-size:13px">← Retour aux analyses</button>
         </div>`;
     }
@@ -1359,166 +1383,61 @@ loadSentiment();
 setInterval(loadSentiment,15*60*1000);
 </script>
 <!-- ── POPUP EMAIL OBLIGATOIRE ─────────────────────────── -->
-<div id="email-gate" style="
-  position:fixed;inset:0;z-index:9999;
-  background:rgba(10,12,16,.97);
-  display:flex;align-items:center;justify-content:center;
-  backdrop-filter:blur(8px);
+<!-- BANNIÈRE EMAIL DISCRÈTE -->
+<div id="email-banner" style="
+  position:fixed;bottom:0;left:0;right:0;z-index:9999;
+  background:var(--ink2,#161a22);border-top:1px solid rgba(201,146,42,.3);
+  padding:12px 24px;display:flex;align-items:center;gap:16px;
+  transform:translateY(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);
 ">
-  <div style="
-    background:var(--ink2);
-    border:1px solid #2a2e38;
-    border-top:3px solid var(--gold);
-    border-radius:6px;
-    padding:48px 40px;
-    max-width:460px;width:90%;
-    text-align:center;
-    box-shadow:0 24px 80px rgba(0,0,0,.6);
-  ">
-    <!-- Logo -->
-    <div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:white;margin-bottom:4px">Hugo Macaire</div>
-    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--gold2);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px">Analyses Économiques</div>
-
-    <!-- Accroche épurée -->
-    <h2 style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:white;line-height:1.25;margin-bottom:10px">
-      Pour lire les analyses,<br>inscris-toi en un clic.
-    </h2>
-    <p style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:24px">
-      Ton email suffit.
-    </p>
-
-    <!-- Formulaire -->
-    <input
-      id="gate-email"
-      type="email"
-      placeholder="votre@email.com"
-      style="
-        width:100%;background:#0d1117;border:1px solid #2a2e38;
-        color:white;padding:12px 16px;border-radius:4px;
-        font-family:'DM Sans',sans-serif;font-size:16px;
-        margin-bottom:12px;outline:none;
-        transition:border-color .2s;box-sizing:border-box;
-      "
-      onkeydown="if(event.key==='Enter')gateSubmit()"
-      onfocus="this.style.borderColor='var(--gold)'"
-      onblur="this.style.borderColor='#2a2e38'"
-    >
-
-    <!-- D'où venez-vous ? -->
-    <div style="margin-bottom:14px">
-      <label style="display:block;font-size:11px;color:#6b7280;letter-spacing:.5px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:6px">
-        Comment avez-vous découvert ce site ?
-      </label>
-      <select
-        id="gate-source"
-        style="
-          width:100%;background:#0d1117;border:1px solid #2a2e38;
-          color:#e5e7eb;padding:11px 14px;border-radius:4px;
-          font-family:'DM Sans',sans-serif;font-size:13px;
-          outline:none;cursor:pointer;
-          transition:border-color .2s;box-sizing:border-box;
-          appearance:none;-webkit-appearance:none;
-          background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E\");
-          background-repeat:no-repeat;background-position:right 12px center;
-          padding-right:36px;
-        "
-        onfocus="this.style.borderColor='var(--gold)'"
-        onblur="this.style.borderColor='#2a2e38'"
-      >
-        <option value="" disabled selected style="color:#6b7280">Choisissez une option...</option>
-        <option value="Instagram">Instagram</option>
-        <option value="TikTok">TikTok</option>
-        <option value="YouTube">YouTube</option>
-        <option value="Twitter / X">Twitter / X</option>
-        <option value="LinkedIn">LinkedIn</option>
-        <option value="RaiseFX">RaiseFX</option>
-        <option value="Bouche à oreille">Bouche à oreille</option>
-        <option value="Google">Google / Recherche</option>
-        <option value="Autre">Autre</option>
-      </select>
-    </div>
-
-    <div id="gate-error" style="color:#f87171;font-size:12px;margin-bottom:10px;display:none">
-      Veuillez entrer une adresse email valide.
-    </div>
-    <button
-      onclick="gateSubmit()"
-      id="gate-btn"
-      style="
-        width:100%;background:var(--gold);border:none;
-        color:var(--ink);font-family:'DM Sans',sans-serif;
-        font-size:14px;font-weight:700;letter-spacing:.5px;
-        padding:13px;border-radius:4px;cursor:pointer;
-        transition:background .18s;
-      "
-      onmouseover="this.style.background='var(--gold2)'"
-      onmouseout="this.style.background='var(--gold)'"
-    >
-      Accéder aux analyses →
-    </button>
-
-    <div style="margin-top:16px;font-size:11px;color:#4b5563;line-height:1.5">
-      Contenu informatif — pas de conseil en investissement.
-    </div>
+  <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gold2,#e8b04b);letter-spacing:1px;white-space:nowrap">📬 Newsletter hebdo</span>
+  <span style="font-size:12px;color:#9ca3af;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Analyses macro chaque semaine — ton email suffit.</span>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <input id="banner-email" type="email" placeholder="ton@email.com"
+      style="background:#0d1117;border:1px solid #2a2e38;color:white;padding:7px 12px;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:12px;width:190px;outline:none"
+      onfocus="this.style.borderColor='#c9922a'" onblur="this.style.borderColor='#2a2e38'"
+      onkeydown="if(event.key==='Enter')bannerSubmit()">
+    <button onclick="bannerSubmit()" style="background:#c9922a;border:none;color:#0a0c10;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:7px 16px;border-radius:3px;cursor:pointer;white-space:nowrap">S'inscrire →</button>
+    <button onclick="bannerDismiss()" style="background:transparent;border:1px solid #2a2e38;color:#6b7280;font-size:12px;padding:7px 10px;border-radius:3px;cursor:pointer">✕</button>
   </div>
 </div>
 
 <script>
-// ── EMAIL GATE ─────────────────────────────────────────────
 const GATE_KEY="hm_gate_v1";
 
-function gateCheck(){
-  // Si déjà passé (cookie/localStorage), masquer le popup
-  try{
-    if(localStorage.getItem(GATE_KEY)){
-      document.getElementById("email-gate").style.display="none";
-      return true;
-    }
-  }catch{}
-  // Bloquer le scroll
-  document.body.style.overflow="hidden";
-  return false;
+function bannerShow(){
+  setTimeout(()=>{
+    const b=document.getElementById('email-banner');
+    if(b) b.style.transform='translateY(0)';
+  }, 3000); // Apparaît après 3s
 }
 
-async function gateSubmit(){
-  const inp=document.getElementById("gate-email");
-  const sel=document.getElementById("gate-source");
-  const err=document.getElementById("gate-error");
-  const btn=document.getElementById("gate-btn");
-  const email=(inp?.value||"").trim().toLowerCase();
-  const source=sel?.value||"Non renseigné";
+function bannerDismiss(){
+  const b=document.getElementById('email-banner');
+  if(b) b.style.transform='translateY(100%)';
+  try{localStorage.setItem(GATE_KEY,'1');}catch{}
+}
 
-  if(!email||!email.includes("@")||!email.includes(".")){
-    if(err)err.style.display="block";
-    inp?.focus();
-    return;
-  }
-  if(err)err.style.display="none";
-  if(btn){btn.textContent="Enregistrement...";btn.disabled=true;}
-
+async function bannerSubmit(){
+  const inp=document.getElementById('banner-email');
+  const email=(inp?.value||'').trim().toLowerCase();
+  if(!email||!email.includes('@')) return inp?.focus();
   try{
-    await fetch("/api/newsletter",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({email, source})
+    await fetch('/api/newsletter',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email, source:'banner'})
     });
-  }catch(e){console.warn("Newsletter:",e.message);}
-
-  try{localStorage.setItem(GATE_KEY,"1");}catch{}
-
-  const gate=document.getElementById("email-gate");
-  if(gate){
-    gate.style.transition="opacity .4s";
-    gate.style.opacity="0";
-    setTimeout(()=>{
-      gate.style.display="none";
-      document.body.style.overflow="";
-    },400);
-  }
+    track('newsletter_signup','banner');
+  }catch{}
+  try{localStorage.setItem(GATE_KEY,'1');}catch{}
+  bannerDismiss();
 }
 
-// Vérifier au chargement
-gateCheck();
+// Afficher la bannière seulement si pas déjà inscrit
+try{
+  if(!localStorage.getItem(GATE_KEY)) bannerShow();
+}catch{ bannerShow(); }
 </script>
 
 <!-- ── POPUP VÉRIFICATION BOOKING ─────────────────────── -->
