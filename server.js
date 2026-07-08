@@ -2756,7 +2756,11 @@ app.post("/api/sentiment/refresh",async(req,res)=>{
   try{await runStockTwitsSentiment();}catch(e){console.error("[ST]",e.message);}
 });
 
-// Route journal
+// Backup manuel — GET /api/track/backup
+app.get("/api/track/backup",async(req,res)=>{
+  await backupStatsToSheets();
+  res.json({ok:true, message:"Backup envoyé vers Google Sheets"});
+});
 app.get("/journal",(_,res)=>res.sendFile(path.join(__dirname,"public","journal.html")));
 
 /* ═══════════════════════════════════════════
@@ -2829,6 +2833,48 @@ app.get("/api/track/stats",async(req,res)=>{
 app.get("/journal/*",(_,res)=>res.sendFile(path.join(__dirname,"public","journal.html")));
 
 app.get("*",(_,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
+
+// ── Backup stats vers Google Sheets — 1x/jour à 8h ──
+async function backupStatsToSheets(){
+  try{
+    const data = await loadClicks();
+    const weekAgo = Date.now()-7*24*3600*1000;
+    const monthAgo = Date.now()-30*24*3600*1000;
+    const visits = data.events.filter(e=>e.type==="page_visit");
+    const actions = Object.entries(data.counters)
+      .filter(([k])=>!k.startsWith("page_visit"))
+      .map(([key,count])=>({key,count}));
+    const payload = {
+      token: SCRIPT_TOKEN,
+      action: "save_stats",
+      date: new Date().toISOString().slice(0,10),
+      totalVisits: visits.length,
+      visitsLast7Days: visits.filter(e=>new Date(e.ts).getTime()>weekAgo).length,
+      visitsLast30Days: visits.filter(e=>new Date(e.ts).getTime()>monthAgo).length,
+      totalEvents: data.events.length,
+      actionsCounters: actions
+    };
+    await fetch(SCRIPT_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    console.log(`[STATS] ✅ Backup Google Sheets — ${new Date().toLocaleDateString('fr-FR')}`);
+  }catch(e){console.warn("[STATS] Backup échoué:",e.message?.slice(0,60));}
+}
+
+function scheduleStatsBackup(){
+  const now=new Date();
+  const next=new Date(now);
+  next.setHours(8,0,0,0);
+  if(next<=now) next.setDate(next.getDate()+1);
+  const delay=next.getTime()-now.getTime();
+  console.log(`[STATS] Backup programmé → ${next.toLocaleDateString('fr-FR')} 08:00`);
+  setTimeout(()=>{
+    backupStatsToSheets();
+    setInterval(backupStatsToSheets,24*3600*1000);
+  },delay);
+}
 
 app.listen(PORT,async()=>{
   console.log(`◆ TERMINAL MACRO v5.0 — port ${PORT}`);
@@ -2922,6 +2968,7 @@ app.listen(PORT,async()=>{
   });
   // Scheduler Polygon — refresh à chaque heure ronde
   schedulePolygonHourly();
+  scheduleStatsBackup();
   console.log("  Warming up Yahoo crumb...");
   await safe(()=>refreshCrumb());
   console.log(`  Crumb: ${_crumb?_crumb.slice(0,8)+"...":"FAILED"}`);
